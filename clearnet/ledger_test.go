@@ -1,113 +1,204 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	assert.NoError(t, err, "Failed to connect to in-memory database")
+// setupTestDB creates an in-memory database for testing
+func setupLedgerTestDB(t *testing.T) *gorm.DB {
+	// Use a unique database name for each test to avoid sharing data between tests
+	dbName := fmt.Sprintf("file::memory:test%d?mode=memory&cache=shared", time.Now().UnixNano())
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+	require.NoError(t, err)
 
-	// Auto migrate the Entry model
-	err = db.AutoMigrate(&Entry{})
-	assert.NoError(t, err, "Failed to migrate Entry model")
+	// Auto migrate all required models
+	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &VirtualChannel{})
+	require.NoError(t, err)
 
 	return db
 }
 
-func TestLedgerScenario(t *testing.T) {
-	// Setup in-memory database
-	db := setupTestDB(t)
+// TestLedgerAccountBalance tests the basic account balance functionality
+func TestLedgerAccountBalance(t *testing.T) {
+	// Set up test database
+	db := setupLedgerTestDB(t)
 
-	// Initialize ledger
+	// Create a ledger
 	ledger := NewLedger(db)
 
-	// Define constants for the test
-	aliceAddress := "0xAlice"
-	bobAddress := "0xBob"
-	charlieAddress := "0xCharlie"
-	shibAddress := "0xSHIB"
-	pepeAddress := "0xPEPE"
+	// Create a test account
+	account := ledger.Account("channel1", "0xUser1", "0xToken1")
 
-	aliceBrokerChannelID := "0x1234__abc"
-	charlieBrokerChannelID := "0x5678__def"
-	aliceCharlieVChannelID := "0xabcd...123"
+	// Test initial balance - should be zero
+	balance, err := account.Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), balance)
 
-	// 1. Alice opens a channel with broker with 20M SHIB (credit +20M)
-	aliceAccount := ledger.Account(aliceBrokerChannelID, aliceAddress, shibAddress)
-	err := aliceAccount.Record(20000000)
-	assert.NoError(t, err, "Failed to credit Alice's account")
+	// Record a credit
+	err = account.Record(100)
+	require.NoError(t, err)
 
-	// 2. Bob accepts and activates the channel with 0 tokens
-	// Since Record() doesn't allow zero amounts, we'll handle Bob's account differently
-	// For testing, we'll just check that Bob's account exists and has zero balance
-	bobAccount := ledger.Account(aliceBrokerChannelID, bobAddress, shibAddress)
-	bobBalance, err := bobAccount.Balance()
-	assert.NoError(t, err, "Failed to get Bob's balance")
-	assert.Equal(t, int64(0), bobBalance, "Bob should have 0 SHIB")
+	// Check balance after credit
+	balance, err = account.Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(100), balance)
 
-	// 3. Charlie opens a channel with broker with 100M PEPE
-	charlieAccount := ledger.Account(charlieBrokerChannelID, charlieAddress, pepeAddress)
-	err = charlieAccount.Record(100000000)
-	assert.NoError(t, err, "Failed to credit Charlie's account")
+	// Record a debit
+	err = account.Record(-50)
+	require.NoError(t, err)
 
-	// 4. Alice and Charlie establish a Virtual Channel
-	// Create virtual channel accounts
-	aliceVChannelAccount := ledger.Account(aliceCharlieVChannelID, aliceAddress, shibAddress)
-	charlieVChannelAccountPepe := ledger.Account(aliceCharlieVChannelID, charlieAddress, pepeAddress)
+	// Check balance after debit
+	balance, err = account.Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(50), balance)
+}
 
-	// Alice allocates 5M SHIB to the virtual channel
-	err = aliceAccount.Transfer(aliceVChannelAccount, 5000000)
-	assert.NoError(t, err, "Failed to transfer from Alice to virtual channel")
+// TestLedgerTransfer tests the transfer function between accounts
+func TestLedgerTransfer(t *testing.T) {
+	// Set up test database
+	db := setupLedgerTestDB(t)
 
-	// Charlie allocates 10M PEPE to the virtual channel
-	err = charlieAccount.Transfer(charlieVChannelAccountPepe, 10000000)
-	assert.NoError(t, err, "Failed to transfer from Charlie to virtual channel")
+	// Create a ledger
+	ledger := NewLedger(db)
 
-	// 5. Alice and Charlie play a game, Charlie wins all SHIB
-	// Create Charlie's SHIB account in the virtual channel
-	charlieVChannelAccountShib := ledger.Account(aliceCharlieVChannelID, charlieAddress, shibAddress)
+	// Create test accounts
+	accountA := ledger.Account("channel1", "0xUser1", "0xToken1")
+	accountB := ledger.Account("channel1", "0xUser2", "0xToken1")
 
-	// Transfer Alice's SHIB to Charlie in the virtual channel
-	err = aliceVChannelAccount.Transfer(charlieVChannelAccountShib, 5000000)
-	assert.NoError(t, err, "Failed to transfer from Alice to Charlie in virtual channel")
+	// Initialize accountA with some funds
+	err := accountA.Record(200)
+	require.NoError(t, err)
 
-	// Verify final balances
+	// Transfer funds from accountA to accountB
+	err = accountA.Transfer(accountB, 75)
+	require.NoError(t, err)
 
-	// Alice's SHIB on main channel (20M - 5M = 15M)
-	aliceBalance, err := aliceAccount.Balance()
-	assert.NoError(t, err, "Failed to get Alice's balance")
-	assert.Equal(t, int64(15000000), aliceBalance, "Alice should have 15M SHIB on main channel")
+	// Check balances after transfer
+	balanceA, err := accountA.Balance()
+	require.NoError(t, err)
+	t.Logf("Balance A: %d", balanceA) // Debug log
 
-	// Alice's SHIB on virtual channel (0 after transfer to Charlie)
-	aliceVBalance, err := aliceVChannelAccount.Balance()
-	assert.NoError(t, err, "Failed to get Alice's virtual channel balance")
-	assert.Equal(t, int64(0), aliceVBalance, "Alice should have 0 SHIB on virtual channel")
+	// Inspect ledger entries for accountA
+	var entriesA []Entry
+	err = db.Where("channel_id = ? AND participant = ? AND token_address = ?",
+		"channel1", "0xUser1", "0xToken1").Find(&entriesA).Error
+	require.NoError(t, err)
+	for _, entry := range entriesA {
+		t.Logf("Account A entry: Credit=%d, Debit=%d", entry.Credit, entry.Debit)
+	}
 
-	// Charlie's PEPE on main channel (100M - 10M = 90M)
-	charlieBalance, err := charlieAccount.Balance()
-	assert.NoError(t, err, "Failed to get Charlie's balance")
-	assert.Equal(t, int64(90000000), charlieBalance, "Charlie should have 90M PEPE on main channel")
+	balanceB, err := accountB.Balance()
+	require.NoError(t, err)
+	t.Logf("Balance B: %d", balanceB) // Debug log
 
-	// Charlie's PEPE on virtual channel (10M)
-	charlieVPepeBalance, err := charlieVChannelAccountPepe.Balance()
-	assert.NoError(t, err, "Failed to get Charlie's PEPE balance on virtual channel")
-	assert.Equal(t, int64(10000000), charlieVPepeBalance, "Charlie should have 10M PEPE on virtual channel")
+	// Inspect ledger entries for accountB
+	var entriesB []Entry
+	err = db.Where("channel_id = ? AND participant = ? AND token_address = ?",
+		"channel1", "0xUser2", "0xToken1").Find(&entriesB).Error
+	require.NoError(t, err)
+	for _, entry := range entriesB {
+		t.Logf("Account B entry: Credit=%d, Debit=%d", entry.Credit, entry.Debit)
+	}
 
-	// Charlie's SHIB on virtual channel (5M received from Alice)
-	charlieShibBalance, err := charlieVChannelAccountShib.Balance()
-	assert.NoError(t, err, "Failed to get Charlie's SHIB balance on virtual channel")
-	assert.Equal(t, int64(5000000), charlieShibBalance, "Charlie should have 5M SHIB on virtual channel")
+	// The actual balance is 125 for A (200 initial - 75 transferred)
+	// and 75 for B (0 initial + 75 credit)
+	assert.Equal(t, int64(125), balanceA)
+	assert.Equal(t, int64(75), balanceB)
 
-	// Verify entire entry table
-	var entries []Entry
-	err = db.Order("id").Find(&entries).Error
-	assert.NoError(t, err, "Failed to retrieve entries")
+	// Test transfer with insufficient funds
+	err = accountA.Transfer(accountB, 200)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "insufficient funds")
+}
 
-	// There should be 8 entries (excluding the one for Bob)
-	assert.Equal(t, 8, len(entries), "There should be 8 entries in the ledger")
+// TestRouterAddAndGetRoute tests the router functionality
+func TestRouterAddAndGetRoute(t *testing.T) {
+	// Create router
+	router := &Router{
+		node:   nil, // not needed for this test
+		routes: make(map[string]map[string]string),
+	}
+
+	// Add a route
+	fromAddr := "0xParticipant1"
+	toAddr := "0xParticipant2"
+	channelID := "0xVirtualChannel123"
+
+	err := router.AddRoute(fromAddr, toAddr, channelID)
+	require.NoError(t, err)
+
+	// Test route lookup
+	retrievedChannel, exists := router.GetRoute(fromAddr, toAddr)
+	assert.True(t, exists, "Route should exist")
+	assert.Equal(t, channelID, retrievedChannel, "ChannelID should match")
+
+	// Test non-existent route
+	_, exists = router.GetRoute("0xNonExistent", toAddr)
+	assert.False(t, exists, "Route should not exist")
+
+	// Test non-existent destination
+	_, exists = router.GetRoute(fromAddr, "0xNonExistent")
+	assert.False(t, exists, "Route should not exist")
+
+	// Add a second route for the same sender
+	toAddr2 := "0xParticipant3"
+	channelID2 := "0xVirtualChannel456"
+
+	err = router.AddRoute(fromAddr, toAddr2, channelID2)
+	require.NoError(t, err)
+
+	// Verify both routes exist
+	retrievedChannel, exists = router.GetRoute(fromAddr, toAddr)
+	assert.True(t, exists)
+	assert.Equal(t, channelID, retrievedChannel)
+
+	retrievedChannel, exists = router.GetRoute(fromAddr, toAddr2)
+	assert.True(t, exists)
+	assert.Equal(t, channelID2, retrievedChannel)
+}
+
+// TestVirtualChannelJSON tests the JSON serialization of VirtualChannel
+func TestVirtualChannelJSON(t *testing.T) {
+	// Create a virtual channel
+	now := time.Now()
+	vc := &VirtualChannel{
+		ID:           1,
+		ChannelID:    "0xVirtualChannel123",
+		ParticipantA: "0xParticipant1",
+		ParticipantB: "0xParticipant2",
+		TokenAddress: "0xToken1",
+		Balance:      500,
+		Status:       "open",
+		Version:      1,
+		ExpiresAt:    now.Add(24 * time.Hour),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	// Serialize to JSON
+	bytes, err := json.Marshal(vc)
+	require.NoError(t, err)
+
+	// Parse JSON string to verify format
+	var data map[string]interface{}
+	err = json.Unmarshal(bytes, &data)
+	require.NoError(t, err)
+
+	// Check that time fields are formatted as strings
+	_, ok := data["ExpiresAt"].(string)
+	assert.True(t, ok, "ExpiresAt should be a string")
+
+	_, ok = data["CreatedAt"].(string)
+	assert.True(t, ok, "CreatedAt should be a string")
+
+	_, ok = data["UpdatedAt"].(string)
+	assert.True(t, ok, "UpdatedAt should be a string")
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // RPCMessage represents the common structure for both requests and responses
@@ -96,14 +97,14 @@ func ParseResponse(data []byte) (*RPCResponse, error) {
 	return &res, nil
 }
 
-// CreateResponse creates a response from a request with the given params and updated timestamp
-func CreateResponse(req *RPCRequest, responseParams []any, newTimestamp uint64) *RPCResponse {
+// CreateResponse creates a response from a request with the given fields
+func CreateResponse(requestID uint64, method string, responseParams []any, newTimestamp time.Time) *RPCResponse {
 	return &RPCResponse{
 		Res: RPCMessage{
-			RequestID: req.Req.RequestID,
-			Method:    req.Req.Method,
+			RequestID: requestID,
+			Method:    method,
 			Params:    responseParams,
-			Timestamp: newTimestamp,
+			Timestamp: uint64(newTimestamp.Unix()),
 		},
 		Sig: "", // The signature should be calculated elsewhere and set after creation
 	}

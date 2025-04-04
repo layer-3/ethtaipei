@@ -30,8 +30,10 @@ type AuthResponse struct {
 // Global services
 var (
 	channelService *ChannelService
-	rpcService     *RPCService
 	ledger         *Ledger
+	router         *Router
+	messageRouter  RouterInterface // For handling message routing between participants
+	centrifugeNode *centrifuge.Node
 )
 
 // setupDatabase initializes the database connection and performs migrations
@@ -43,7 +45,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 	}
 
 	// Auto migrate the models
-	err = db.AutoMigrate(&Entry{}, &RPCState{}, &Channel{})
+	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &VirtualChannel{})
 	if err != nil {
 		return nil, err
 	}
@@ -58,19 +60,19 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Initialize services
-	channelService = NewChannelService(db)
-	rpcService = NewRPCService(db)
-	ledger = NewLedger(db)
-
 	// Initialize Centrifuge node
-	node, err := centrifuge.New(centrifuge.Config{})
+	centrifugeNode, err = centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Set up event handlers
-	node.OnConnect(func(client *centrifuge.Client) {
+	// Initialize services
+	channelService = NewChannelService(db)
+	ledger = NewLedger(db)
+	router = NewRouter(centrifugeNode)
+	messageRouter = NewRouter(centrifugeNode) // For virtual channel message routing
+
+	centrifugeNode.OnConnect(func(client *centrifuge.Client) {
 		transportName := client.Transport().Name()
 		transportProto := client.Transport().Protocol()
 		log.Printf("Client connected via %s (%s)", transportName, transportProto)
@@ -94,11 +96,11 @@ func main() {
 	})
 
 	// Run node
-	if err := node.Run(); err != nil {
+	if err := centrifugeNode.Run(); err != nil {
 		log.Fatal(err)
 	}
 
-	unifiedWSHandler := NewUnifiedWSHandler(node, channelService, rpcService, ledger)
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	stop := make(chan os.Signal, 1)
@@ -116,9 +118,8 @@ func main() {
 	<-stop
 	log.Println("Shutting down...")
 
-	// Perform cleanup
 	unifiedWSHandler.CloseAllConnections()
-	node.Shutdown(context.Background())
+	centrifugeNode.Shutdown(context.Background())
 
 	log.Println("Server stopped")
 }

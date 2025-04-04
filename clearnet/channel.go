@@ -11,8 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Channel represents a state channel between participants
-type Channel struct {
+// DBChannel represents a state channel between participants
+type DBChannel struct {
 	ID           uint      `gorm:"primaryKey"`
 	ChannelID    string    `gorm:"column:channel_id;type:char(64);uniqueIndex;not null"`
 	ParticipantA string    `gorm:"column:participant_a;type:char(42);not null"`
@@ -25,7 +25,7 @@ type Channel struct {
 }
 
 // ToNitroChannel converts the channel to a nitrolite.Channel
-func (c *Channel) ToNitroChannel() (*nitrolite.Channel, error) {
+func (c *DBChannel) ToNitroChannel() (*nitrolite.Channel, error) {
 	participantA := common.HexToAddress(c.ParticipantA)
 	participantB := common.HexToAddress(c.ParticipantB)
 	adjudicator := common.HexToAddress(c.Adjudicator)
@@ -39,7 +39,7 @@ func (c *Channel) ToNitroChannel() (*nitrolite.Channel, error) {
 }
 
 // FromNitroChannel updates the channel from a nitrolite.Channel
-func (c *Channel) FromNitroChannel(nc *nitrolite.Channel, channelID string, tokenAddress string) {
+func (c *DBChannel) FromNitroChannel(nc *nitrolite.Channel, channelID string, tokenAddress string) {
 	c.ChannelID = channelID
 	c.ParticipantA = nc.Participants[0].Hex()
 	c.ParticipantB = nc.Participants[1].Hex()
@@ -50,7 +50,7 @@ func (c *Channel) FromNitroChannel(nc *nitrolite.Channel, channelID string, toke
 }
 
 // TableName specifies the table name for the Channel model
-func (Channel) TableName() string {
+func (DBChannel) TableName() string {
 	return "channels"
 }
 
@@ -66,18 +66,23 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 	}
 }
 
+// TEMP hardcoded broker address
+const BrokerAddress = "0x6B175474E89094C44Da98b954EedeAC495271d0F" // Hardcoded broker address
+
 // GetOrCreateChannel gets an existing channel or creates a new one
-func (s *ChannelService) GetOrCreateChannel(channelID, participantA, participantB, tokenAddress string) (*Channel, error) {
-	var channel Channel
+// For real channels, participantB is always the broker application
+func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddress string) (*DBChannel, error) {
+	var channel DBChannel
 	result := s.db.Where("channel_id = ?", channelID).First(&channel)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			// Channel not found, create a new one
-			channel = Channel{
+			// Always use the broker address for participantB in real channels
+			channel = DBChannel{
 				ChannelID:    channelID,
 				ParticipantA: participantA,
-				ParticipantB: participantB,
+				ParticipantB: BrokerAddress, // Always use broker address for real channels
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
 			}
@@ -102,8 +107,8 @@ func (s *ChannelService) GetOrCreateChannel(channelID, participantA, participant
 }
 
 // GetChannelByID retrieves a channel by its ID
-func (s *ChannelService) GetChannelByID(channelID string) (*Channel, error) {
-	var channel Channel
+func (s *ChannelService) GetChannelByID(channelID string) (*DBChannel, error) {
+	var channel DBChannel
 	if err := s.db.Where("channel_id = ?", channelID).First(&channel).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // Channel not found
