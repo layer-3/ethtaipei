@@ -69,7 +69,7 @@ export function useChannelOpen() {
             );
 
             WalletStore.openChannel(tokenAddress as Address, amount);
-        } catch (error) {
+        } catch (_error) {
             WalletStore.setChannelOpen(false);
         }
     }, []);

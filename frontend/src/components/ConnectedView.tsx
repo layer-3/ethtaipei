@@ -19,8 +19,8 @@ interface ConnectedViewProps {
 export function ConnectedView({
     status,
     keyPair,
-    isConnected,
-    wsChannel,
+    _isConnected,
+    _wsChannel,
     onGenerateKeys,
     onConnect,
     onDisconnect,

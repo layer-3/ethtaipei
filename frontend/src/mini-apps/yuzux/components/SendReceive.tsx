@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import AppStore from '@/store/AppStore';
 import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
 

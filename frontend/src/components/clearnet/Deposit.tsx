@@ -4,7 +4,6 @@ import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChannelOpen } from '@/hooks/channel/useChannelOpen';
 import { useSnapshot } from 'valtio';
-import WalletStore from '@/store/WalletStore';
 import Image from 'next/image';
 import NitroliteStore from '@/store/NitroliteStore';
 
@@ -15,7 +14,6 @@ interface DepositProps {
 
 export default function Deposit({ isOpen, onClose }: DepositProps) {
     const [value, setValue] = useState<string>('0');
-    const walletSnapshot = useSnapshot(WalletStore.state);
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
 
     // Reset value when component opens

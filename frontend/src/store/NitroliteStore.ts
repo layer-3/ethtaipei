@@ -1,5 +1,5 @@
 import { Message } from '@/types';
-import { AppLogic, ChannelContext, NitroliteClient, Signature, Channel as NitroliteChannel } from '@erc7824/nitrolite';
+import { AppLogic, ChannelContext, NitroliteClient, Signature } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
 
@@ -55,7 +55,7 @@ const NitroliteStore = {
         }
     },
 
-    getChannelContext(channelId: string): ChannelContext | null {
+    getChannelContext(_channelId: string): ChannelContext | null {
         return state.channelContext;
     },
 

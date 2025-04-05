@@ -100,9 +100,9 @@ export function YuzuxApp() {
               strokeLinecap="round" 
               strokeLinejoin="round"
             >
-              <polyline points="8 12 12 16 16 12"></polyline>
-              <line x1="12" y1="4" x2="12" y2="16"></line>
-              <line x1="4" y1="20" x2="20" y2="20"></line>
+              <polyline points="8 12 12 16 16 12" />
+              <line x1="12" y1="4" x2="12" y2="16" />
+              <line x1="4" y1="20" x2="20" y2="20" />
             </svg>
             Receive
           </button>
@@ -119,9 +119,9 @@ export function YuzuxApp() {
               strokeLinecap="round" 
               strokeLinejoin="round"
             >
-              <polyline points="16 12 12 8 8 12"></polyline>
-              <line x1="12" y1="20" x2="12" y2="8"></line>
-              <line x1="4" y1="4" x2="20" y2="4"></line>
+              <polyline points="16 12 12 8 8 12" />
+              <line x1="12" y1="20" x2="12" y2="8" />
+              <line x1="4" y1="4" x2="20" y2="4" />
             </svg>
             Send
           </button>

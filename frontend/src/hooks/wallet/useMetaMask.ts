@@ -12,7 +12,7 @@ export const disconnectWallet = async () => {
     // Note: MetaMask doesn't have a direct method to disconnect via the provider API
     // The best practice is to clear the local state
     WalletStore.disconnect();
-    
+
     // Remove persisted connection
     if (typeof window !== 'undefined') {
         localStorage.removeItem(WALLET_CONNECTION_KEY);
@@ -44,19 +44,22 @@ export function useMetaMask() {
             if (window.ethereum && !walletSnap.connected) {
                 try {
                     const savedConnection = localStorage.getItem(WALLET_CONNECTION_KEY);
+
                     if (savedConnection === 'true') {
                         // Get current accounts without showing the MetaMask popup
-                        const accounts = await window.ethereum.request({ 
-                            method: 'eth_accounts' // Uses eth_accounts instead of eth_requestAccounts to avoid popup
+                        const accounts = await window.ethereum.request({
+                            method: 'eth_accounts', // Uses eth_accounts instead of eth_requestAccounts to avoid popup
                         });
-                        
-                        if (accounts.length > 0) {
+
+                        // @ts-ignore
+                        if (accounts?.length > 0) {
                             const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+                            // @ts-ignore
                             const chainId = parseInt(chainIdHex, 16);
-                            
+
                             // Update store
                             WalletStore.connect(accounts[0] as Address, chainId);
-                            
+
                             // Check if we need to switch networks
                             if (settingsSnap.activeChain && settingsSnap.activeChain.id !== chainId) {
                                 await switchNetwork(settingsSnap.activeChain.id);
@@ -68,7 +71,7 @@ export function useMetaMask() {
                 }
             }
         };
-        
+
         reconnectWallet();
     }, [settingsSnap.activeChain]);
 
@@ -87,7 +90,7 @@ export function useMetaMask() {
 
             // Update store
             WalletStore.connect(accounts[0] as Address, chainId);
-            
+
             // Save connection state to localStorage
             localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
 
