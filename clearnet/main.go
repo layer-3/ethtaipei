@@ -211,11 +211,16 @@ func main() {
 		log.Printf("Error getting webhook secret: %v", err)
 	}
 	if webhookSecret == "" {
-		log.Println("Warning: WEBHOOK_SECRET environment variable not set, using insecure empty secret")
+		log.Println("WARNING: WEBHOOK_SECRET environment variable not set, using insecure empty secret")
+		log.Println("In production environments, you should always set a secure WEBHOOK_SECRET")
+	} else {
+		log.Println("Webhook secret configured successfully")
 	}
 
+	log.Printf("Initializing webhook handler with broker address: %s", BrokerAddress)
 	webhookHandler := NewEventHandler(webhookSecret, ledger, channelService, BrokerAddress, blockchainClient)
 	http.Handle("/webhook", webhookHandler)
+	log.Printf("Webhook handler registered at /webhook endpoint")
 
 	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
