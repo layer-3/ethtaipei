@@ -1,13 +1,5 @@
-import { Message } from '@/types';
-import {
-    AppLogic,
-    ChannelContext,
-    NitroliteClient,
-    Signature,
-    // Channel as NitroliteChannel,
-    Channel,
-    State,
-} from '@erc7824/nitrolite';
+import { WalletSigner } from '@/websocket';
+import { AppLogic, ChannelContext, NitroliteClient, Signature, Channel, State } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
 
@@ -25,14 +17,17 @@ type NitroliteChannelStatus =
 export interface IWalletState {
     client: NitroliteClient;
 
-    channelContext: ChannelContext<Message> | null;
+    channelContext: ChannelContext<bigint> | null;
     status: NitroliteChannelStatus;
+
+    stateSigner: WalletSigner | null;
 }
 
 const state = proxy<IWalletState>({
     client: null,
     channelContext: null,
     status: 'none',
+    stateSigner: null,
 });
 
 const NitroliteStore = {
@@ -47,20 +42,29 @@ const NitroliteStore = {
         return true;
     },
 
-    setChannelContext(channel: Channel, nitroState: State, app: AppLogic<Message>): ChannelContext {
+    setChannelContext(channel: Channel, nitroState: State, app: AppLogic<bigint>): ChannelContext {
         try {
             if (!state.client) {
                 throw new Error('Nitrolite client not initialized');
             }
 
-            const channelContext = new ChannelContext<Message>(state.client, channel, nitroState, app);
+            const channelContext = new ChannelContext<bigint>(state.client, channel, nitroState, app);
 
             state.channelContext = channelContext;
-            return channel;
+            return channelContext;
         } catch (error) {
             console.error('Failed to set channel context:', error);
             throw error;
         }
+    },
+
+    setStateSigner(signer: WalletSigner) {
+        if (!signer) {
+            console.error('Attempted to set null or undefined state signer');
+            return;
+        }
+
+        state.stateSigner = signer;
     },
 
     getChannelContext(channelId: string): ChannelContext | null {
@@ -96,7 +100,6 @@ const NitroliteStore = {
             }
 
             state.status = 'open_pending';
-            
             await state.channelContext.create();
             state.status = 'opened';
 
@@ -110,7 +113,7 @@ const NitroliteStore = {
 
     async closeChannel(
         channelId: string,
-        appState: Message,
+        appState: bigint,
         token: Address,
         allocations: [bigint, bigint],
         signatures: Signature[] = [],

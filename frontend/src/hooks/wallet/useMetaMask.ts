@@ -5,6 +5,7 @@ import SettingsStore from '@/store/SettingsStore';
 import { Address } from 'viem';
 import { generateKeyPair, createEthersSigner, createWebSocketClient } from '@/websocket';
 import APP_CONFIG from '@/config/app';
+import { NitroliteStore } from '@/store';
 
 // Storage key for wallet connection
 const WALLET_CONNECTION_KEY = 'wallet_connection';
@@ -75,6 +76,8 @@ export function useMetaMask() {
 
             // Create a signer with the private key
             const signer = createEthersSigner(keyPair.privateKey);
+
+            NitroliteStore.setStateSigner(signer);
 
             // Create and connect WebSocket client
             const wsUrl = APP_CONFIG.WEBSOCKET.URL;
