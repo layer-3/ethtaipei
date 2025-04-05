@@ -11,6 +11,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// WebSocketHandler defines the methods that must be implemented by a WebSocket handler
+type WebSocketHandler interface {
+	BroadcastMessage(message interface{})
+}
+
 // UnifiedWSHandler manages WebSocket connections with authentication
 // and subsequent communication.
 type UnifiedWSHandler struct {
@@ -126,7 +131,11 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Error reading message: %v", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket unexpected close error: %v", err)
+			} else {
+				log.Printf("Error reading message: %v", err)
+			}
 			break
 		}
 
@@ -160,6 +169,14 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			Sig: regularMsg.Sig,
 		}
 
+		// Validate the signature for the message
+		reqBytes, err := json.Marshal(regularMsg.Req)
+		if err != nil {
+			log.Printf("Error serializing request for validation: %v", err)
+			sendErrorResponse(uint64(requestID), method, conn, "Error validating signature")
+			continue
+		}
+
 		var rpcResponse *RPCResponse
 		var handlerErr error
 
@@ -174,7 +191,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 		// TODO: this will be triggered automatically when we receive an event from Blockchain.
 		case "CreateChannel":
-			rpcResponse, handlerErr = HandleCreateChannel(&rpcRequest, h.channelService, h.ledger)
+			rpcResponse, handlerErr = HandleCreateChannel(address, &rpcRequest, h.channelService, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling CreateChannel: %v", handlerErr)
 				sendErrorResponse(uint64(requestID), method, conn, "Failed to create direct channel: "+handlerErr.Error())
@@ -189,8 +206,40 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
+		case "ListOpenParticipants":
+			rpcResponse, handlerErr = HandleListOpenParticipants(&rpcRequest, h.channelService, h.ledger)
+			if handlerErr != nil {
+				log.Printf("Error handling HandleListOpenParticipants: %v", handlerErr)
+				sendErrorResponse(uint64(requestID), method, conn, "Failed to list available channels: "+handlerErr.Error())
+				continue
+			}
+
+		// TODO: this will be triggered automatically when we receive an event from Blockchain.
+		case "CloseChannel":
+			rpcResponse, handlerErr = HandleCloseChannel(&rpcRequest, h.ledger, h.messageRouter)
+			if handlerErr != nil {
+				log.Printf("Error handling CloseChannel: %v", handlerErr)
+				sendErrorResponse(uint64(requestID), method, conn, "Failed to close channel: "+handlerErr.Error())
+				continue
+			}
+
+		case "SendPublicMessage":
+			rpcResponse, handlerErr = HandleSendPublicMessage(address, &rpcRequest, h.ledger, h)
+			if handlerErr != nil {
+				log.Printf("Error handling SendPublicMessage: %v", handlerErr)
+				sendErrorResponse(uint64(requestID), method, conn, "Failed to send public message: "+handlerErr.Error())
+				continue
+			}
+
 		case "SendMessage":
-			// --- NEW: Parse the SendMessageRequest to extract recipient.
+			// Validate the signature
+			isValid, err := ValidateSignature(reqBytes, regularMsg.Sig, address)
+			if err != nil || !isValid {
+				log.Printf("Signature validation failed: %v, valid: %v", err, isValid)
+				sendErrorResponse(uint64(requestID), method, conn, "Invalid signature")
+				continue
+			}
+
 			var sendReq SendMessageRequest
 			if args, ok := regularMsg.Req[2].([]interface{}); ok && len(args) > 0 {
 				argBytes, err := json.Marshal(args[0])
@@ -236,7 +285,17 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 					Sig: "broker-signature", // Standard signature placeholder
 				}
 				msg, _ := json.Marshal(incomingRPC)
-				recipientConn.WriteMessage(websocket.TextMessage, msg)
+
+				// Use NextWriter for safer message delivery
+				w, err := recipientConn.NextWriter(websocket.TextMessage)
+				if err != nil {
+					log.Printf("Error getting writer for forwarded message: %v", err)
+				} else {
+					if _, err := w.Write(msg); err != nil {
+						log.Printf("Error writing forwarded message: %v", err)
+					}
+					w.Close()
+				}
 			} else {
 				log.Printf("Recipient %s not connected, cannot forward message", sendTo)
 			}
@@ -250,7 +309,24 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// For methods other than SendMessage, send back the RPC response.
 		rpcResponse.Sig = "server-signature"
 		wsResponseData, _ := json.Marshal(rpcResponse)
-		conn.WriteMessage(websocket.TextMessage, wsResponseData)
+
+		// Use NextWriter for safer message delivery
+		w, err := conn.NextWriter(websocket.TextMessage)
+		if err != nil {
+			log.Printf("Error getting writer for response: %v", err)
+			continue
+		}
+
+		if _, err := w.Write(wsResponseData); err != nil {
+			log.Printf("Error writing response: %v", err)
+			w.Close()
+			continue
+		}
+
+		if err := w.Close(); err != nil {
+			log.Printf("Error closing writer for response: %v", err)
+			continue
+		}
 	}
 }
 
@@ -264,9 +340,111 @@ func sendErrorResponse(requestID uint64, method string, conn *websocket.Conn, er
 		log.Printf("Error marshaling error response: %v", err)
 		return
 	}
-	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
-		log.Printf("Error sending error response: %v", err)
+
+	// Set a short write deadline to prevent blocking on unresponsive clients
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+
+	// Use NextWriter for safer message delivery
+	w, err := conn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		log.Printf("Error getting writer for error response: %v", err)
+		return
 	}
+
+	if _, err := w.Write(responseData); err != nil {
+		log.Printf("Error writing error response: %v", err)
+		w.Close()
+		return
+	}
+
+	if err := w.Close(); err != nil {
+		log.Printf("Error closing writer for error response: %v", err)
+	}
+
+	// Reset the write deadline
+	conn.SetWriteDeadline(time.Time{})
+}
+
+// BroadcastMessage sends a message to all connected clients
+// This is done in a non-blocking way to avoid hanging the handler
+func (h *UnifiedWSHandler) BroadcastMessage(message interface{}) {
+	log.Printf("Broadcasting message: %+v", message)
+
+	// Create a copy of the connections to avoid holding the lock for too long
+	h.connectionsMu.RLock()
+	connections := make(map[string]*websocket.Conn, len(h.connections))
+	for id, conn := range h.connections {
+		connections[id] = conn
+	}
+	numConnections := len(connections)
+	h.connectionsMu.RUnlock()
+
+	log.Printf("Number of connected clients: %d", numConnections)
+
+	// Broadcast in a separate goroutine to avoid blocking the handler
+	go func() {
+		timestamp := uint64(time.Now().Unix())
+		requestID := uint64(time.Now().UnixNano())
+
+		// Send the message to each connected client
+		for userID, conn := range connections {
+			// Launch a separate goroutine for each connection to avoid blocking if one client is slow
+			go func(userID string, conn *websocket.Conn) {
+				log.Printf("Broadcasting to user: %s", userID)
+
+				// Format the message with the expected wrapper structure
+				msgWrapper := map[string]interface{}{
+					"channelId": "broadcast",
+					"sender":    "broker",
+					"data":      message,
+				}
+
+				// Create a broadcast message in the format expected by the client
+				broadcastResp := RPCResponse{
+					Res: RPCMessage{
+						RequestID: requestID,
+						Method:    "IncomingMessage", // Use the same format as direct messages for consistency
+						Params:    []any{msgWrapper},
+						Timestamp: timestamp,
+					},
+					Sig: "broker-signature", // Standard signature placeholder
+				}
+
+				// Serialize the message
+				msgBytes, err := json.Marshal(broadcastResp)
+				if err != nil {
+					log.Printf("Error marshaling broadcast message for %s: %v", userID, err)
+					return
+				}
+
+				// Set a very short deadline to avoid blocking
+				conn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
+				defer conn.SetWriteDeadline(time.Time{})
+
+				// Use NextWriter to ensure proper message framing
+				w, err := conn.NextWriter(websocket.TextMessage)
+				if err != nil {
+					log.Printf("Error getting writer for %s: %v", userID, err)
+					return
+				}
+
+				if _, err := w.Write(msgBytes); err != nil {
+					log.Printf("Error writing broadcast to %s: %v", userID, err)
+					w.Close()
+					return
+				}
+
+				if err := w.Close(); err != nil {
+					log.Printf("Error closing writer for %s: %v", userID, err)
+					return
+				}
+
+				log.Printf("Successfully sent broadcast to %s", userID)
+			}(userID, conn)
+		}
+
+		log.Printf("Broadcast message sent to %d participants", numConnections)
+	}()
 }
 
 func (h *UnifiedWSHandler) CloseAllConnections() {

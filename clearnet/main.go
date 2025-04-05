@@ -45,7 +45,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 	}
 
 	// Auto migrate the models
-	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &VirtualChannel{})
+	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{})
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,6 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Initialize Centrifuge node
 	centrifugeNode, err = centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		log.Fatal(err)
@@ -70,7 +69,7 @@ func main() {
 	channelService = NewChannelService(db)
 	ledger = NewLedger(db)
 	router = NewRouter(centrifugeNode)
-	messageRouter = NewRouter(centrifugeNode) // For virtual channel message routing
+	messageRouter = NewRouter(centrifugeNode)
 
 	centrifugeNode.OnConnect(func(client *centrifuge.Client) {
 		transportName := client.Transport().Name()
@@ -106,7 +105,6 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	// Start the server in a goroutine
 	go func() {
 		log.Printf("Starting server, visit http://localhost:8000")
 		if err := http.ListenAndServe(":8000", nil); err != nil {
@@ -114,7 +112,6 @@ func main() {
 		}
 	}()
 
-	// Wait for signal
 	<-stop
 	log.Println("Shutting down...")
 

@@ -233,8 +233,8 @@ func (r *Router) ForwardMessage(from, to string, message []byte, channelID ...st
 	return nil
 }
 
-// VirtualChannel represents a virtual payment channel between participants
-type VirtualChannel struct {
+// DBVirtualChannel represents a virtual payment channel between participants
+type DBVirtualChannel struct {
 	ID           uint      `gorm:"primaryKey"`
 	ChannelID    string    `gorm:"column:channel_id;type:char(64);not null;uniqueIndex"`
 	ParticipantA string    `gorm:"column:participant_a;type:char(42);not null"`
@@ -249,13 +249,13 @@ type VirtualChannel struct {
 }
 
 // TableName specifies the table name for the VirtualChannel model
-func (VirtualChannel) TableName() string {
+func (DBVirtualChannel) TableName() string {
 	return "virtual_channels"
 }
 
 // MarshalJSON provides custom JSON serialization for VirtualChannel
-func (vc *VirtualChannel) MarshalJSON() ([]byte, error) {
-	type Alias VirtualChannel
+func (vc *DBVirtualChannel) MarshalJSON() ([]byte, error) {
+	type Alias DBVirtualChannel
 	return json.Marshal(&struct {
 		*Alias
 		ExpiresAt string `json:"expiresAt"`
