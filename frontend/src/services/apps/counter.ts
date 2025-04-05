@@ -1,36 +1,28 @@
 import APP_CONFIG from '@/config/app';
-import { Message } from '@/types';
 import { AppLogic, Channel, State } from '@erc7824/nitrolite';
 import { Address, encodeAbiParameters, Hex, decodeAbiParameters } from 'viem';
 
 /**
- * CounterApp: A simple state channel application that implements a counter
- * 
+ * AdjudicatorA: A simple state channel application that implements a counter
+ *
  * This application demonstrates the basic concepts of implementing a custom
  * state channel application using the Nitrolite SDK. The counter can be
  * incremented, decremented, or reset, and demonstrates custom validation logic.
  */
-export class CounterApp implements AppLogic<Message> {
+export class AdjudicatorA implements AppLogic<bigint> {
     /**
      * Encode application state to bytes for on-chain use
      * @param data The application state to encode
      * @returns Hex-encoded data
      */
-    public encode(data: Message): Hex {
+    public encode(data: bigint): Hex {
         return encodeAbiParameters(
             [
                 {
-                    name: 'counter',
                     type: 'uint256',
-                    internalType: 'uint256',
                 },
-                {
-                    name: 'sequence',
-                    type: 'uint256',
-                    internalType: 'uint256',
-                }
             ],
-            [BigInt(data.text || '0'), BigInt(data.sequence || '0')],
+            [data],
         );
     }
 
@@ -39,28 +31,17 @@ export class CounterApp implements AppLogic<Message> {
      * @param encoded The encoded state
      * @returns Decoded application state
      */
-    public decode(encoded: Hex): Message {
-        const [counter, sequence] = decodeAbiParameters(
+    public decode(encoded: Hex): bigint {
+        const [type] = decodeAbiParameters(
             [
                 {
-                    name: 'counter',
                     type: 'uint256',
-                    internalType: 'uint256',
                 },
-                {
-                    name: 'sequence',
-                    type: 'uint256',
-                    internalType: 'uint256',
-                }
             ],
             encoded,
         );
 
-        return {
-            text: counter.toString(),
-            type: 'system',
-            sequence: sequence.toString(),
-        };
+        return type;
     }
 
     /**
@@ -70,24 +51,8 @@ export class CounterApp implements AppLogic<Message> {
      * @param nextState New application state
      * @returns Whether the transition is valid
      */
-    public validateTransition(_channel: Channel, prevState: Message, nextState: Message): boolean {
-        // State transitions must have increasing sequence numbers
-        const prevSequence = BigInt(prevState.sequence || '0');
-        const nextSequence = BigInt(nextState.sequence || '0');
-        
-        if (nextSequence <= prevSequence) {
-            return false;
-        }
-        
-        // Counter can increment, decrement, or reset to 0
-        const prevValue = BigInt(prevState.text || '0');
-        const nextValue = BigInt(nextState.text || '0');
-        
-        return (
-            nextValue === prevValue + BigInt(1) || // Increment
-            nextValue === prevValue - BigInt(1) || // Decrement
-            nextValue === BigInt(0)                // Reset
-        );
+    public validateTransition(_channel: Channel, prevState: bigint, nextState: bigint): boolean {
+        return nextState > prevState;
     }
 
     /**
@@ -97,7 +62,7 @@ export class CounterApp implements AppLogic<Message> {
      * @param _previousStates Previous states
      * @returns Array of proof states
      */
-    public provideProofs(_channel: Channel, _state: Message, _previousStates: State[]): State[] {
+    public provideProofs(_channel: Channel, _state: bigint, _previousStates: State[]): State[] {
         // No additional proofs needed for this simple application
         return [];
     }
@@ -107,9 +72,9 @@ export class CounterApp implements AppLogic<Message> {
      * @param state The application state to check
      * @returns Whether the state is final
      */
-    public isFinal(state: Message): boolean {
+    public isFinal(state: bigint): boolean {
         // The application is considered final when counter is 0
-        return state.text === '0';
+        return state === BigInt(7879);
     }
 
     /**
@@ -126,6 +91,6 @@ export class CounterApp implements AppLogic<Message> {
      * @returns Adjudicator type string
      */
     public getAdjudicatorType(): string {
-        return 'counter';
+        return 'micropayments';
     }
 }

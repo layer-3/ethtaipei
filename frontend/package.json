@@ -13,7 +13,7 @@
         "prettier": "prettier --write ."
     },
     "dependencies": {
-        "@erc7824/nitrolite": "0.0.12-alpha",
+        "@erc7824/nitrolite": "0.0.13-alpha",
         "@eslint/compat": "1.2.8",
         "@worldcoin/mini-apps-ui-kit-react": "^0.0.8",
         "@worldcoin/minikit-js": "^1.8.0",

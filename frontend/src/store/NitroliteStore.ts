@@ -1,5 +1,13 @@
 import { Message } from '@/types';
-import { AppLogic, ChannelContext, NitroliteClient, Signature } from '@erc7824/nitrolite';
+import {
+    AppLogic,
+    ChannelContext,
+    NitroliteClient,
+    Signature,
+    Channel as NitroliteChannel,
+    Channel,
+    State,
+} from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
 
@@ -39,15 +47,15 @@ const NitroliteStore = {
         return true;
     },
 
-    setChannelContext(guest: Address, app: AppLogic<Message>): ChannelContext {
+    setChannelContext(channel: Channel, nitroState: State, app: AppLogic<Message>): ChannelContext {
         try {
             if (!state.client) {
                 throw new Error('Nitrolite client not initialized');
             }
 
-            const channel = new ChannelContext<Message>(state.client, guest, app);
+            const channelContext = new ChannelContext<Message>(state.client, channel, nitroState, app);
 
-            state.channelContext = channel;
+            state.channelContext = channelContext;
             return channel;
         } catch (error) {
             console.error('Failed to set channel context:', error);
@@ -55,7 +63,7 @@ const NitroliteStore = {
         }
     },
 
-    getChannelContext(_channelId: string): ChannelContext | null {
+    getChannelContext(channelId: string): ChannelContext | null {
         return state.channelContext;
     },
 
@@ -79,13 +87,7 @@ const NitroliteStore = {
         }
     },
 
-    async openChannel(
-        channelId: string,
-        appState: Message,
-        token: Address,
-        allocations: [bigint, bigint],
-        signatures: Signature[] = [],
-    ) {
+    async createChannel(channelId: string) {
         const previousStatus = state.status;
 
         try {
@@ -94,7 +96,7 @@ const NitroliteStore = {
             }
 
             state.status = 'open_pending';
-            await state.channelContext.open(appState, token, allocations, signatures);
+            await state.channelContext.create();
             state.status = 'opened';
 
             return true;

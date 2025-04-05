@@ -2,7 +2,7 @@
 
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useChannelOpen } from '@/hooks/channel/useChannelOpen';
+import { useChannelCreate } from '@/hooks/channel/useChannelCreate';
 import { useSnapshot } from 'valtio';
 import Image from 'next/image';
 import NitroliteStore from '@/store/NitroliteStore';
@@ -42,12 +42,12 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         }
     }, []);
 
-    const { handleOpenChannel } = useChannelOpen();
+    const { handleCreateChannel } = useChannelCreate();
 
     const onOpenChannel = useCallback(() => {
         // TODO: remove hardcode
-        handleOpenChannel('0xe7f1725e7734ce288f8367e1bb143e90bb3f0512', String(+value));
-    }, [handleOpenChannel, value]);
+        handleCreateChannel('0xe7f1725e7734ce288f8367e1bb143e90bb3f0512', String(+value));
+    }, [handleCreateChannel, value]);
 
     const defaultComponent = useMemo(() => {
         return (
