@@ -41,7 +41,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
             />
 
             <div
-                className={`fixed inset-0 z-10 flex flex-col bg-gray-900 overflow-hidden transition-transform duration-300 ease-in-out transform ${
+                className={`fixed inset-0 z-10 flex flex-col bg-black overflow-hidden transition-transform duration-300 ease-in-out transform ${
                     animationState === 'entering'
                         ? 'translate-x-full'
                         : animationState === 'entered'
@@ -50,8 +50,8 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                             ? 'translate-x-full'
                             : 'translate-x-full'
                 }`}>
-                <div className="flex items-center p-4 border-b border-gray-800">
-                    <button onClick={handleClose} className="mr-4 text-gray-300 hover:text-white">
+                <div className="flex items-center p-4 border-b border-white">
+                    <button onClick={handleClose} className="mr-4 text-white hover:text-gray-200">
                         <svg
                             width="24"
                             height="24"
@@ -69,24 +69,24 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
 
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="space-y-6 max-w-md mx-auto">
-                        <div className="rounded-lg border border-gray-700 p-4">
-                            <label className="block text-sm font-normal text-gray-300 mb-2">Recipient Address</label>
+                        <div className="rounded-lg border border-white p-4">
+                            <label className="block text-sm font-normal text-white mb-2">Recipient Address</label>
                             <input
                                 type="text"
                                 placeholder="0x..."
-                                className="block w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                className="block w-full px-3 py-3 bg-black border border-white rounded-md text-white shadow-sm focus:outline-none focus:ring-white focus:border-white"
                             />
                         </div>
 
-                        <div className="rounded-lg border border-gray-700 p-4">
-                            <label className="block text-sm font-normal text-gray-300 mb-2">Amount</label>
+                        <div className="rounded-lg border border-white p-4">
+                            <label className="block text-sm font-normal text-white mb-2">Amount</label>
                             <div className="flex rounded-md shadow-sm">
                                 <input
                                     type="number"
                                     placeholder="0.0"
-                                    className="block w-full flex-1 px-3 py-3 bg-gray-800 border border-gray-700 rounded-l-md text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    className="block w-full flex-1 px-3 py-3 bg-black border border-white rounded-l-md text-white focus:outline-none focus:ring-white focus:border-white"
                                 />
-                                <span className="inline-flex items-center px-4 py-3 border border-l-0 border-gray-700 bg-gray-800 text-gray-300 rounded-r-md">
+                                <span className="inline-flex items-center px-4 py-3 border border-l-0 border-white bg-black text-white rounded-r-md">
                                     YUZU
                                 </span>
                             </div>
@@ -94,8 +94,8 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-gray-800">
-                    <button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-md hover:from-blue-600 hover:to-purple-700 transition-colors text-lg font-normal">
+                <div className="p-4 border-t border-white">
+                    <button className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
                         Send
                     </button>
                 </div>
@@ -144,7 +144,7 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
             />
 
             <div
-                className={`fixed inset-0 z-10 flex flex-col bg-gray-900 overflow-hidden transition-transform duration-300 ease-in-out transform ${
+                className={`fixed inset-0 z-10 flex flex-col bg-black overflow-hidden transition-transform duration-300 ease-in-out transform ${
                     animationState === 'entering'
                         ? 'translate-x-full'
                         : animationState === 'entered'
@@ -153,8 +153,8 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
                             ? 'translate-x-full'
                             : 'translate-x-full'
                 }`}>
-                <div className="flex items-center p-4 border-b border-gray-800">
-                    <button onClick={handleClose} className="mr-4 text-gray-300 hover:text-white">
+                <div className="flex items-center p-4 border-b border-white">
+                    <button onClick={handleClose} className="mr-4 text-white hover:text-gray-200">
                         <svg
                             width="24"
                             height="24"
@@ -173,25 +173,25 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
                 <div className="flex-1 overflow-y-auto">
                     <div className="p-6 space-y-8 flex flex-col items-center justify-center h-full">
                         {walletSnap.address && (
-                            <div className="p-6 border-4 border-gray-700 rounded-lg mx-auto">
+                            <div className="p-6 border-4 border-white rounded-lg mx-auto">
                                 {/* This is a placeholder for a QR code */}
-                                <div className="w-64 h-64 bg-gray-800 flex items-center justify-center">
-                                    <span className="text-gray-400">QR Code</span>
+                                <div className="w-64 h-64 bg-black border border-white flex items-center justify-center">
+                                    <span className="text-white">QR Code</span>
                                 </div>
                             </div>
                         )}
 
                         <div className="text-center w-full max-w-md">
-                            <h3 className="font-normal text-gray-300 mb-2">Your Address</h3>
-                            <div className="bg-gray-800 px-4 py-3 rounded-lg">
-                                <p className="font-mono text-sm break-all text-gray-300">
+                            <h3 className="font-normal text-white mb-2">Your Address</h3>
+                            <div className="bg-black border border-white px-4 py-3 rounded-lg">
+                                <p className="font-mono text-sm break-all text-white">
                                     {walletSnap.address || 'Not connected'}
                                 </p>
                             </div>
 
-                            <button className="mt-6 inline-flex items-center px-6 py-3 border border-gray-700 rounded-md shadow-sm text-sm font-normal text-gray-300 bg-gray-800 hover:bg-gray-700 focus:outline-none">
+                            <button className="mt-6 inline-flex items-center px-6 py-3 border border-white rounded-md shadow-sm text-sm font-normal text-black bg-white hover:bg-gray-200 focus:outline-none">
                                 <svg
-                                    className="-ml-1 mr-2 h-5 w-5 text-gray-400"
+                                    className="-ml-1 mr-2 h-5 w-5 text-black"
                                     xmlns="http://www.w3.org/2000/svg"
                                     viewBox="0 0 20 20"
                                     fill="currentColor"

@@ -41,7 +41,7 @@ export const MetaMaskConnectButton: React.FC = () => {
             onClick={connectWallet}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary">
             <Image src="/metamask.svg" alt="Metamask" width={24} height={24} />
-            <span className="text-black font-semibold">MetaMask</span>
+            <span className="text-black font-normal">MetaMask</span>
         </button>
     );
 };

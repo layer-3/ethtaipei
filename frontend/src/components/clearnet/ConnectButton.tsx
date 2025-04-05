@@ -35,7 +35,7 @@ export const ConnectButton: React.FC = () => {
         <button
             onClick={connectWallet}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary">
-            <span className="text-black font-semibold">Login</span>
+            <span className="text-black font-normal">Login</span>
         </button>
     );
 };
