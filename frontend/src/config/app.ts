@@ -9,7 +9,7 @@ import { Address } from 'viem';
 export const APP_CONFIG = {
     // WebSocket configuration for real-time communication
     WEBSOCKET: {
-        URL: 'ws://localhost:8000/ws',
+        URL: 'https://ethtaipei-production.up.railway.app/ws',
     },
 
     // Channel configuration
@@ -31,5 +31,7 @@ export const APP_CONFIG = {
         flag: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
     },
 };
+
+export const DEFAULT_ADDRESS = 'TST';
 
 export default APP_CONFIG;

@@ -6,6 +6,8 @@ import { useChannelCreate } from '@/hooks/channel/useChannelCreate';
 import { useSnapshot } from 'valtio';
 import Image from 'next/image';
 import NitroliteStore from '@/store/NitroliteStore';
+import { AssetsStore } from '@/store';
+import { DEFAULT_ADDRESS } from '@/config/app';
 
 interface DepositProps {
     isOpen: boolean;
@@ -14,7 +16,12 @@ interface DepositProps {
 
 export default function Deposit({ isOpen, onClose }: DepositProps) {
     const [value, setValue] = useState<string>('0');
+    const { balances } = useSnapshot(AssetsStore.state);
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
+
+    const yuzuBalance = useMemo(() => {
+        return balances?.find((asset) => asset.symbol === DEFAULT_ADDRESS);
+    }, [balances]);
 
     // Reset value when component opens
     useEffect(() => {
@@ -59,6 +66,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                     </div>
                 </div>
 
+                <span>
+                    Available: {yuzuBalance?.balance} {yuzuBalance?.symbol}
+                </span>
                 <button
                     disabled={!+value}
                     onClick={onOpenChannel}
