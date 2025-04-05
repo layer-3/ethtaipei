@@ -62,7 +62,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <button
                     disabled={!+value}
                     onClick={onOpenChannel}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-medium mb-8">
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
                     Confirm
                 </button>
 
@@ -140,7 +140,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                             />
                         </svg>
                     </button>
-                    <h1 className="text-black text-sm uppercase tracking-wider font-medium">Open Account</h1>
+                    <h1 className="text-black text-sm uppercase tracking-wider font-normal">Open Account</h1>
                     <div className="w-8" />
                 </div>
 

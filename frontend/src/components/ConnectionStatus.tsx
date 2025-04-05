@@ -40,38 +40,34 @@ export function ConnectionStatus({
                     <button
                         onClick={onConnect}
                         disabled={status !== 'disconnected' || !keyPair}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    >
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed">
                         Connect
                     </button>
 
                     <button
                         onClick={onDisconnect}
                         disabled={status === 'disconnected'}
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    >
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed">
                         Disconnect
                     </button>
                 </div>
             </div>
 
             <div className="border-t border-gray-700 pt-4">
-                <h3 className="text-sm font-medium text-gray-400 mb-2">Authentication</h3>
+                <h3 className="text-sm font-normal text-gray-400 mb-2">Authentication</h3>
 
                 <div className="space-y-3">
                     <button
                         onClick={onGenerateKeys}
                         disabled={isGeneratingKeys}
-                        className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded"
-                    >
+                        className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-normal py-2 px-4 rounded">
                         {isGeneratingKeys ? (
                             <>
                                 <svg
                                     className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
-                                    viewBox="0 0 24 24"
-                                >
+                                    viewBox="0 0 24 24">
                                     <circle
                                         className="opacity-25"
                                         cx="12"
@@ -95,8 +91,7 @@ export function ConnectionStatus({
                                     className="h-5 w-5 mr-2"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
+                                    stroke="currentColor">
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -113,7 +108,7 @@ export function ConnectionStatus({
                         <>
                             {keyPair.address && (
                                 <div className="space-y-1">
-                                    <label className="flex items-center text-xs font-medium text-gray-400">
+                                    <label className="flex items-center text-xs font-normal text-gray-400">
                                         Ethereum Address
                                         <span className="ml-2 px-2 py-0.5 text-xs bg-green-900 text-green-300 rounded-full">
                                             Saved
@@ -126,14 +121,14 @@ export function ConnectionStatus({
                             )}
 
                             <div className="space-y-1 mt-2">
-                                <label className="block text-xs font-medium text-gray-400">Public Key</label>
+                                <label className="block text-xs font-normal text-gray-400">Public Key</label>
                                 <div className="p-2 bg-gray-900 rounded text-xs text-gray-300 font-mono break-all overflow-x-auto">
                                     {shortenString(keyPair.publicKey, 20)}
                                 </div>
                             </div>
 
                             <div className="space-y-1 mt-2">
-                                <label className="block text-xs font-medium text-gray-400">Private Key</label>
+                                <label className="block text-xs font-normal text-gray-400">Private Key</label>
                                 <div className="p-2 bg-gray-900 rounded text-xs text-gray-300 font-mono break-all overflow-x-auto">
                                     {shortenString(keyPair.privateKey, 20)}
                                 </div>
@@ -142,15 +137,13 @@ export function ConnectionStatus({
                             {onClearKeys && (
                                 <button
                                     onClick={onClearKeys}
-                                    className="w-full flex items-center justify-center bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded mt-4"
-                                >
+                                    className="w-full flex items-center justify-center bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-normal py-2 px-4 rounded mt-4">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="h-5 w-5 mr-2"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
+                                        stroke="currentColor">
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"

@@ -54,7 +54,7 @@ export function MinimizedApps() {
                         height={20}
                         className="w-5 h-5"
                     />
-                    <span className="text-black text-sm font-medium">{getAppLabel(appName)}</span>
+                    <span className="text-black text-sm font-normal">{getAppLabel(appName)}</span>
                 </button>
             ))}
         </div>

@@ -48,7 +48,7 @@ export default function Connect() {
                         {(walletSnap.connected || walletSnap.privyConnected) && (
                             <button
                                 onClick={handleOpenDeposit}
-                                className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-medium">
+                                className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
                                 Deposit
                             </button>
                         )}
@@ -69,7 +69,7 @@ export default function Connect() {
 
                         <button
                             onClick={handleOpenYuzux}
-                            className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover transition-all font-medium transform hover:scale-105 duration-200">
+                            className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover transition-all font-normal transform hover:scale-105 duration-200">
                             Open App
                         </button>
                     </div>
