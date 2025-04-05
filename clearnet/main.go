@@ -105,17 +105,6 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 	return custodyClient, nil
 }
 
-// registerHandlers sets up HTTP endpoints for webhook and WebSocket connections.
-func registerHandlers(custodyPOLYGON, custodyCELO *CustodyClientWrapper) *UnifiedWSHandler {
-	// Initialize the webhook handler without a secret.
-	webhookHandler := NewEventHandler(ledger, channelService, BrokerAddress, custodyPOLYGON, custodyCELO)
-	http.Handle("/webhook", webhookHandler)
-
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter)
-	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
-	return unifiedWSHandler
-}
-
 // startHTTPServer starts the HTTP server in a separate goroutine.
 func startHTTPServer() {
 	go func() {
@@ -154,15 +143,18 @@ func main() {
 	log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 
 	// Initialize blockchain clients.
-	custodyPOLYGON, custodyCELO := initBlockchainClients(privateKeyHex)
+	custodyPOLYGON, custodyCELO, custodyBASE := initBlockchainClients(privateKeyHex)
 
 	// Start the Centrifuge node.
 	if err := centrifugeNode.Run(); err != nil {
 		log.Fatal(err)
 	}
 
-	// Register HTTP handlers.
-	unifiedWSHandler := registerHandlers(custodyPOLYGON, custodyCELO)
+	webhookHandler := NewEventHandler(ledger, channelService, BrokerAddress, custodyPOLYGON, custodyCELO, custodyBASE)
+	http.Handle("/webhook", webhookHandler)
+
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter)
+	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Start the HTTP server.
 	startHTTPServer()
@@ -180,7 +172,7 @@ func main() {
 
 // TODO: define config in a proper flexible way, do not hardcode networks as envs.
 // initBlockchainClients initializes blockchain clients for Polygon and Celo.
-func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO *CustodyClientWrapper) {
+func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO, custodyBASE *CustodyClientWrapper) {
 	polInfuraURL := os.Getenv("POLYGON_INFURA_URL")
 	if polInfuraURL == "" {
 		log.Println("POLYGON_INFURA_URL environment variable is required")
@@ -207,6 +199,21 @@ func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO *C
 	}
 
 	custodyCELO, err = setupBlockchainClient(privateKeyHex, celoInfuraURL, celoCustodyAddress, "42220")
+	if err != nil {
+		log.Println("Warning: Failed to initialize Celo blockchain client: %v", err)
+	}
+
+	baseInfuraURL := os.Getenv("BASE_INFURA_URL")
+	if celoInfuraURL == "" {
+		log.Println("BASE_INFURA_URL environment variable is required")
+	}
+
+	baseCustodyAddress := os.Getenv("BASE_CUSTODY_CONTRACT_ADDRESS")
+	if celoCustodyAddress == "" {
+		log.Println("BASE_CUSTODY_CONTRACT_ADDRESS environment variable is required")
+	}
+
+	custodyBASE, err = setupBlockchainClient(privateKeyHex, baseInfuraURL, baseCustodyAddress, "8453")
 	if err != nil {
 		log.Println("Warning: Failed to initialize Celo blockchain client: %v", err)
 	}
