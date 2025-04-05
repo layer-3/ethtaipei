@@ -1,4 +1,4 @@
-import { TAsset } from '@/store/AssetsStore';
+import { TAsset, TBalance } from '@/store/AssetsStore';
 import balanceCheckerAbi from '@/abi/balance.checker.abi.json';
 import { Address, Chain, createPublicClient, erc20Abi, formatUnits, http } from 'viem';
 
