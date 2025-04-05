@@ -75,13 +75,13 @@ func (m RPCMessage) MarshalJSON() ([]byte, error) {
 // RPCRequest represents a request in the RPC protocol
 type RPCRequest struct {
 	Req RPCMessage `json:"req"`
-	Sig string     `json:"sig"`
+	Sig []string   `json:"sig"`
 }
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
 	Res RPCMessage `json:"res"`
-	Sig string     `json:"sig"`
+	Sig []string   `json:"sig"`
 }
 
 // ParseRequest parses a JSON string into a RPCRequest
@@ -111,7 +111,7 @@ func CreateResponse(requestID uint64, method string, responseParams []any, newTi
 			Params:    responseParams,
 			Timestamp: uint64(newTimestamp.Unix()),
 		},
-		Sig: "", // The signature should be calculated elsewhere and set after creation
+		Sig: []string{},
 	}
 }
 
@@ -142,16 +142,4 @@ func ValidateSignature(message []byte, signature string, address string) (bool, 
 	}
 
 	return isValid, nil
-}
-
-// ValidateRequestSignature validates the signature of an RPC request
-// It extracts the request data and verifies the signature against the provided address
-func ValidateRequestSignature(req *RPCRequest, address string) (bool, error) {
-	// Marshal the request content to verify against the signature
-	reqBytes, err := json.Marshal(req.Req)
-	if err != nil {
-		return false, fmt.Errorf("error serializing request: %w", err)
-	}
-
-	return ValidateSignature(reqBytes, req.Sig, address)
 }

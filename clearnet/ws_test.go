@@ -68,7 +68,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: "dummy-signature",
+		Sig: []string{"dummy-signature"},
 	}
 
 	// Call HandleSendMessage directly to verify proxy behavior
@@ -93,7 +93,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 			}},
 			Timestamp: 67890, // Dummy timestamp for testing
 		},
-		Sig: "broker-signature",
+		Sig: []string{"broker-signature"},
 	}
 
 	// Marshal to JSON to verify the structure
@@ -107,7 +107,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 
 	// Verify the message follows the expected RPC format
 	assert.Equal(t, "IncomingMessage", parsedRPC.Res.Method)
-	assert.Equal(t, "broker-signature", parsedRPC.Sig)
+	assert.Equal(t, "broker-signature", parsedRPC.Sig[0])
 
 	// Verify the message parameters
 	params, ok := parsedRPC.Res.Params[0].(map[string]interface{})

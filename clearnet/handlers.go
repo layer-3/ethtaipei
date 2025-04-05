@@ -43,9 +43,8 @@ type VirtualChannel struct {
 
 // CloseChannelParams represents parameters needed for virtual channel closure
 type CloseChannelParams struct {
-	ChannelID    string            `json:"channelId"`
-	TokenAddress string            `json:"token_address"`
-	Allocations  []FinalAllocation `json:"allocations"`
+	ChannelID   string            `json:"channelId"`
+	Allocations []FinalAllocation `json:"allocations"`
 }
 
 // FinalAllocation represents the final allocation for a participant when closing a channel
@@ -447,7 +446,6 @@ func HandleCloseChannel(req *RPCRequest, ledger *Ledger, router RouterInterface)
 	// Extract parameters
 	var params CloseChannelParams
 	params.ChannelID, _ = rawParams["channelId"].(string)
-	params.TokenAddress, _ = rawParams["token_address"].(string)
 
 	// Handle allocations
 	allocationsRaw, ok := rawParams["allocations"].([]interface{})
@@ -501,8 +499,8 @@ func HandleCloseChannel(req *RPCRequest, ledger *Ledger, router RouterInterface)
 	log.Printf("Parsed allocations: %+v", params.Allocations)
 
 	// Validate required parameters
-	if params.ChannelID == "" || params.TokenAddress == "" {
-		return nil, errors.New("missing required parameters: channelId or tokenAddress")
+	if params.ChannelID == "" {
+		return nil, errors.New("missing required parameters: channelId")
 	}
 
 	if len(params.Allocations) == 0 {
@@ -539,13 +537,13 @@ func HandleCloseChannel(req *RPCRequest, ledger *Ledger, router RouterInterface)
 		}
 
 		// 4. Get current balances in the virtual channel
-		accountA := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantA, params.TokenAddress)
+		accountA := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantA, virtualChannel.TokenAddress)
 		balanceA, err := accountA.Balance()
 		if err != nil {
 			return fmt.Errorf("failed to check participant A balance: %w", err)
 		}
 
-		accountB := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantB, params.TokenAddress)
+		accountB := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantB, virtualChannel.TokenAddress)
 		balanceB, err := accountB.Balance()
 		if err != nil {
 			return fmt.Errorf("failed to check participant B balance: %w", err)
@@ -604,8 +602,8 @@ func HandleCloseChannel(req *RPCRequest, ledger *Ledger, router RouterInterface)
 			}
 
 			// Get source and destination accounts
-			fromAccount := ledgerTx.Account(virtualChannel.ChannelID, allocation.Participant, params.TokenAddress)
-			toAccount := ledgerTx.Account(directChannel.ChannelID, allocation.Participant, params.TokenAddress)
+			fromAccount := ledgerTx.Account(virtualChannel.ChannelID, allocation.Participant, virtualChannel.TokenAddress)
+			toAccount := ledgerTx.Account(directChannel.ChannelID, allocation.Participant, virtualChannel.TokenAddress)
 
 			// Check if participant has enough funds in the virtual channel
 			participantBalance, err := fromAccount.Balance()
@@ -626,7 +624,7 @@ func HandleCloseChannel(req *RPCRequest, ledger *Ledger, router RouterInterface)
 
 				// Record a transfer from other participant to this participant within the virtual channel
 				// This simulates the final settlement agreed upon by the participants
-				transferAccount := ledgerTx.Account(virtualChannel.ChannelID, otherParticipant, params.TokenAddress)
+				transferAccount := ledgerTx.Account(virtualChannel.ChannelID, otherParticipant, virtualChannel.TokenAddress)
 				if err := transferAccount.Record(-diff); err != nil {
 					return fmt.Errorf("failed to adjust balance for %s: %w", otherParticipant, err)
 				}
@@ -754,13 +752,13 @@ func HandlePing(req *RPCRequest) (*RPCResponse, error) {
 // HandleAuthenticate handles the authentication process
 func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error) {
 	// Parse the authentication message
-	var authMsg AuthMessage
+	var authMsg RegularMessage
 	if err := json.Unmarshal(authMessage, &authMsg); err != nil {
 		return "", errors.New("invalid authentication message format")
 	}
 
 	// Validate authentication message format
-	if len(authMsg.Req) < 4 || authMsg.Sig == "" {
+	if len(authMsg.Req) < 4 || len(authMsg.Sig) == 0 {
 		return "", errors.New("invalid authentication message format")
 	}
 
@@ -771,19 +769,19 @@ func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error
 	}
 
 	// Extract public key from req[2]
-	pubKeyArr, ok := authMsg.Req[2].([]interface{})
-	if !ok || len(pubKeyArr) == 0 {
+	addrArr, ok := authMsg.Req[2].([]interface{})
+	if !ok || len(addrArr) == 0 {
 		return "", errors.New("missing public key in authentication message")
 	}
 
-	pubKey, ok := pubKeyArr[0].(string)
-	if !ok || pubKey == "" {
+	addr, ok := addrArr[0].(string)
+	if !ok || addr == "" {
 		return "", errors.New("invalid public key format")
 	}
 
 	// Make sure pubKey is in the full format with 0x prefix
-	if !strings.HasPrefix(pubKey, "0x") {
-		pubKey = "0x" + pubKey
+	if !strings.HasPrefix(addr, "0x") {
+		addr = "0x" + addr
 	}
 
 	// Authenticate using our signature validation utility
@@ -794,14 +792,14 @@ func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error
 	}
 
 	// Validate the signature
-	isValid, err := ValidateSignature(reqBytes, authMsg.Sig, pubKey)
+	isValid, err := ValidateSignature(reqBytes, authMsg.Sig[0], addr)
 	if err != nil || !isValid {
 		log.Printf("Authentication signature verification failed: %v", err)
 		return "", errors.New("invalid signature")
 	}
 
 	// Get the address from the public key
-	address := common.HexToAddress(pubKey)
+	address := common.HexToAddress(addr)
 
 	return address.Hex(), nil
 }

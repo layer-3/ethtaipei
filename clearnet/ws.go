@@ -48,16 +48,10 @@ func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, 
 
 // --- Message Structures ---
 
-// AuthMessage represents the first authentication message.
-type AuthMessage struct {
-	Req []interface{} `json:"req"` // Format: [requestId, "auth", [public_key], timestamp]
-	Sig string        `json:"sig"`
-}
-
 // RegularMessage represents any message after authentication.
 type RegularMessage struct {
 	Req []interface{} `json:"req"` // Format: [requestId, "method", [args], timestamp]
-	Sig string        `json:"sig"`
+	Sig []string      `json:"sig"`
 }
 
 // RPCWSMessage represents an RPC message sent over websocket.
@@ -145,7 +139,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
-		if len(regularMsg.Req) < 4 || regularMsg.Sig == "" {
+		if len(regularMsg.Req) < 4 || len(regularMsg.Sig) == 0 {
 			sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
 		}
@@ -177,7 +171,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
-		var rpcResponse *RPCResponse
+		var rpcResponse = &RPCResponse{}
 		var handlerErr error
 
 		switch method {
@@ -214,7 +208,6 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
-		// TODO: this will be triggered automatically when we receive an event from Blockchain.
 		case "CloseChannel":
 			rpcResponse, handlerErr = HandleCloseChannel(&rpcRequest, h.ledger, h.messageRouter)
 			if handlerErr != nil {
@@ -233,7 +226,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 		case "SendMessage":
 			// Validate the signature
-			isValid, err := ValidateSignature(reqBytes, regularMsg.Sig, address)
+			isValid, err := ValidateSignature(reqBytes, regularMsg.Sig[0], address)
 			if err != nil || !isValid {
 				log.Printf("Signature validation failed: %v, valid: %v", err, isValid)
 				sendErrorResponse(uint64(requestID), method, conn, "Invalid signature")
@@ -282,7 +275,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 						}},
 						Timestamp: uint64(time.Now().Unix()),
 					},
-					Sig: "broker-signature", // Standard signature placeholder
+					Sig: []string{"broker-signature"}, // Standard signature placeholder
 				}
 				msg, _ := json.Marshal(incomingRPC)
 
@@ -307,7 +300,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		}
 
 		// For methods other than SendMessage, send back the RPC response.
-		rpcResponse.Sig = "server-signature"
+		rpcResponse.Sig = []string{"server-signature"}
 		wsResponseData, _ := json.Marshal(rpcResponse)
 
 		// Use NextWriter for safer message delivery
@@ -407,7 +400,7 @@ func (h *UnifiedWSHandler) BroadcastMessage(message interface{}) {
 						Params:    []any{msgWrapper},
 						Timestamp: timestamp,
 					},
-					Sig: "broker-signature", // Standard signature placeholder
+					Sig: []string{"broker-signature"}, // Standard signature placeholder
 				}
 
 				// Serialize the message

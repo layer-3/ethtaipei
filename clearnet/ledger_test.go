@@ -141,7 +141,7 @@ func TestHandleSendMessage(t *testing.T) {
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: "dummy-signature",
+		Sig: []string{"dummy-signature"},
 	}
 
 	// Call HandleSendMessage with proper parameters
@@ -162,7 +162,7 @@ func TestHandlePing(t *testing.T) {
 			Params:    []any{nil},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: "dummy-signature",
+		Sig: []string{"dummy-signature"},
 	}
 
 	response1, err := HandlePing(rpcRequest1)
@@ -244,9 +244,8 @@ func TestHandleCloseChannel(t *testing.T) {
 	}
 
 	closeParams := CloseChannelParams{
-		ChannelID:    virtualChannelID,
-		TokenAddress: tokenAddress,
-		Allocations:  allocations,
+		ChannelID:   virtualChannelID,
+		Allocations: allocations,
 	}
 
 	// Create RPC request
@@ -260,7 +259,7 @@ func TestHandleCloseChannel(t *testing.T) {
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: "dummy-signature",
+		Sig: []string{"dummy-signature"},
 	}
 
 	// Call the handler
@@ -359,7 +358,7 @@ func TestHandleHandleListOpenParticipants(t *testing.T) {
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: "dummy-signature",
+		Sig: []string{"dummy-signature"},
 	}
 
 	// Call the handler
@@ -405,7 +404,7 @@ func TestHandleHandleListOpenParticipants(t *testing.T) {
 			Params:    []any{},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: "dummy-signature",
+		Sig: []string{"dummy-signature"},
 	}
 
 	// Call the handler

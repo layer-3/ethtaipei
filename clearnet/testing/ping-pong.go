@@ -24,13 +24,13 @@ import (
 // RequestMessage represents a request sent to the server.
 type RequestMessage struct {
 	Req []interface{} `json:"req"`
-	Sig string        `json:"sig"`
+	Sig []string      `json:"sig"`
 }
 
 // ResponseMessage represents a generic response from the server.
 type ResponseMessage struct {
 	Res json.RawMessage `json:"res"`
-	Sig string          `json:"sig"`
+	Sig []string        `json:"sig"`
 }
 
 // AuthResponse is used to parse the authentication response.
@@ -212,7 +212,7 @@ func sendAndReceive(conn *websocket.Conn, reqData []interface{}, privateKey *ecd
 	// Create the full message with signature
 	reqMsg := RequestMessage{
 		Req: reqData,
-		Sig: signature,
+		Sig: []string{signature},
 	}
 
 	// Marshal the full message
@@ -274,7 +274,7 @@ func sendMessage(conn *websocket.Conn, requestID int, virtualChannelID, sender, 
 	// Create the full message with signature
 	reqMsg := RequestMessage{
 		Req: reqData,
-		Sig: signature,
+		Sig: []string{signature},
 	}
 
 	// Marshal the full message
@@ -314,7 +314,7 @@ func connectAndAuth(serverAddr, publicKey string, privateKey *ecdsa.PrivateKey) 
 	// Create the full authentication message
 	authMsg := RequestMessage{
 		Req: reqData,
-		Sig: signature,
+		Sig: []string{signature},
 	}
 
 	// Marshal the full message
@@ -729,11 +729,11 @@ func main() {
 
 				pingA := RequestMessage{
 					Req: pingAReqData,
-					Sig: signatureA,
+					Sig: []string{signatureA},
 				}
 				pingB := RequestMessage{
 					Req: pingBReqData,
-					Sig: signatureB,
+					Sig: []string{signatureB},
 				}
 
 				pingDataA, _ := json.Marshal(pingA)
