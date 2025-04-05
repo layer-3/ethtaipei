@@ -37,10 +37,10 @@ export const APP_CONFIG = {
         80002: '0x65a995DFe6C14f604d91987A94054df990F88BBa' as Address,
     },
 
-    DEFAULT_ADJUDICATOR: 'flag',
+    DEFAULT_ADJUDICATOR: 'dummy',
 
     ADJUDICATORS: {
-        flag: {
+        dummy: {
             137: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
             42220: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
             1337: '0x5fbdb2315678afecb367f032d93f642f64180aa3' as Address,
