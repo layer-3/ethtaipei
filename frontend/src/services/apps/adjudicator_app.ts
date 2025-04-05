@@ -83,7 +83,7 @@ export class AdjudicatorApp implements AppLogic<bigint> {
      */
     public getAdjudicatorAddress(): Address {
         // TODO:
-        return APP_CONFIG.ADJUDICATORS.flag as Address;
+        return '0x' as Address;
     }
 
     /**

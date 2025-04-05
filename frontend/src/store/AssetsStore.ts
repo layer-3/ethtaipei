@@ -63,7 +63,7 @@ export const fetchAssets = async () => {
         AssetsStore.setAssets([
             {
                 name: 'Test Token',
-                address: '0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83',
+                address: '0xe7f1725e7734ce288f8367e1bb143e90bb3f0512',
                 symbol: 'TST',
                 decimals: 8,
                 chainId: 1337,

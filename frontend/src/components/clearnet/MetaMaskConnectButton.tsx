@@ -1,5 +1,7 @@
+import { chainImageURLById } from '@/config/chains';
 import { shortenHex } from '@/helpers/shortenHex';
 import { useMetaMask } from '@/hooks';
+import { WalletStore } from '@/store';
 import Image from 'next/image';
 import { useCallback } from 'react';
 
@@ -31,6 +33,8 @@ export const MetaMaskConnectButton: React.FC = () => {
             <button
                 onClick={disconnectMetaMask}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary">
+                <Image src={chainImageURLById(WalletStore.state.chainId)} alt="chain-icon" width={24} height={24} />
+
                 <span className="text-black">{shortenHex(account)}</span>
             </button>
         );

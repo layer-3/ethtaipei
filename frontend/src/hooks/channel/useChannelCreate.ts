@@ -7,7 +7,7 @@ import APP_CONFIG from '@/config/app';
 import { Channel, State } from '@erc7824/nitrolite';
 
 export function useChannelCreate() {
-    const handleCreateChannel = useCallback(async (tokenAddress: string, amount: string) => {
+    const handleCreateChannel = useCallback(async (tokenAddress: Address, amount: string) => {
         if (!NitroliteStore.state.client || !NitroliteStore.state.client.walletClient) {
             const errorMsg = 'Nitrolite client not initialized - please connect your wallet first';
 
@@ -16,6 +16,13 @@ export function useChannelCreate() {
 
         // Create Counter application instance
         const app = new AdjudicatorApp();
+        const adjudicator = APP_CONFIG.ADJUDICATORS[APP_CONFIG.DEFAULT_ADJUDICATOR][
+            WalletStore.state.chainId
+        ] as Address;
+
+        if (!adjudicator) {
+            throw new Error('Adjudicator address not found');
+        }
 
         const stateSigner = NitroliteStore.state.stateSigner;
 
@@ -26,7 +33,7 @@ export function useChannelCreate() {
             const channel: Channel = {
                 // participants: [WalletStore.state.account as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
                 participants: [stateSigner.address as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
-                adjudicator: APP_CONFIG.ADJUDICATORS.flag as Address,
+                adjudicator: adjudicator,
                 challenge: BigInt(APP_CONFIG.CHANNEL.CHALLENGE_PERIOD),
                 nonce: BigInt(Date.now()),
             };
@@ -41,12 +48,12 @@ export function useChannelCreate() {
                     {
                         // destination: channel.participants[0],
                         destination: WalletStore.state.account as Address,
-                        token: '0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83',
+                        token: tokenAddress,
                         amount: BigInt(amount),
                     },
                     {
                         destination: channel.participants[1],
-                        token: '0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83',
+                        token: tokenAddress,
                         amount: BigInt(0),
                     },
                 ],

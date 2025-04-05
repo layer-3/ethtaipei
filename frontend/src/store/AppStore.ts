@@ -9,6 +9,7 @@ interface AppState {
   isDepositOpen: boolean;
   isSendOpen: boolean;
   isReceiveOpen: boolean;
+  isCloseChannelOpen: boolean;
 }
 
 const state = proxy<AppState>({
@@ -18,6 +19,7 @@ const state = proxy<AppState>({
   isDepositOpen: false,
   isSendOpen: false,
   isReceiveOpen: false,
+  isCloseChannelOpen: false,
 });
 
 const AppStore = {
@@ -82,7 +84,15 @@ const AppStore = {
   
   closeReceive() {
     state.isReceiveOpen = false;
-  }
+  },
+
+  openCloseChannel() {
+    state.isCloseChannelOpen = true;
+  },
+
+  closeCloseChannel() {
+    state.isCloseChannelOpen = false;
+  },
 };
 
 export default AppStore;

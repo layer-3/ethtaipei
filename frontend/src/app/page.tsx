@@ -14,6 +14,7 @@ import { MinimizedApps } from '@/components/MinimizedApps';
 
 import Privy from '@/providers/privy';
 import { MetaMaskConnectButton } from '@/components/clearnet/MetaMaskConnectButton';
+import CloseChannel from '@/components/clearnet/CloseChannel';
 
 const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
 
@@ -35,6 +36,14 @@ export default function Connect() {
         AppStore.openApp('yuzux');
     }, []);
 
+    const handleOpenCloseChannel = useCallback(() => {
+        AppStore.openCloseChannel();
+    }, []);
+
+    const handleCloseCloseChannel = useCallback(() => {
+        AppStore.closeCloseChannel();
+    }, []);
+
     return (
         <Privy>
             <div className="min-h-screen flex flex-col">
@@ -45,11 +54,18 @@ export default function Connect() {
 
                 <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
                     <div className="flex gap-4 items-center justify-between">
-                        {(walletSnap.connected || walletSnap.privyConnected) && (
+                        {(walletSnap.connected || walletSnap.privyConnected) && !walletSnap.channelOpen && (
                             <button
                                 onClick={handleOpenDeposit}
                                 className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
                                 Deposit
+                            </button>
+                        )}
+                        {(walletSnap.connected || walletSnap.privyConnected) && walletSnap.channelOpen && (
+                            <button
+                                onClick={handleOpenCloseChannel}
+                                className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
+                                Close
                             </button>
                         )}
                         <div className={walletSnap.connected || walletSnap.privyConnected ? '' : 'ml-auto'}>
@@ -104,6 +120,7 @@ export default function Connect() {
                 </main>
 
                 <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
+                <CloseChannel isOpen={appSnap.isCloseChannelOpen || false} onClose={handleCloseCloseChannel} />
 
                 <div
                     className={`fixed inset-0 bg-black z-40 transform transition-all duration-300 ${

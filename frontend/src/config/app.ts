@@ -23,12 +23,20 @@ export const APP_CONFIG = {
         MAGIC_NUMBER_CLOSE: BigInt(7879),
     },
 
+    TOKENS: {
+        1337: '0xe7f1725e7734ce288f8367e1bb143e90bb3f0512' as Address,
+        80002: '0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83' as Address,
+    },
+
     CUSTODIES: {
         1337: '0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE' as Address,
         80002: '0x65a995DFe6C14f604d91987A94054df990F88BBa' as Address,
     },
     ADJUDICATORS: {
-        flag: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
+        flag: {
+            1337: '0x5fbdb2315678afecb367f032d93f642f64180aa3' as Address,
+            80002: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
+        },
     },
 };
 
