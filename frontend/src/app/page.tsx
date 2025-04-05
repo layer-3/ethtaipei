@@ -4,22 +4,29 @@ import Head from 'next/head';
 import Image from 'next/image';
 import { MetaMaskConnectButton } from '@/components/clearnet/MetaMaskConnectButton';
 import { useNitroliteClient } from '@/hooks';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import Deposit from '@/components/clearnet/Deposit';
 import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
+import AppStore from '@/store/AppStore';
+import { YuzuxApp } from '@/mini-apps';
+import { MinimizedApps } from '@/components/MinimizedApps';
 
 export default function Connect() {
     useNitroliteClient();
-    const [isDepositOpen, setIsDepositOpen] = useState(false);
     const walletSnap = useSnapshot(WalletStore.state);
+    const appSnap = useSnapshot(AppStore.state);
 
     const handleOpenDeposit = useCallback(() => {
-        setIsDepositOpen(true);
+        AppStore.openDeposit();
     }, []);
 
     const handleCloseDeposit = useCallback(() => {
-        setIsDepositOpen(false);
+        AppStore.closeDeposit();
+    }, []);
+
+    const handleOpenYuzux = useCallback(() => {
+        AppStore.openApp('yuzux');
     }, []);
 
     return (
@@ -29,7 +36,7 @@ export default function Connect() {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
             </Head>
 
-            <main className="min-h-screen bg-white px-4 pt-4 flex flex-col justify-between pb-40">
+            <main className="min-h-screen bg-white px-4 pt-4 flex flex-col justify-between pb-4">
                 <div className="flex gap-4 items-center justify-between">
                     {walletSnap.connected && (
                         <button
@@ -53,7 +60,9 @@ export default function Connect() {
                         </p>
                     </div>
 
-                    <button className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors">
+                    <button 
+                        onClick={handleOpenYuzux}
+                        className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-all transform hover:scale-105 duration-200">
                         Open App
                     </button>
                 </div>
@@ -88,7 +97,13 @@ export default function Connect() {
             </main>
 
             {/* Deposit component slides in from right */}
-            <Deposit isOpen={isDepositOpen} onClose={handleCloseDeposit} />
+            <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
+            
+            {/* Yuzux fullscreen component */}
+            {appSnap.openApp === 'yuzux' && <YuzuxApp />}
+            
+            {/* Minimized apps taskbar */}
+            <MinimizedApps />
         </div>
     );
 }
