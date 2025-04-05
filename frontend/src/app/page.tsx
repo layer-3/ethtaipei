@@ -4,15 +4,22 @@ import Head from 'next/head';
 import Image from 'next/image';
 import { MetaMaskConnectButton } from '@/components/clearnet/MetaMaskConnectButton';
 import { useNitroliteClient } from '@/hooks';
-import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import Deposit from '@/components/clearnet/Deposit';
+import { useSnapshot } from 'valtio';
+import WalletStore from '@/store/WalletStore';
 
 export default function Connect() {
     useNitroliteClient();
-    const router = useRouter();
+    const [isDepositOpen, setIsDepositOpen] = useState(false);
+    const walletSnap = useSnapshot(WalletStore.state);
 
-    const onDepositClick = useCallback(() => {
-        router.push('/deposit');
+    const handleOpenDeposit = useCallback(() => {
+        setIsDepositOpen(true);
+    }, []);
+
+    const handleCloseDeposit = useCallback(() => {
+        setIsDepositOpen(false);
     }, []);
 
     return (
@@ -24,12 +31,16 @@ export default function Connect() {
 
             <main className="min-h-screen bg-white px-4 pt-4 flex flex-col justify-between pb-40">
                 <div className="flex gap-4 items-center justify-between">
-                    <button
-                        onClick={onDepositClick}
-                        className="bg-blue-600 text-white px-8 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-                        Deposit
-                    </button>
-                    <MetaMaskConnectButton />
+                    {walletSnap.connected && (
+                        <button
+                            onClick={handleOpenDeposit}
+                            className="bg-blue-600 text-white px-8 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+                            Deposit
+                        </button>
+                    )}
+                    <div className={walletSnap.connected ? '' : 'ml-auto'}>
+                        <MetaMaskConnectButton />
+                    </div>
                 </div>
 
                 <div className="flex flex-col justify-center items-center gap-4">
@@ -75,6 +86,9 @@ export default function Connect() {
                     </div>
                 </div>
             </main>
+
+            {/* Deposit component slides in from right */}
+            <Deposit isOpen={isDepositOpen} onClose={handleCloseDeposit} />
         </div>
     );
 }
