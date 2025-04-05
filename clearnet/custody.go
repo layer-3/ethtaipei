@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 
@@ -64,10 +63,10 @@ func (c *CustodyClientWrapper) Join(channelID string) error {
 }
 
 // GetNetworkID returns the network ID for this client
-func (c *CustodyClientWrapper) GetNetworkID() (string, error) {
-	networkID, err := c.client.NetworkID(context.Background())
-	if err != nil {
-		return "", fmt.Errorf("failed to get network ID: %w", err)
-	}
-	return networkID.String(), nil
+func (c *CustodyClientWrapper) GetNetworkID() string {
+	return c.networkID
+}
+
+func (c *CustodyClientWrapper) GetCustody() *Custody {
+	return c.custody
 }
