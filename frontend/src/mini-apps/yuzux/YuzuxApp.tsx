@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import AppStore from '@/store/AppStore';
 import { useSnapshot } from 'valtio';
 import { Send, Receive } from './components/SendReceive';
+import { NitroliteStore } from '@/store';
 
 export function YuzuxApp() {
     const [isExiting, setIsExiting] = useState(false);
@@ -41,6 +42,18 @@ export function YuzuxApp() {
         };
     }, []);
 
+    const currentBalance = useMemo(() => {
+        const nitroState = NitroliteStore.getLatestState();
+
+        if (!nitroState) {
+            return 0;
+        }
+
+        const creatorAllocation = nitroState.allocations[0];
+
+        return creatorAllocation.amount;
+    }, [NitroliteStore, appSnap.isSendOpen]);
+
     return (
         <div
             className={`fixed inset-0 bg-black z-50 flex flex-col p-6 transition-opacity duration-300 ease-in-out ${
@@ -70,7 +83,7 @@ export function YuzuxApp() {
                         isExiting ? 'scale-95' : 'scale-100'
                     }`}>
                     <div className="flex flex-col items-center">
-                        <span className="text-[56px] font-bold leading-none text-white">200</span>
+                        <span className="text-[56px] font-bold leading-none text-white">{currentBalance}</span>
                         <span className="text-[18px] mt-2 text-white tracking-widest">YUZU</span>
                     </div>
                 </div>

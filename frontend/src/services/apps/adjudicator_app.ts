@@ -52,7 +52,7 @@ export class AdjudicatorApp implements AppLogic<bigint> {
      * @returns Whether the transition is valid
      */
     public validateTransition(_channel: Channel, prevState: bigint, nextState: bigint): boolean {
-        return nextState > prevState;
+        return true;
     }
 
     /**

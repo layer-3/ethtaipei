@@ -150,6 +150,24 @@ const NitroliteStore = {
             throw error;
         }
     },
+
+    getLatestState(): State | null {
+        if (!state.channelContext) {
+            console.error('Channel context not found');
+            return null;
+        }
+
+        return state.channelContext.getCurrentState();
+    },
+
+    appendState(tokenAddress: Address, amounts: [bigint, bigint]): State | null {
+        if (!state.channelContext) {
+            console.error('Channel context not found');
+            return null;
+        }
+
+        return state.channelContext.appendAppState(BigInt(0), tokenAddress, amounts);
+    },
 };
 
 export default NitroliteStore;

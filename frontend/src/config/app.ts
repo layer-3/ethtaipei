@@ -36,6 +36,9 @@ export const APP_CONFIG = {
         1337: '0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE' as Address,
         80002: '0x65a995DFe6C14f604d91987A94054df990F88BBa' as Address,
     },
+
+    DEFAULT_ADJUDICATOR: 'flag',
+
     ADJUDICATORS: {
         flag: {
             137: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
@@ -44,7 +47,6 @@ export const APP_CONFIG = {
             80002: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
         },
     },
-    DEFAULT_ADJUDICATOR: 'flag',
 };
 
 export const DEFAULT_ADDRESS = 'TST';
