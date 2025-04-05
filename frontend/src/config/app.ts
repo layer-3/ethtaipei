@@ -22,7 +22,7 @@ export const APP_CONFIG = {
     },
 
     CUSTODIES: {
-        1337: '0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE' as Address,
+        80002: '0x244628A27317d863176284D6163a00d77f923359' as Address,
     },
 
     ADJUDICATORS: {
