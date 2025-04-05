@@ -83,8 +83,7 @@ export function YuzuxApp() {
                         isExiting ? 'scale-95' : 'scale-100'
                     }`}>
                     <div className="flex flex-col items-center">
-                        <span className="text-[56px] font-bold leading-none text-white">{currentBalance}</span>
-                        <span className="text-[18px] mt-2 text-white tracking-widest">YUZU</span>
+                        <span className="text-[56px] font-bold leading-none text-white">$ {currentBalance}</span>
                     </div>
                 </div>
             </div>
