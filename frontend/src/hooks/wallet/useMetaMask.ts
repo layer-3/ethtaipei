@@ -4,11 +4,19 @@ import WalletStore from '@/store/WalletStore';
 import SettingsStore from '@/store/SettingsStore';
 import { Address } from 'viem';
 
+// Storage key for wallet connection
+const WALLET_CONNECTION_KEY = 'wallet_connection';
+
 // Static export for disconnect function that can be used outside of components
 export const disconnectWallet = async () => {
     // Note: MetaMask doesn't have a direct method to disconnect via the provider API
     // The best practice is to clear the local state
     WalletStore.disconnect();
+    
+    // Remove persisted connection
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem(WALLET_CONNECTION_KEY);
+    }
 
     // MetaMask may implement a disconnect method in the future
     // For now, we'll let the user know they need to disconnect manually if they want to connect a different account
@@ -30,6 +38,40 @@ export function useMetaMask() {
         }
     }, []);
 
+    // Auto-reconnect to MetaMask if previously connected
+    useEffect(() => {
+        const reconnectWallet = async () => {
+            if (window.ethereum && !walletSnap.connected) {
+                try {
+                    const savedConnection = localStorage.getItem(WALLET_CONNECTION_KEY);
+                    if (savedConnection === 'true') {
+                        // Get current accounts without showing the MetaMask popup
+                        const accounts = await window.ethereum.request({ 
+                            method: 'eth_accounts' // Uses eth_accounts instead of eth_requestAccounts to avoid popup
+                        });
+                        
+                        if (accounts.length > 0) {
+                            const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+                            const chainId = parseInt(chainIdHex, 16);
+                            
+                            // Update store
+                            WalletStore.connect(accounts[0] as Address, chainId);
+                            
+                            // Check if we need to switch networks
+                            if (settingsSnap.activeChain && settingsSnap.activeChain.id !== chainId) {
+                                await switchNetwork(settingsSnap.activeChain.id);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error auto-reconnecting to MetaMask:', error);
+                }
+            }
+        };
+        
+        reconnectWallet();
+    }, [settingsSnap.activeChain]);
+
     // Connect to MetaMask
     const connect = async () => {
         if (!window.ethereum) {
@@ -45,6 +87,9 @@ export function useMetaMask() {
 
             // Update store
             WalletStore.connect(accounts[0] as Address, chainId);
+            
+            // Save connection state to localStorage
+            localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
 
             // Check if we need to switch networks
             if (settingsSnap.activeChain && settingsSnap.activeChain.id !== chainId) {
@@ -95,9 +140,11 @@ export function useMetaMask() {
                 if (accounts.length === 0) {
                     // User disconnected their wallet
                     WalletStore.disconnect();
+                    localStorage.removeItem(WALLET_CONNECTION_KEY);
                 } else if (accounts[0] !== walletSnap.account) {
                     // Account changed
                     WalletStore.connect(accounts[0] as Address, walletSnap.chainId || 1);
+                    localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
                 }
             };
 
