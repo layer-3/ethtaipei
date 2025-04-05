@@ -1,0 +1,23 @@
+# ETH Taipei
+
+- [ ] Client can connect to broker websocket
+- [ ] Broker return config
+- [ ] Client UI can Deposit on Custody
+- [ ] Client can Withdraw from Custody
+- [ ] Client can open channel with Broker
+- [ ] Broker record deposit
+- [ ] Client can create Virtual Ledger Channel (VLC)
+- [ ] Counterparty can accept VLC
+- [ ] Broker Transfer in db LC to VLC
+- [ ] VLC party can change Allocation
+- [ ] VLC party can communicate with NitroRPC
+- [ ] Broker store rpc_state history
+- [ ] Clients should keep rpc_state too
+- [ ] Client can close VLC
+- [ ] Broker update ledger db and LC Allocations
+- [ ] Client can close LC
+- [ ] Broker can reset LC allocation increased
+- [ ] Frontend deployment (explorer and YuzuPay)
+- [ ] Backend deployment
+- [ ] Deploy smart contracts with ERC20
+- [ ] Make video demo
