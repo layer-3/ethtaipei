@@ -99,12 +99,11 @@ type EventHandler struct {
 }
 
 // NewEventHandler creates a new webhook handler
-func NewEventHandler(secret string, ledger *Ledger, channelService *ChannelService, brokerAddress string, clients ...BlockchainClient) *EventHandler {
+func NewEventHandler(ledger *Ledger, channelService *ChannelService, brokerAddress string, clients ...BlockchainClient) *EventHandler {
 	// Initialize a map to store clients by network ID
 	clientMap := make(map[string]BlockchainClient)
 
 	return &EventHandler{
-		webhookSecret:     secret,
 		ledger:            ledger,
 		channelService:    channelService,
 		brokerAddress:     brokerAddress,
