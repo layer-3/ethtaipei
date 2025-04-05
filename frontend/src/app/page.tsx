@@ -79,7 +79,7 @@ export default function Connect() {
                         <div className="text-left bg-gray-100 p-4 rounded-sm w-full max-w-md">
                             <h1 className="text-2xl font-bold mb-2">Yuzux</h1>
                             <p className="text-gray-600 mb-6">
-                                Amet minim mollit non deserunt ullamco est sit aliqua dolor do amet sint.
+                                Pay Anyone, Anywhere. Instantly fast with no merchant fees. Secured by state channels.
                             </p>
                         </div>
 
