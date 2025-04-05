@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QrReader } from 'react-qr-reader';
+// import { QrReader } from 'react-qr-reader';
 
 interface QrScannerProps {
     onScan: (data: string) => void;
@@ -122,7 +122,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         <div className="relative h-full bg-black">
             {/* QR Scanner */}
             <div className="aspect-square max-w-md mx-auto overflow-hidden">
-                {scanning && (
+                {/* {scanning && (
                     <QrReader
                         constraints={{ facingMode: 'environment' }}
                         onResult={handleScan}
@@ -130,7 +130,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                         videoId="qr-reader-video"
                         videoStyle={{ width: '100%', height: '100%' }}
                     />
-                )}
+                )} */}
             </div>
 
             {/* Scanning overlay */}
