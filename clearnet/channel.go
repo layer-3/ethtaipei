@@ -20,6 +20,7 @@ type DBChannel struct {
 	Challenge    uint64    `gorm:"column:challenge;default:0"`
 	Nonce        uint64    `gorm:"column:nonce;default:0"`
 	Adjudicator  string    `gorm:"column:adjudicator;type:char(42);default:''"`
+	NetworkID    string    `gorm:"column:network_id;type:varchar(32);default:''"`
 	CreatedAt    time.Time `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt    time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP"`
 }
@@ -68,9 +69,15 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 
 // GetOrCreateChannel gets an existing channel or creates a new one
 // For real channels, participantB is always the broker application
-func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddress string) (*DBChannel, error) {
+func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddress string, networkID ...string) (*DBChannel, error) {
 	var channel DBChannel
 	result := s.db.Where("channel_id = ?", channelID).First(&channel)
+
+	// Determine network ID value (empty string if not provided)
+	network := ""
+	if len(networkID) > 0 && networkID[0] != "" {
+		network = networkID[0]
+	}
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -80,6 +87,7 @@ func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddres
 				ChannelID:    channelID,
 				ParticipantA: participantA,
 				ParticipantB: BrokerAddress, // Always use broker address for real channels
+				NetworkID:    network,        // Set the network ID for real channels
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
 			}
@@ -88,18 +96,24 @@ func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddres
 				return nil, fmt.Errorf("failed to create channel: %w", err)
 			}
 
-			log.Printf("Created new channel with ID: %s", channelID)
+			log.Printf("Created new channel with ID: %s, network: %s", channelID, network)
 			return &channel, nil
 		}
 
 		return nil, fmt.Errorf("error finding channel: %w", result.Error)
 	}
 
-	if err := s.db.Save(&channel).Error; err != nil {
-		log.Printf("Failed to update last updated time: %v", err)
+	// If network ID is provided and channel doesn't have one, update it
+	if network != "" && channel.NetworkID == "" {
+		channel.NetworkID = network
+		if err := s.db.Save(&channel).Error; err != nil {
+			log.Printf("Failed to update network ID: %v", err)
+		} else {
+			log.Printf("Updated network ID for channel %s to %s", channelID, network)
+		}
 	}
 
-	log.Printf("Found existing channel with ID: %s", channelID)
+	log.Printf("Found existing channel with ID: %s, network: %s", channelID, channel.NetworkID)
 	return &channel, nil
 }
 

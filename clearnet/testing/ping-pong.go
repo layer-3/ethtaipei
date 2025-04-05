@@ -45,6 +45,7 @@ type CreateChannelParams struct {
 	ChannelID    string   `json:"channelId"`
 	TokenAddress string   `json:"token_address"`
 	Amount       *big.Int `json:"amount,string,omitempty"`
+	NetworkID    string   `json:"network_id,omitempty"`
 }
 
 // CreateVirtualChannelParams holds parameters for virtual channel creation.
@@ -347,26 +348,21 @@ func main() {
 	serverAddr := flag.String("server", "localhost:8000", "Server address")
 	privKeyAHex := flag.String("privKeyA", "", "Private key for participant A (hex)")
 	privKeyBHex := flag.String("privKeyB", "", "Private key for participant B (hex)")
+	networkID := flag.String("network", "mainnet", "Network ID to use (mainnet, testnet, etc.)")
 	flag.Parse()
-
-	// If no private keys specified, generate random ones for testing
+	
+	// Use fixed private keys for consistent testing if not specified
 	if *privKeyAHex == "" {
-		keyA, err := crypto.GenerateKey()
-		if err != nil {
-			log.Fatalf("Failed to generate private key for A: %v", err)
-		}
-		*privKeyAHex = hexutil.Encode(crypto.FromECDSA(keyA))
-		log.Printf("Generated private key for A: %s", *privKeyAHex)
+		*privKeyAHex = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+		log.Printf("Using default private key for A: %s", *privKeyAHex)
 	}
 
 	if *privKeyBHex == "" {
-		keyB, err := crypto.GenerateKey()
-		if err != nil {
-			log.Fatalf("Failed to generate private key for B: %v", err)
-		}
-		*privKeyBHex = hexutil.Encode(crypto.FromECDSA(keyB))
-		log.Printf("Generated private key for B: %s", *privKeyBHex)
+		*privKeyBHex = "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
+		log.Printf("Using default private key for B: %s", *privKeyBHex)
 	}
+	
+	log.Printf("Using network: %s", *networkID)
 
 	// Parse the private keys
 	privateKeyA, err := getPrivateKeyFromString(*privKeyAHex)
@@ -401,12 +397,13 @@ func main() {
 	}
 	defer connB.Close()
 
-	// Synchronously create direct channel for Participant A.
-	channelA := "0xDirectChannelA"
+	// Synchronously create direct channel for Participant A with deterministic ID based on address
+	channelA := "0xDirectChannel_" + addressA
 	createChannelAParams := CreateChannelParams{
 		ChannelID:    channelA,
 		TokenAddress: tokenAddress,
 		Amount:       big.NewInt(1000),
+		NetworkID:    *networkID,
 	}
 	createChannelAParamsJSON, _ := json.Marshal(createChannelAParams)
 	createChannelAReqData := []interface{}{2, "CreateChannel", []interface{}{json.RawMessage(createChannelAParamsJSON)}, uint64(time.Now().Unix())}
@@ -417,12 +414,13 @@ func main() {
 	}
 	log.Printf("[A] CreateChannel response: %s", inlineJSON(respA))
 
-	// Synchronously create direct channel for Participant B.
-	channelB := "0xDirectChannelB"
+	// Synchronously create direct channel for Participant B with deterministic ID based on address
+	channelB := "0xDirectChannel_" + addressB
 	createChannelBParams := CreateChannelParams{
 		ChannelID:    channelB,
 		TokenAddress: tokenAddress,
 		Amount:       big.NewInt(500),
+		NetworkID:    *networkID,
 	}
 	createChannelBParamsJSON, _ := json.Marshal(createChannelBParams)
 	createChannelBReqData := []interface{}{3, "CreateChannel", []interface{}{json.RawMessage(createChannelBParamsJSON)}, uint64(time.Now().Unix())}
@@ -611,27 +609,27 @@ func main() {
 		// After ping-pong is done, close the virtual channel
 		log.Println("Ping-pong completed. Now closing the virtual channel...")
 
-		// Test public messaging functionality
-		log.Println("Testing public message broadcasting...")
+		// // Test public messaging functionality
+		// log.Println("Testing public message broadcasting...")
 
-		// Send only one public message to keep things simple
-		publicMsgParams := map[string]string{
-			"message": "Hello everyone! This is a public broadcast test message.",
-		}
-		publicMsgParamsJSON, _ := json.Marshal(publicMsgParams)
-		publicMsgReqData := []interface{}{14, "SendPublicMessage", []interface{}{json.RawMessage(publicMsgParamsJSON)}, uint64(time.Now().Unix())}
+		// // Send only one public message to keep things simple
+		// publicMsgParams := map[string]string{
+		// 	"message": "Hello everyone! This is a public broadcast test message.",
+		// }
+		// publicMsgParamsJSON, _ := json.Marshal(publicMsgParams)
+		// publicMsgReqData := []interface{}{14, "SendPublicMessage", []interface{}{json.RawMessage(publicMsgParamsJSON)}, uint64(time.Now().Unix())}
 
-		log.Printf("Sending public message...")
-		respPublicMsg, err := sendAndReceive(connA, publicMsgReqData, privateKeyA)
-		if err != nil {
-			log.Printf("Error sending public message: %v", err)
-		} else {
-			log.Printf("SendPublicMessage response: %s", inlineJSON(respPublicMsg))
-		}
+		// log.Printf("Sending public message...")
+		// respPublicMsg, err := sendAndReceive(connA, publicMsgReqData, privateKeyA)
+		// if err != nil {
+		// 	log.Printf("Error sending public message: %v", err)
+		// } else {
+		// 	log.Printf("SendPublicMessage response: %s", inlineJSON(respPublicMsg))
+		// }
 
-		// Wait a moment to allow broadcasts to complete
-		log.Printf("Waiting for broadcast to complete...")
-		time.Sleep(2 * time.Second) // Extended wait time to ensure broadcasts complete
+		// // Wait a moment to allow broadcasts to complete
+		// log.Printf("Waiting for broadcast to complete...")
+		// time.Sleep(2 * time.Second) // Extended wait time to ensure broadcasts complete
 
 		// Create allocation parameters for closing the channel
 		// In a real scenario, these values would be negotiated off-chain between participants
@@ -652,14 +650,14 @@ func main() {
 		}
 
 		closeChannelParamsJSON, _ := json.Marshal(closeChannelParams)
-		closeChannelReqData := []interface{}{12, "CloseChannel", []interface{}{json.RawMessage(closeChannelParamsJSON)}, uint64(time.Now().Unix())}
+		closeChannelReqData := []interface{}{12, "CloseVirtualChannel", []interface{}{json.RawMessage(closeChannelParamsJSON)}, uint64(time.Now().Unix())}
 
 		respClose, err := sendAndReceive(connA, closeChannelReqData, privateKeyA)
 		if err != nil {
 			log.Fatalf("Error closing virtual channel: %v", err)
 		}
 
-		log.Printf("CloseChannel response: %s", inlineJSON(respClose))
+		log.Printf("CloseVirtualChannel response: %s", inlineJSON(respClose))
 
 		// After closing, check balances in the direct channels
 		log.Printf("Checking available channels after closing...")

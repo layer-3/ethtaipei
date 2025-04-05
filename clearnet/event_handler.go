@@ -53,8 +53,8 @@ type WebhookRequest struct {
 	Events []MultiBaasEvent `json:"events"`
 }
 
-// BindleEvent represents events from Bindle webhook format
-type BindleEvent struct {
+// NoditEvent represents events from Nodit webhook format
+type NoditEvent struct {
 	SubscriptionID   string `json:"subscriptionId"`
 	Description      string `json:"description"`
 	Protocol         string `json:"protocol"`
@@ -133,7 +133,7 @@ func (h *EventHandler) validateSignature(payload []byte, signature, timestamp st
 // ServeHTTP implements the http.Handler interface for WebhookHandler
 func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Webhook] Received webhook request from %s", r.RemoteAddr)
-	
+
 	if r.Method != http.MethodPost {
 		log.Printf("[Webhook] Error: Method not allowed: %s", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -188,30 +188,30 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// http.Error(w, "Timestamp too old", http.StatusBadRequest)
 		// return
 	}
-	
+
 	log.Printf("[Webhook] Timestamp validation bypassed for testing")
 
 	// Validate signature
 	validSig := h.validateSignature(body, signature, timestamp)
 	log.Printf("[Webhook] Signature validation result: %v", validSig)
-	
+
 	// Signature validation is commented out for testing
 	// if !validSig {
 	// 	log.Printf("[Webhook] Error: Invalid signature")
 	// 	http.Error(w, "Invalid signature", http.StatusUnauthorized)
 	// 	return
 	// }
-	
+
 	// For testing: always proceed regardless of signature
 	log.Printf("[Webhook] Signature validation bypassed for testing")
 
-	// First try to parse as a Bindle webhook
-	var bindleEvent BindleEvent
-	bindleErr := json.Unmarshal(body, &bindleEvent)
-	
-	if bindleErr == nil && bindleEvent.SubscriptionID != "" && bindleEvent.EventType == "LOG" {
-		log.Printf("[Webhook] Detected Bindle webhook format with subscription ID: %s", bindleEvent.SubscriptionID)
-		h.processBindleEvent(&bindleEvent)
+	// First try to parse as a Nodit webhook
+	var noditEvent NoditEvent
+	noditErr := json.Unmarshal(body, &noditEvent)
+
+	if noditErr == nil && noditEvent.SubscriptionID != "" && noditEvent.EventType == "LOG" {
+		log.Printf("[Webhook] Detected Nodit webhook format with subscription ID: %s", noditEvent.SubscriptionID)
+		h.processNoditEvent(&noditEvent)
 	} else {
 		// Try to parse as MultiBaas webhook
 		var webhookReq WebhookRequest
@@ -242,7 +242,7 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // processEvent handles different types of emitted events
 func (h *EventHandler) processEvent(event *MultiBaasEvent) {
-	log.Printf("[Event] Processing event: %s (TransactionHash: %s)", 
+	log.Printf("[Event] Processing event: %s (TransactionHash: %s)",
 		event.Data.Event.Name, event.Data.Transaction.Hash)
 
 	// Log event parameters for debugging
@@ -272,7 +272,7 @@ func (h *EventHandler) processEvent(event *MultiBaasEvent) {
 // handleChannelOpenedEvent processes ChannelOpened events
 func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 	log.Printf("[ChannelOpened] Processing ChannelOpened event for transaction: %s", event.Data.Transaction.Hash)
-	
+
 	// Debug: Print complete event details for debugging
 	eventData, _ := json.MarshalIndent(event, "", "  ")
 	log.Printf("[ChannelOpened] Full event data: %s", string(eventData))
@@ -301,11 +301,30 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 		return
 	}
 
-	log.Printf("[ChannelOpened] Extracted params - Channel ID: %s, Participants: %s and %s, Token: %s",
-		channelID, participantA, participantB, tokenAddress)
+	// Extract network ID if available
+	networkID, _ := event.Data.Event.InputParams["networkId"].(string)
+	if networkID == "" {
+		networkID, _ = event.Data.Event.InputParams["networkID"].(string)
+	}
+	if networkID == "" {
+		networkID, _ = event.Data.Event.InputParams["network_id"].(string)
+	}
+	if networkID == "" {
+		// Try to derive it from other event data
+		if event.Data.Transaction.BlockNumber > 0 {
+			// Simplified example: derive from block number
+			networkID = fmt.Sprintf("chain-%d", event.Data.Transaction.BlockNumber/1000000)
+			log.Printf("[ChannelOpened] Derived network ID from block number: %s", networkID)
+		} else {
+			log.Printf("[ChannelOpened] No network ID found or derived, using empty value")
+		}
+	}
+	
+	log.Printf("[ChannelOpened] Extracted params - Channel ID: %s, Participants: %s and %s, Token: %s, Network: %s",
+		channelID, participantA, participantB, tokenAddress, networkID)
 
 	// Get or create the channel in our system
-	channel, err := h.channelService.GetOrCreateChannel(channelID, participantA, tokenAddress)
+	channel, err := h.channelService.GetOrCreateChannel(channelID, participantA, tokenAddress, networkID)
 	if err != nil {
 		log.Printf("[ChannelOpened] Error creating/getting channel: %v", err)
 		return
@@ -316,7 +335,7 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 	var initialBalanceA int64
 	balanceAValue := event.Data.Event.InputParams["initialBalanceA"]
 	log.Printf("[ChannelOpened] Raw initialBalanceA value: %v (type: %T)", balanceAValue, balanceAValue)
-	
+
 	switch v := balanceAValue.(type) {
 	case float64:
 		initialBalanceA = int64(v)
@@ -352,7 +371,7 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 	var initialBalanceB int64
 	balanceBValue := event.Data.Event.InputParams["initialBalanceB"]
 	log.Printf("[ChannelOpened] Raw initialBalanceB value: %v (type: %T)", balanceBValue, balanceBValue)
-	
+
 	switch v := balanceBValue.(type) {
 	case float64:
 		initialBalanceB = int64(v)
@@ -390,7 +409,7 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 
 	// Create accounts for the participants and record initial balances
 	if initialBalanceA > 0 {
-		log.Printf("[ChannelOpened] Recording initial balance %d for participant A (%s)", 
+		log.Printf("[ChannelOpened] Recording initial balance %d for participant A (%s)",
 			initialBalanceA, participantA)
 		accountA := h.ledger.Account(channelID, participantA, tokenAddress)
 		if err := accountA.Record(initialBalanceA); err != nil {
@@ -403,7 +422,7 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 	}
 
 	if initialBalanceB > 0 {
-		log.Printf("[ChannelOpened] Recording initial balance %d for participant B (%s)", 
+		log.Printf("[ChannelOpened] Recording initial balance %d for participant B (%s)",
 			initialBalanceB, participantB)
 		accountB := h.ledger.Account(channelID, participantB, tokenAddress)
 		if err := accountB.Record(initialBalanceB); err != nil {
@@ -420,20 +439,43 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 
 func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 	log.Printf("[ChannelCreated] Processing ChannelCreated event for transaction: %s", event.Data.Transaction.Hash)
-	
+
 	// Debug: Print complete event details for debugging
 	eventData, _ := json.MarshalIndent(event, "", "  ")
 	log.Printf("[ChannelCreated] Full event data: %s", string(eventData))
 
 	e := CreatedEvent{}
 	channelID := nitrolite.GetChannelID(e.Channel)
-	
+
 	log.Printf("[ChannelCreated] Parsed channel ID: %s", channelID)
 
 	if len(e.Channel.Participants) < 2 {
-		log.Printf("[ChannelCreated] Error: channel %s has insufficient participants (count: %d)", 
+		log.Printf("[ChannelCreated] Error: channel %s has insufficient participants (count: %d)",
 			channelID, len(e.Channel.Participants))
 		return
+	}
+
+	// Extract network ID if available
+	networkID, _ := event.Data.Event.InputParams["networkId"].(string)
+	if networkID == "" {
+		networkID, _ = event.Data.Event.InputParams["networkID"].(string)
+	}
+	if networkID == "" {
+		networkID, _ = event.Data.Event.InputParams["network_id"].(string)
+	}
+	if networkID == "" {
+		// Try to derive it from other event data
+		if event.Data.Transaction.BlockNumber > 0 {
+			// Simplified example: derive from block number
+			networkID = fmt.Sprintf("chain-%d", event.Data.Transaction.BlockNumber/1000000)
+			log.Printf("[ChannelCreated] Derived network ID from block number: %s", networkID)
+		} else if event.Data.Transaction.Contract != "" {
+			// Could try to derive from contract address
+			networkID = fmt.Sprintf("network-%s", event.Data.Transaction.Contract[:8])
+			log.Printf("[ChannelCreated] Derived network ID from contract: %s", networkID)
+		} else {
+			log.Printf("[ChannelCreated] No network ID found or derived, using empty value")
+		}
 	}
 
 	// Log participant information
@@ -442,9 +484,32 @@ func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 	}
 
 	// Check if the broker is the second participant (index 1)
-	log.Printf("[ChannelCreated] Checking if broker (%s) is participant", h.brokerAddress)
+	log.Printf("[ChannelCreated] Checking if broker (%s) is participant on network %s", 
+		h.brokerAddress, networkID)
 	if e.Channel.Participants[1].Hex() == h.brokerAddress {
-		log.Printf("[ChannelCreated] Broker is participant in channel %s, joining...", channelID)
+		log.Printf("[ChannelCreated] Broker is participant in channel %s on network %s, joining...", 
+			channelID, networkID)
+
+		// Save the network ID to our local database before joining
+		// This associates the channel with the correct network
+		participantA := e.Channel.Participants[0].Hex()
+		// You may need to get tokenAddress from the event or other source
+		tokenAddress := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" // Default if not available
+		if tokenAddr, ok := event.Data.Event.InputParams["tokenAddress"].(string); ok {
+			tokenAddress = tokenAddr
+		}
+		
+		// Create or update the channel with network ID
+		_, err := h.channelService.GetOrCreateChannel(
+			channelID.Hex(),
+			participantA,
+			tokenAddress,
+			networkID,
+		)
+		if err != nil {
+			log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
+			// Continue anyway as the blockchain join is more important
+		}
 
 		// Broker should call join() on the blockchain for this channel
 		if err := h.blockchainClient.Join(channelID.Hex()); err != nil {
@@ -452,7 +517,8 @@ func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 			return
 		}
 
-		log.Printf("[ChannelCreated] Successfully initiated join for channel %s", channelID)
+		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s", 
+			channelID, networkID)
 	} else {
 		log.Printf("[ChannelCreated] Broker is not a participant in this channel, skipping join")
 	}
@@ -461,59 +527,59 @@ func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 // handleChannelClosedEvent processes ChannelClosed events
 func (h *EventHandler) handleChannelClosedEvent(event *MultiBaasEvent) {
 	log.Printf("[ChannelClosed] Processing ChannelClosed event for transaction: %s", event.Data.Transaction.Hash)
-	
+
 	// Debug: Print complete event details for debugging
 	eventData, _ := json.MarshalIndent(event, "", "  ")
 	log.Printf("[ChannelClosed] Full event data: %s", string(eventData))
-	
+
 	channelID, ok := event.Data.Event.InputParams["channelId"].(string)
 	if !ok {
 		log.Printf("[ChannelClosed] Error: Event missing required parameter 'channelId'")
 		return
 	}
-	
+
 	log.Printf("[ChannelClosed] Channel %s has been closed", channelID)
-	
+
 	// Additional processing logic can be added here as needed
 	// For example, updating channel status in the database, notifying users, etc.
-	
+
 	log.Printf("[ChannelClosed] Successfully processed channel closing event")
 }
 
-// processBindleEvent handles incoming events from Bindle webhooks
-func (h *EventHandler) processBindleEvent(event *BindleEvent) {
-	log.Printf("[Bindle] Processing Bindle webhook event, target address: %s", event.Event.TargetAddress)
-	
+// processNoditEvent handles incoming events from Nodit webhooks
+func (h *EventHandler) processNoditEvent(event *NoditEvent) {
+	log.Printf("[Nodit] Processing Nodit webhook event, target address: %s", event.Event.TargetAddress)
+
 	// Debug: Print complete event details for debugging
 	eventData, _ := json.MarshalIndent(event, "", "  ")
-	log.Printf("[Bindle] Full event data: %s", string(eventData))
-	
+	log.Printf("[Nodit] Full event data: %s", string(eventData))
+
 	// Process each message in the event
 	for i, message := range event.Event.Messages {
-		log.Printf("[Bindle] Processing message %d from block %d, tx: %s", 
+		log.Printf("[Nodit] Processing message %d from block %d, tx: %s",
 			i, message.BlockNumber, message.TransactionHash)
-		
+
 		// Check if the topics match known event signatures
 		if len(message.Topics) > 0 {
 			// First topic is the event signature
 			eventSignature := message.Topics[0]
-			log.Printf("[Bindle] Event signature: %s", eventSignature)
-			
+			log.Printf("[Nodit] Event signature: %s", eventSignature)
+
 			// Check common ERC20 Transfer event signature - 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
 			if eventSignature == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" {
 				h.handleERC20Transfer(message)
 			} else {
 				// Handle other event types based on their signatures
 				// This can be expanded with additional event signature checks
-				log.Printf("[Bindle] Unhandled event signature: %s", eventSignature)
+				log.Printf("[Nodit] Unhandled event signature: %s", eventSignature)
 			}
 		}
 	}
-	
-	log.Printf("[Bindle] Completed processing Bindle webhook event")
+
+	log.Printf("[Nodit] Completed processing Nodit webhook event")
 }
 
-// handleERC20Transfer processes ERC20 transfer events from Bindle webhooks
+// handleERC20Transfer processes ERC20 transfer events from Nodit webhooks
 func (h *EventHandler) handleERC20Transfer(message struct {
 	Address          string   `json:"address"`
 	Topics           []string `json:"topics"`
@@ -528,25 +594,25 @@ func (h *EventHandler) handleERC20Transfer(message struct {
 	Type             string   `json:"type"`
 }) {
 	log.Printf("[ERC20Transfer] Processing Transfer event from transaction: %s", message.TransactionHash)
-	
+
 	// For ERC20 Transfer: topic[0] = signature, topic[1] = from address, topic[2] = to address, data = value
 	if len(message.Topics) < 3 {
 		log.Printf("[ERC20Transfer] Error: Insufficient topics in transfer event")
 		return
 	}
-	
+
 	// Parse addresses from topics (removing padding)
 	fromAddress := "0x" + strings.TrimPrefix(message.Topics[1], "0x000000000000000000000000")
 	toAddress := "0x" + strings.TrimPrefix(message.Topics[2], "0x000000000000000000000000")
 	tokenAddress := message.Address
-	
-	log.Printf("[ERC20Transfer] Transfer from %s to %s using token %s", 
+
+	log.Printf("[ERC20Transfer] Transfer from %s to %s using token %s",
 		fromAddress, toAddress, tokenAddress)
-	
+
 	// Parse value from data field
 	valueHex := message.Data
 	value := int64(0)
-	
+
 	if valueHex != "" && strings.HasPrefix(valueHex, "0x") {
 		// Remove 0x prefix and parse hex
 		valueStr := strings.TrimPrefix(valueHex, "0x")
@@ -564,9 +630,9 @@ func (h *EventHandler) handleERC20Transfer(message struct {
 			log.Printf("[ERC20Transfer] Error parsing value from data: %s", valueHex)
 		}
 	}
-	
+
 	// Here you would implement your business logic for handling transfers
 	// For example, update balances in your system
-	
+
 	log.Printf("[ERC20Transfer] Successfully processed ERC20 transfer event")
 }

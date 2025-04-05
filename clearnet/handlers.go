@@ -21,6 +21,7 @@ type CreateChannelParams struct {
 	ChannelID    string   `json:"channelId"`
 	TokenAddress string   `json:"token_address"`
 	Amount       *big.Int `json:"amount,string,omitempty"`
+	NetworkID    string   `json:"network_id,omitempty"`
 }
 
 // CreateVirtualChannelParams represents parameters needed for virtual channel creation
@@ -79,11 +80,12 @@ func HandleCreateChannel(hostAddress string, req *RPCRequest, channelService *Ch
 		return nil, errors.New("missing required parameters: channelId, participant, or tokenAddress")
 	}
 
-	// Create the channel with the broker
+	// Create the channel with the broker, including network ID if provided
 	channel, err := channelService.GetOrCreateChannel(
 		params.ChannelID,
 		hostAddress,
 		params.TokenAddress,
+		params.NetworkID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create channel: %w", err)
