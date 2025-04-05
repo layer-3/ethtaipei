@@ -25,12 +25,6 @@ type CreateChannelParams struct {
 
 // CreateVirtualChannelParams represents parameters needed for virtual channel creation
 type CreateVirtualChannelParams struct {
-	VirtualChannel VirtualChannel `json:"virtual_channel"`
-	SignatureA     string         `json:"signatureA"`
-	SignatureB     string         `json:"signatureB"`
-}
-
-type VirtualChannel struct {
 	ParticipantA string   `json:"participantA"`
 	ParticipantB string   `json:"participantB"`
 	TokenAddress string   `json:"token_address"`
@@ -135,7 +129,7 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 	}
 
 	// TODO: verify signatures
-	virtualChannel := params.VirtualChannel
+	virtualChannel := params
 
 	// Validate required parameters
 	if virtualChannel.ParticipantA == "" || virtualChannel.ParticipantB == "" || virtualChannel.TokenAddress == "" {

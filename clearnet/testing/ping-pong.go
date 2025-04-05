@@ -47,8 +47,8 @@ type CreateChannelParams struct {
 	Amount       *big.Int `json:"amount,string,omitempty"`
 }
 
-// VirtualChannel holds the core data for a virtual channel.
-type VirtualChannel struct {
+// CreateVirtualChannelParams holds parameters for virtual channel creation.
+type CreateVirtualChannelParams struct {
 	ParticipantA string   `json:"participantA"`
 	ParticipantB string   `json:"participantB"`
 	TokenAddress string   `json:"token_address"`
@@ -57,13 +57,6 @@ type VirtualChannel struct {
 	Adjudicator  string   `json:"adjudicator,omitempty"`
 	Challenge    uint64   `json:"challenge,omitempty"`
 	Nonce        uint64   `json:"nonce,omitempty"`
-}
-
-// CreateVirtualChannelParams holds parameters for virtual channel creation.
-type CreateVirtualChannelParams struct {
-	VirtualChannel VirtualChannel `json:"virtual_channel"`
-	SignatureA     string         `json:"signatureA"`
-	SignatureB     string         `json:"signatureB"`
 }
 
 // ChannelAvailabilityResponse represents a participant's availability for virtual channels
@@ -457,9 +450,22 @@ func main() {
 	}
 	log.Printf("Available channels BEFORE virtual channel: %s", inlineJSON(respListBeforeVC))
 
-	// Create a virtual channel between the two participants with both signatures.
-	// First create the virtual channel data structure
-	virtualChannel := VirtualChannel{
+	// Serialize the virtual channel data for signing by both parties
+	// virtualChannelJSON, _ := json.Marshal(virtualChannel)
+
+	// // Sign the virtual channel data with both private keys
+	// signatureA, err := signMessage(virtualChannelJSON, privateKeyA)
+	// if err != nil {
+	// 	log.Fatalf("Error signing virtual channel by A: %v", err)
+	// }
+
+	// signatureB, err := signMessage(virtualChannelJSON, privateKeyB)
+	// if err != nil {
+	// 	log.Fatalf("Error signing virtual channel by B: %v", err)
+	// }
+
+	// Create the complete request with both signatures
+	createVCParams := CreateVirtualChannelParams{
 		ParticipantA: addressA,
 		ParticipantB: addressB,
 		TokenAddress: tokenAddress,
@@ -468,27 +474,6 @@ func main() {
 		Adjudicator:  "0x0000000000000000000000000000000000000000",
 		Challenge:    86400,
 		Nonce:        uint64(time.Now().UnixNano()),
-	}
-
-	// Serialize the virtual channel data for signing by both parties
-	virtualChannelJSON, _ := json.Marshal(virtualChannel)
-
-	// Sign the virtual channel data with both private keys
-	signatureA, err := signMessage(virtualChannelJSON, privateKeyA)
-	if err != nil {
-		log.Fatalf("Error signing virtual channel by A: %v", err)
-	}
-
-	signatureB, err := signMessage(virtualChannelJSON, privateKeyB)
-	if err != nil {
-		log.Fatalf("Error signing virtual channel by B: %v", err)
-	}
-
-	// Create the complete request with both signatures
-	createVCParams := CreateVirtualChannelParams{
-		VirtualChannel: virtualChannel,
-		SignatureA:     signatureA,
-		SignatureB:     signatureB,
 	}
 	createVCParamsJSON, _ := json.Marshal(createVCParams)
 	createVCReqData := []interface{}{4, "CreateVirtualChannel", []interface{}{json.RawMessage(createVCParamsJSON)}, uint64(time.Now().Unix())}
