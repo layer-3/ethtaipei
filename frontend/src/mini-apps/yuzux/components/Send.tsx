@@ -3,7 +3,6 @@ import { Modal } from './common/Modal';
 import { QrScanner } from './QrScanner';
 import { TokenSelector } from './TokenSelector';
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
-import Image from 'next/image';
 
 interface SendProps {
     isOpen: boolean;
@@ -76,14 +75,6 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         }, 2000);
     }, [amount, selectedToken, recipientAddress, onClose]);
 
-    // Back button handler
-    const handleBack = useCallback(() => {
-        if (step === 'manual' || step === 'amount') {
-            setStep('scan');
-        } else {
-            onClose();
-        }
-    }, [step, onClose]);
 
     // QR Scanning view
     const scanComponent = useMemo(() => (
@@ -165,9 +156,9 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
     const processingComponent = useMemo(() => (
         <div className="flex flex-col items-center justify-center h-full">
             <div className="mb-6 relative">
-                <div className="w-16 h-16 border-4 border-white rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-white rounded-full animate-spin" />
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <div className="w-8 h-8 bg-black rounded-full"></div>
+                    <div className="w-8 h-8 bg-black rounded-full" />
                 </div>
             </div>
 

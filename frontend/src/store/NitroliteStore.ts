@@ -67,7 +67,7 @@ const NitroliteStore = {
         state.stateSigner = signer;
     },
 
-    getChannelContext(channelId: string): ChannelContext | null {
+    getChannelContext(): ChannelContext | null {
         return state.channelContext;
     },
 

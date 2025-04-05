@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
-type Token = {
+interface Token {
   id: string;
   name: string;
   symbol: string;
-};
+}
 
 const TOKENS: Token[] = [
   { id: '1', name: 'Yuzu Token', symbol: 'YUZU' },

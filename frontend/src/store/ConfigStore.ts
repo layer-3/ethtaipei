@@ -43,7 +43,9 @@ const ConfigStore = {
             if (message?.res && Array.isArray(message.res) && message.res.length >= 3 && message.res[1] === 'config') {
                 // Extract the first item from the config array, which contains the actual config object
                 const configData = Array.isArray(message.res[2]) && message.res[2].length > 0 ? message.res[2][0] : {};
+
                 console.log('Extracted config data:', JSON.stringify(configData));
+
                 this.setConfig(configData);
                 return true;
             }

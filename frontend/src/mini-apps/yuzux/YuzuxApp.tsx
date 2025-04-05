@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import Image from 'next/image';
 import AppStore from '@/store/AppStore';
 import { useSnapshot } from 'valtio';
 import { Send, Receive } from './components/SendReceive';

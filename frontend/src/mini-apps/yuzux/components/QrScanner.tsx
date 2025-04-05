@@ -17,6 +17,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter((device) => device.kind === 'videoinput');
+
                 setHasCamera(videoDevices.length > 0);
             } catch (error) {
                 console.error('Error checking for camera:', error);
@@ -63,11 +64,6 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         }
     };
 
-    const handleError = (error: Error) => {
-        console.error('QR scanner error:', error);
-        if (onError) onError(error);
-    };
-
     if (!hasCamera) {
         return (
             <div className="flex flex-col items-center justify-center h-full bg-black text-white p-4">
@@ -92,7 +88,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                         />
                     </svg>
                     <p className="text-lg font-semibold">No Camera Available</p>
-                    <p className="text-sm mt-2">Your device doesn't have a camera or access is restricted.</p>
+                    <p className="text-sm mt-2">Your device doesn&apos;t have a camera or access is restricted.</p>
                 </div>
             </div>
         );
