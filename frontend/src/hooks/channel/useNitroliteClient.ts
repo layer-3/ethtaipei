@@ -38,7 +38,7 @@ export function useNitroliteClient() {
 
                 const addresses = {
                     custody: APP_CONFIG.CUSTODIES[chain.id] as Address,
-                    adjudicators: APP_CONFIG.ADJUDICATORS
+                    adjudicators: APP_CONFIG.ADJUDICATORS,
                 };
 
                 // Create Nitrolite client
