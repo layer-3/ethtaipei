@@ -263,7 +263,7 @@ func TestHandleCloseChannel(t *testing.T) {
 	}
 
 	// Call the handler
-	resp, err := HandleCloseChannel(req, ledger, mockRouter)
+	resp, err := HandleCloseVirtualChannel(req, ledger, mockRouter)
 	require.NoError(t, err)
 
 	// Verify response

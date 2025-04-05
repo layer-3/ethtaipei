@@ -216,11 +216,11 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
-		case "CloseChannel":
-			rpcResponse, handlerErr = HandleCloseChannel(&rpcRequest, h.ledger, h.messageRouter)
+		case "CloseVirtualChannel":
+			rpcResponse, handlerErr = HandleCloseVirtualChannel(&rpcRequest, h.ledger, h.messageRouter)
 			if handlerErr != nil {
-				log.Printf("Error handling CloseChannel: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to close channel: "+handlerErr.Error())
+				log.Printf("Error handling CloseVirtualChannel: %v", handlerErr)
+				sendErrorResponse(uint64(requestID), method, conn, "Failed to close virtual channel: "+handlerErr.Error())
 				continue
 			}
 

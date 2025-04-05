@@ -418,9 +418,9 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	return rpcResponse, nil
 }
 
-// HandleCloseChannel closes a virtual channel and redistributes funds to participants
+// HandleCloseVirtualChannel closes a virtual channel and redistributes funds to participants
 // TODO: this will be triggered automatically when we receive an event from Blockchain.
-func HandleCloseChannel(req *RPCRequest, ledger *Ledger, router RouterInterface) (*RPCResponse, error) {
+func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInterface) (*RPCResponse, error) {
 	// Extract parameters from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")

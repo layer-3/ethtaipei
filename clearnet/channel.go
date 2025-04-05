@@ -66,9 +66,6 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 	}
 }
 
-// TEMP hardcoded broker address
-const BrokerAddress = "0x6B175474E89094C44Da98b954EedeAC495271d0F" // Hardcoded broker address
-
 // GetOrCreateChannel gets an existing channel or creates a new one
 // For real channels, participantB is always the broker application
 func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddress string) (*DBChannel, error) {
