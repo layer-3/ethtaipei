@@ -64,9 +64,9 @@ export function useChannelCreate() {
 
             await NitroliteStore.deposit(channelId, tokenAddress as Address, amount);
 
-            // Get state hash for signing
             const stateHash = channelContext.getStateHash(initialState);
 
+            const [signature] = await stateSigner.sign(stateHash);
             const parsedSig = parseSignature(signature as Hex);
 
             initialState.sigs = [
