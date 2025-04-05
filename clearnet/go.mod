@@ -4,7 +4,6 @@ go 1.24.0
 
 require (
 	github.com/centrifugal/centrifuge v0.35.0
-	github.com/erc7824/go-nitrolite v0.0.0-20250403075142-c49f1cb4f260
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.10.0
@@ -20,6 +19,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
+	github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e // indirect
 	github.com/gammazero/deque v0.2.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect

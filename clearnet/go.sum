@@ -18,6 +18,8 @@ github.com/dolthub/maphash v0.1.0 h1:bsQ7JsF4FkkWyrP3oCnFJgrCUAFbFf3kOl4L/QxPDyQ
 github.com/dolthub/maphash v0.1.0/go.mod h1:gkg4Ch4CdCDu5h6PMriVLawB7koZ+5ijb9puGMV50a4=
 github.com/erc7824/go-nitrolite v0.0.0-20250403075142-c49f1cb4f260 h1:/kdza1duw7xPfeA/QCjgWWBxBm9NvBqBxTco3Uq2Lks=
 github.com/erc7824/go-nitrolite v0.0.0-20250403075142-c49f1cb4f260/go.mod h1:3SDBHeCQKsLSPP8AAdxzgeI7m+zVp+S6b4/imF3x6G8=
+github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e h1:QEVMjjQ4QNTSkybJ9uM4H4U2HGEzfFe/0x7U+VNhjEE=
+github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e/go.mod h1:3SDBHeCQKsLSPP8AAdxzgeI7m+zVp+S6b4/imF3x6G8=
 github.com/ethereum/go-ethereum v1.15.7 h1:vm1XXruZVnqtODBgqFaTclzP0xAvCvQIDKyFNUA1JpY=
 github.com/ethereum/go-ethereum v1.15.7/go.mod h1:+S9k+jFzlyVTNcYGvqFhzN/SFhI6vA+aOY4T5tLSPL0=
 github.com/gammazero/deque v0.2.1 h1:qSdsbG6pgp6nL7A0+K/B7s12mcCY/5l5SIUpMOl+dC0=
