@@ -1,1 +1,1 @@
-export * from './apps/counter';
+export * from './apps/adjudicator_app';

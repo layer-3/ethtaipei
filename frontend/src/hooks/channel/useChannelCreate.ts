@@ -67,7 +67,6 @@ export function useChannelCreate() {
             // Get state hash for signing
             const stateHash = channelContext.getStateHash(initialState);
 
-            const signature = await stateSigner.sign(stateHash);
             const parsedSig = parseSignature(signature as Hex);
 
             initialState.sigs = [
