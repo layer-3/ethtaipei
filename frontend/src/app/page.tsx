@@ -39,7 +39,7 @@ export default function Connect() {
         <Privy>
             <div className="min-h-screen flex flex-col">
                 <Head>
-                    <title>Connect Wallet</title>
+                    <title>Clearnet</title>
                     <meta name="viewport" content="width=device-width, initial-scale=1" />
                 </Head>
 

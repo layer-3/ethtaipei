@@ -4,7 +4,7 @@ import {
     ChannelContext,
     NitroliteClient,
     Signature,
-    Channel as NitroliteChannel,
+    // Channel as NitroliteChannel,
     Channel,
     State,
 } from '@erc7824/nitrolite';
@@ -96,6 +96,7 @@ const NitroliteStore = {
             }
 
             state.status = 'open_pending';
+            
             await state.channelContext.create();
             state.status = 'opened';
 

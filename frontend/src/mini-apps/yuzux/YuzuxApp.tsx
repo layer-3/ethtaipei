@@ -70,13 +70,9 @@ export function YuzuxApp() {
                     className={`text-white text-center transform transition-transform duration-300 ${
                         isExiting ? 'scale-95' : 'scale-100'
                     }`}>
-                    <div className="mb-6">
-                        <Image src="/yuzux.svg" alt="Yuzux" width={180} height={180} className="mx-auto" />
-                    </div>
-
-                    <div className="flex flex-col items-center mt-4">
+                    <div className="flex flex-col items-center">
                         <span className="text-[56px] font-bold leading-none text-white">200</span>
-                        <span className="text-[18px] mt-2 opacity-80 tracking-widest">YUZU</span>
+                        <span className="text-[18px] mt-2 text-white tracking-widest">YUZU</span>
                     </div>
                 </div>
             </div>
@@ -87,36 +83,12 @@ export function YuzuxApp() {
                     <button
                         onClick={handleOpenReceive}
                         className="flex-1 mr-2 bg-black text-white py-3 rounded-md hover:bg-gray-900 transition-colors flex items-center justify-center border border-white">
-                        <svg
-                            className="w-5 h-5 mr-2"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round">
-                            <polyline points="8 12 12 16 16 12" />
-                            <line x1="12" y1="4" x2="12" y2="16" />
-                            <line x1="4" y1="20" x2="20" y2="20" />
-                        </svg>
                         Receive
                     </button>
                     <button
                         onClick={handleOpenSend}
                         className="flex-1 ml-2 bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white">
-                        <svg
-                            className="w-5 h-5 mr-2"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round">
-                            <polyline points="16 12 12 8 8 12" />
-                            <line x1="12" y1="20" x2="12" y2="8" />
-                            <line x1="4" y1="4" x2="20" y2="4" />
-                        </svg>
-                        Send
+                        Pay
                     </button>
                 </div>
             </div>

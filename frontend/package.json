@@ -28,6 +28,7 @@
         "react-dom": "^19.0.0",
         "react-use-websocket": "3.0.0",
         "valtio": "2.1.4",
+        "react-qrcode-logo": "3.0.0",
         "viem": "2.24.3"
     },
     "devDependencies": {
