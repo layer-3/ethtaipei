@@ -52,7 +52,7 @@ export default function CloseChannel({ isOpen, onClose }: DepositProps) {
             <div className="flex flex-col justify-between h-full">
                 <div className="flex-1 flex flex-col items-center justify-center mb-12">
                     <div className="flex gap-2 text-gray-800 items-start">
-                        <span className="text-2xl font-bold">YUZU</span>
+                        <span className="text-2xl font-bold">$</span>
                         <span className="text-6xl font-bold">{value}</span>
                     </div>
                 </div>
