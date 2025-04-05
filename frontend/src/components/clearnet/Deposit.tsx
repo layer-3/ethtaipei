@@ -46,7 +46,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
     const onOpenChannel = useCallback(() => {
         // TODO: remove hardcode
-        handleCreateChannel('0xe7f1725e7734ce288f8367e1bb143e90bb3f0512', String(+value));
+        handleCreateChannel('0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83', String(+value));
     }, [handleCreateChannel, value]);
 
     const defaultComponent = useMemo(() => {
