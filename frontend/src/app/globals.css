@@ -1,4 +1,8 @@
-@import "tailwindcss";
+@import "@worldcoin/mini-apps-ui-kit-react/styles.css";
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:ital@0;1&family=Rubik:ital,wght@0,300..900;1,300..900&family=Sora:wght@100..800&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
     --background: #0f172a;
@@ -25,6 +29,34 @@
     --secondary-700: #1d4ed8;
     --secondary-800: #1e40af;
     --secondary-900: #1e3a8a;
+
+    --system-green-10: #e8fcf1;
+    --system-green-20: #a5e1bf;
+    --system-green-40: #419e6a;
+    --system-green-60: #00632b;
+    --system-green-80: #00401c;
+    --system-green-90: #002611;
+
+    --system-blue-10: #d3e1fe;
+    --system-blue-20: #7ea5f8;
+    --system-blue-40: #4d82f3;
+    --system-blue-60: #2563eb;
+    --system-blue-80: #0037b3;
+    --system-blue-90: #002987;
+
+    --system-yellow-10: #fff5d5;
+    --system-yellow-20: #ffde81;
+    --system-yellow-40: #efb008;
+    --system-yellow-60: #976400;
+    --system-yellow-80: #724b00;
+    --system-yellow-90: #4d2900;
+
+    --system-red-10: #feeeee;
+    --system-red-20: #fea6a6;
+    --system-red-40: #d83232;
+    --system-red-60: #de3232;
+    --system-red-80: #8c0000;
+    --system-red-90: #660000;
 }
 
 @theme inline {
@@ -32,11 +64,33 @@
     --color-foreground: var(--foreground);
     --font-sans: var(--font-geist-sans);
     --font-mono: var(--font-geist-mono);
+
+    --color-primary-50: var(--primary-50);
+    --color-primary-100: var(--primary-100);
+    --color-primary-200: var(--primary-200);
+    --color-primary-300: var(--primary-300);
+    --color-primary-400: var(--primary-400);
+    --color-primary-500: var(--primary-500);
+    --color-primary-600: var(--primary-600);
+    --color-primary-700: var(--primary-700);
+    --color-primary-800: var(--primary-800);
+    --color-primary-900: var(--primary-900);
+
+    --color-secondary-50: var(--secondary-50);
+    --color-secondary-100: var(--secondary-100);
+    --color-secondary-200: var(--secondary-200);
+    --color-secondary-300: var(--secondary-300);
+    --color-secondary-400: var(--secondary-400);
+    --color-secondary-500: var(--secondary-500);
+    --color-secondary-600: var(--secondary-600);
+    --color-secondary-700: var(--secondary-700);
+    --color-secondary-800: var(--secondary-800);
+    --color-secondary-900: var(--secondary-900);
 }
 
 body {
-    background: var(--background);
-    color: var(--foreground);
+    /* background: var(--background); */
+    /* color: var(--foreground); */
     font-family:
         "Inter",
         system-ui,
