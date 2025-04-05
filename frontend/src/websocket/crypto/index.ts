@@ -66,8 +66,20 @@ export const createEthersSigner = (privateKey: string): WalletSigner => {
             address: wallet.address,
             sign: async (message: string): Promise<Hex> => {
                 try {
-                    const signature = await wallet.signMessage(message);
-
+                    // Instead of using wallet.signMessage which adds the EIP-191 prefix,
+                    // we'll hash the message directly and sign it without the prefix
+                    
+                    // Convert the message to bytes
+                    const messageBytes = ethers.utils.arrayify(
+                        ethers.utils.id(message)
+                    );
+                    
+                    // Sign the hash directly without EIP-191 prefix
+                    const flatSignature = await wallet._signingKey().signDigest(messageBytes);
+                    
+                    // Format signature as hex string
+                    const signature = ethers.utils.joinSignature(flatSignature);
+                    
                     return signature as Hex;
                 } catch (error) {
                     console.error('Error signing message:', error);
