@@ -41,12 +41,12 @@ export function useChannelCreate() {
                     {
                         // destination: channel.participants[0],
                         destination: WalletStore.state.account as Address,
-                        token: tokenAddress as Address,
+                        token: '0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83',
                         amount: BigInt(amount),
                     },
                     {
                         destination: channel.participants[1],
-                        token: tokenAddress as Address,
+                        token: '0xf9b497837cbBA86A8Dd800B9DDC5076fEbECFa83',
                         amount: BigInt(0),
                     },
                 ],

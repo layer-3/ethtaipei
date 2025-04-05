@@ -16,7 +16,7 @@ export const APP_CONFIG = {
     CHANNEL: {
         // Default address for the second participant
         DEFAULT_GUEST: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
-        GUEST_KEY: '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+        GUEST_KEY: '0xd4D81A4e51F3b43ff181aDC50cfD7b20A0638F99',
         // Challenge period in seconds (1 day)
         CHALLENGE_PERIOD: 86400,
         MAGIC_NUMBER_OPEN: BigInt(7877),
@@ -24,11 +24,11 @@ export const APP_CONFIG = {
     },
 
     CUSTODIES: {
-        80002: '0x244628A27317d863176284D6163a00d77f923359' as Address,
+        80002: '0x65a995DFe6C14f604d91987A94054df990F88BBa' as Address,
     },
 
     ADJUDICATORS: {
-        flag: '0x5fbdb2315678afecb367f032d93f642f64180aa3' as Address,
+        flag: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
     },
 };
 
