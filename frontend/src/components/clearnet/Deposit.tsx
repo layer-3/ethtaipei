@@ -54,7 +54,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             <div className="flex flex-col justify-between h-full">
                 <div className="flex-1 flex flex-col items-center justify-center mb-12">
                     <div className="flex gap-2 text-gray-800 items-start">
-                        <span className="text-2xl font-light">YUZU</span>
+                        <span className="text-2xl font-bold">YUZU</span>
                         <span className="text-6xl font-bold">{value}</span>
                     </div>
                 </div>
@@ -62,7 +62,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <button
                     disabled={!+value}
                     onClick={onOpenChannel}
-                    className="w-full bg-blue-600 disabled:bg-blue-300 text-white py-4 rounded-md font-medium hover:bg-blue-700 transition-colors mb-8">
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-medium mb-8">
                     Confirm
                 </button>
 
@@ -140,7 +140,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                             />
                         </svg>
                     </button>
-                    <h1 className="text-gray-600 text-sm uppercase tracking-wider">Open Account</h1>
+                    <h1 className="text-black text-sm uppercase tracking-wider font-medium">Open Account</h1>
                     <div className="w-8" />
                 </div>
 

@@ -9,6 +9,8 @@ export interface IWalletState {
     channelOpen: boolean;
     selectedTokenAddress: Address | null;
     selectedAmount: string | null;
+    privyConnected: boolean;
+    privyUserId: string | null;
 }
 
 const state = proxy<IWalletState>({
@@ -19,6 +21,8 @@ const state = proxy<IWalletState>({
     channelOpen: false,
     selectedTokenAddress: null,
     selectedAmount: null,
+    privyConnected: false,
+    privyUserId: null,
 });
 
 const WalletStore = {
@@ -36,6 +40,17 @@ const WalletStore = {
         state.account = null;
         state.error = null;
         // We keep the channel open status since that's managed by the backend
+    },
+    
+    connectPrivy(userId: string) {
+        state.privyConnected = true;
+        state.privyUserId = userId;
+        state.error = null;
+    },
+    
+    disconnectPrivy() {
+        state.privyConnected = false;
+        state.privyUserId = null;
     },
 
     setError(message: string) {

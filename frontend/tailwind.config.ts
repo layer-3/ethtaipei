@@ -25,6 +25,8 @@ const systemColors = {
     'system-red-60': 'var(--system-red-60)',
     'system-red-80': 'var(--system-red-80)',
     'system-red-90': 'var(--system-red-90)',
+    'primary': '#fcd000',
+    'primary-hover': '#e6be00',
 };
 
 module.exports = {
@@ -40,6 +42,15 @@ module.exports = {
             borderColor: {
                 ...systemColors,
             },
+            keyframes: {
+                'fade-scale-in': {
+                    '0%': { opacity: '0', transform: 'scale(0.95)' },
+                    '100%': { opacity: '1', transform: 'scale(1)' }
+                }
+            },
+            animation: {
+                'fade-scale-in': 'fade-scale-in 0.3s ease-out forwards'
+            }
         },
     },
 };

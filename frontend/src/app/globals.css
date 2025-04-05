@@ -57,6 +57,8 @@
     --system-red-60: #de3232;
     --system-red-80: #8c0000;
     --system-red-90: #660000;
+
+    --privy-border-radius-md: 0.375rem !important;
 }
 
 @theme inline {

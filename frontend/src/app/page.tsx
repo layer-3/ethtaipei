@@ -2,7 +2,7 @@
 
 import Head from 'next/head';
 import Image from 'next/image';
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ConnectButton } from '@/components/clearnet/ConnectButton';
 import { useNitroliteClient } from '@/hooks';
 import Deposit from '@/components/clearnet/Deposit';
@@ -43,40 +43,40 @@ export default function Connect() {
                     <meta name="viewport" content="width=device-width, initial-scale=1" />
                 </Head>
 
-                <main className="min-h-screen bg-white px-4 pt-4 flex flex-col justify-between pb-40">
+                <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
                     <div className="flex gap-4 items-center justify-between">
-                        {walletSnap.connected && (
+                        {(walletSnap.connected || walletSnap.privyConnected) && (
                             <button
                                 onClick={handleOpenDeposit}
-                                className="bg-blue-600 text-white px-8 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+                                className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-medium">
                                 Deposit
                             </button>
                         )}
-                        <div className={walletSnap.connected ? '' : 'ml-auto'}>
+                        <div className={walletSnap.connected || walletSnap.privyConnected ? '' : 'ml-auto'}>
                             {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}
                         </div>
                     </div>
 
-                    <div className="flex flex-col justify-center items-center gap-4">
-                        <Image src="/yuzux.svg" alt="Yuzux" className="w-24 h-24" width={128} height={122} />
+                    <div className="flex flex-col justify-center items-center gap-6 mt-20">
+                        <Image src="/logo_yuzux.png" alt="Yuzux" className="w-24 h-24" width={128} height={122} />
 
-                        <div className="text-center bg-gray-50">
+                        <div className="text-left bg-gray-100 p-4 rounded-sm w-full max-w-md">
                             <h1 className="text-2xl font-bold mb-2">Yuzux</h1>
                             <p className="text-gray-600 mb-6">
                                 Amet minim mollit non deserunt ullamco est sit aliqua dolor do amet sint.
                             </p>
                         </div>
 
-                        <button 
+                        <button
                             onClick={handleOpenYuzux}
-                            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-all transform hover:scale-105 duration-200">
+                            className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover transition-all font-medium transform hover:scale-105 duration-200">
                             Open App
                         </button>
                     </div>
 
-                    <hr />
+                    <hr className="border-gray-300 mt-4" />
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-6 mt-4">
                         <div className="flex flex-col gap-2">
                             <div className="bg-black rounded-2xl aspect-square p-4 flex items-center justify-center">
                                 <div className="text-center">
@@ -103,13 +103,15 @@ export default function Connect() {
                     </div>
                 </main>
 
-                {/* Deposit component slides in from right */}
                 <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
-                
-                {/* Yuzux fullscreen component */}
-                {appSnap.openApp === 'yuzux' && <YuzuxApp />}
-                
-                {/* Minimized apps taskbar */}
+
+                <div
+                    className={`fixed inset-0 bg-black z-40 transform transition-all duration-300 ${
+                        appSnap.openApp === 'yuzux' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
+                    }`}>
+                    {appSnap.openApp === 'yuzux' && <YuzuxApp />}
+                </div>
+
                 <MinimizedApps />
             </div>
         </Privy>
