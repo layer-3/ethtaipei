@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,37 @@ type MultiBaasEvent struct {
 // WebhookRequest represents the webhook payload containing events
 type WebhookRequest struct {
 	Events []MultiBaasEvent `json:"events"`
+}
+
+// BindleEvent represents events from Bindle webhook format
+type BindleEvent struct {
+	SubscriptionID   string `json:"subscriptionId"`
+	Description      string `json:"description"`
+	Protocol         string `json:"protocol"`
+	Network          string `json:"network"`
+	SubscriptionType string `json:"subscriptionType"`
+	Notification     struct {
+		WebhookURL string `json:"webhookUrl"`
+	} `json:"notification"`
+	EventType string `json:"eventType"`
+	Event     struct {
+		TargetAddress string   `json:"targetAddress"`
+		Topics        []string `json:"topics"`
+		Messages      []struct {
+			Address          string   `json:"address"`
+			Topics           []string `json:"topics"`
+			Data             string   `json:"data"`
+			BlockNumber      int64    `json:"block_number"`
+			TransactionHash  string   `json:"transaction_hash"`
+			TransactionIndex int      `json:"transaction_index"`
+			LogIndex         int      `json:"log_index"`
+			BlockHash        string   `json:"block_hash"`
+			BlockTimestamp   int64    `json:"block_timestamp"`
+			Removed          bool     `json:"removed"`
+			Type             string   `json:"type"`
+		} `json:"messages"`
+	} `json:"event"`
+	CreatedAt string `json:"createdAt"`
 }
 
 // BlockchainClient defines the interface for blockchain interactions
@@ -173,23 +205,32 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// For testing: always proceed regardless of signature
 	log.Printf("[Webhook] Signature validation bypassed for testing")
 
-	// Parse the webhook payload
-	var webhookReq WebhookRequest
-	if err := json.Unmarshal(body, &webhookReq); err != nil {
-		log.Printf("[Webhook] Error parsing webhook payload: %v", err)
-		http.Error(w, "Error parsing webhook payload", http.StatusBadRequest)
-		return
-	}
+	// First try to parse as a Bindle webhook
+	var bindleEvent BindleEvent
+	bindleErr := json.Unmarshal(body, &bindleEvent)
+	
+	if bindleErr == nil && bindleEvent.SubscriptionID != "" && bindleEvent.EventType == "LOG" {
+		log.Printf("[Webhook] Detected Bindle webhook format with subscription ID: %s", bindleEvent.SubscriptionID)
+		h.processBindleEvent(&bindleEvent)
+	} else {
+		// Try to parse as MultiBaas webhook
+		var webhookReq WebhookRequest
+		if err := json.Unmarshal(body, &webhookReq); err != nil {
+			log.Printf("[Webhook] Error parsing webhook payload: %v", err)
+			http.Error(w, "Error parsing webhook payload", http.StatusBadRequest)
+			return
+		}
 
-	log.Printf("[Webhook] Successfully parsed payload with %d events", len(webhookReq.Events))
+		log.Printf("[Webhook] Successfully parsed MultiBaas payload with %d events", len(webhookReq.Events))
 
-	// Process each event
-	for i, event := range webhookReq.Events {
-		log.Printf("[Webhook] Processing event %d: ID=%s, Type=%s", i, event.ID, event.Event)
-		if event.Event == "event.emitted" {
-			h.processEvent(&event)
-		} else {
-			log.Printf("[Webhook] Skipping event with type: %s", event.Event)
+		// Process each event
+		for i, event := range webhookReq.Events {
+			log.Printf("[Webhook] Processing event %d: ID=%s, Type=%s", i, event.ID, event.Event)
+			if event.Event == "event.emitted" {
+				h.processEvent(&event)
+			} else {
+				log.Printf("[Webhook] Skipping event with type: %s", event.Event)
+			}
 		}
 	}
 
@@ -437,4 +478,95 @@ func (h *EventHandler) handleChannelClosedEvent(event *MultiBaasEvent) {
 	// For example, updating channel status in the database, notifying users, etc.
 	
 	log.Printf("[ChannelClosed] Successfully processed channel closing event")
+}
+
+// processBindleEvent handles incoming events from Bindle webhooks
+func (h *EventHandler) processBindleEvent(event *BindleEvent) {
+	log.Printf("[Bindle] Processing Bindle webhook event, target address: %s", event.Event.TargetAddress)
+	
+	// Debug: Print complete event details for debugging
+	eventData, _ := json.MarshalIndent(event, "", "  ")
+	log.Printf("[Bindle] Full event data: %s", string(eventData))
+	
+	// Process each message in the event
+	for i, message := range event.Event.Messages {
+		log.Printf("[Bindle] Processing message %d from block %d, tx: %s", 
+			i, message.BlockNumber, message.TransactionHash)
+		
+		// Check if the topics match known event signatures
+		if len(message.Topics) > 0 {
+			// First topic is the event signature
+			eventSignature := message.Topics[0]
+			log.Printf("[Bindle] Event signature: %s", eventSignature)
+			
+			// Check common ERC20 Transfer event signature - 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+			if eventSignature == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" {
+				h.handleERC20Transfer(message)
+			} else {
+				// Handle other event types based on their signatures
+				// This can be expanded with additional event signature checks
+				log.Printf("[Bindle] Unhandled event signature: %s", eventSignature)
+			}
+		}
+	}
+	
+	log.Printf("[Bindle] Completed processing Bindle webhook event")
+}
+
+// handleERC20Transfer processes ERC20 transfer events from Bindle webhooks
+func (h *EventHandler) handleERC20Transfer(message struct {
+	Address          string   `json:"address"`
+	Topics           []string `json:"topics"`
+	Data             string   `json:"data"`
+	BlockNumber      int64    `json:"block_number"`
+	TransactionHash  string   `json:"transaction_hash"`
+	TransactionIndex int      `json:"transaction_index"`
+	LogIndex         int      `json:"log_index"`
+	BlockHash        string   `json:"block_hash"`
+	BlockTimestamp   int64    `json:"block_timestamp"`
+	Removed          bool     `json:"removed"`
+	Type             string   `json:"type"`
+}) {
+	log.Printf("[ERC20Transfer] Processing Transfer event from transaction: %s", message.TransactionHash)
+	
+	// For ERC20 Transfer: topic[0] = signature, topic[1] = from address, topic[2] = to address, data = value
+	if len(message.Topics) < 3 {
+		log.Printf("[ERC20Transfer] Error: Insufficient topics in transfer event")
+		return
+	}
+	
+	// Parse addresses from topics (removing padding)
+	fromAddress := "0x" + strings.TrimPrefix(message.Topics[1], "0x000000000000000000000000")
+	toAddress := "0x" + strings.TrimPrefix(message.Topics[2], "0x000000000000000000000000")
+	tokenAddress := message.Address
+	
+	log.Printf("[ERC20Transfer] Transfer from %s to %s using token %s", 
+		fromAddress, toAddress, tokenAddress)
+	
+	// Parse value from data field
+	valueHex := message.Data
+	value := int64(0)
+	
+	if valueHex != "" && strings.HasPrefix(valueHex, "0x") {
+		// Remove 0x prefix and parse hex
+		valueStr := strings.TrimPrefix(valueHex, "0x")
+		valueBig, success := new(big.Int).SetString(valueStr, 16)
+		if success {
+			// Check if the value can fit into an int64
+			if valueBig.IsInt64() {
+				value = valueBig.Int64()
+				log.Printf("[ERC20Transfer] Parsed value: %d", value)
+			} else {
+				log.Printf("[ERC20Transfer] Warning: Value too large for int64, using max value")
+				value = 9223372036854775807 // Max int64
+			}
+		} else {
+			log.Printf("[ERC20Transfer] Error parsing value from data: %s", valueHex)
+		}
+	}
+	
+	// Here you would implement your business logic for handling transfers
+	// For example, update balances in your system
+	
+	log.Printf("[ERC20Transfer] Successfully processed ERC20 transfer event")
 }
