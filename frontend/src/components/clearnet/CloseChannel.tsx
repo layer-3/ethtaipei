@@ -1,42 +1,30 @@
 'use client';
 
-import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useChannelCreate } from '@/hooks/channel/useChannelCreate';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSnapshot } from 'valtio';
 import Image from 'next/image';
 import NitroliteStore from '@/store/NitroliteStore';
-import { AssetsStore } from '@/store';
-import APP_CONFIG, { DEFAULT_ADDRESS } from '@/config/app';
-import WalletStore from '@/store/WalletStore';
+import APP_CONFIG from '@/config/app';
+import { WalletStore } from '@/store';
+import { useChannelClose } from '@/hooks/channel/useChannelClose';
 
 interface DepositProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-export default function Deposit({ isOpen, onClose }: DepositProps) {
-    const [value, setValue] = useState<string>('0');
-    const { balances } = useSnapshot(AssetsStore.state);
+export default function CloseChannel({ isOpen, onClose }: DepositProps) {
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
+    // TODO: take from broker
+    const value = 0;
 
-    const yuzuBalance = useMemo(() => {
-        return balances?.find((asset) => asset.symbol === DEFAULT_ADDRESS);
-    }, [balances]);
     const chainId = useMemo(() => {
         return WalletStore.state.chainId;
     }, [WalletStore.state.chainId]);
 
-    // Reset value when component opens
-    useEffect(() => {
-        if (isOpen) {
-            setValue('0');
-        }
-    }, [isOpen]);
-
     // Auto-hide deposit panel when transaction is successful
     useEffect(() => {
-        if (nitroliteSnapshot.status === 'opened') {
+        if (nitroliteSnapshot.status === 'closed') {
             const timer = setTimeout(() => {
                 onClose();
             }, 2500); // Hide after 2.5 seconds
@@ -45,17 +33,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         }
     }, [nitroliteSnapshot.status, onClose]);
 
-    const handleChange = useCallback((newValue: string) => {
-        if (newValue === '') {
-            setValue('0');
-        } else {
-            setValue(newValue.replaceAll(/^0/g, ''));
-        }
-    }, []);
+    const { handleCloseChannel } = useChannelClose();
 
-    const { handleCreateChannel } = useChannelCreate();
-
-    const onOpenChannel = useCallback(() => {
+    const onCloseChannel = useCallback(() => {
         const tokenAddress = APP_CONFIG.TOKENS[chainId];
 
         if (!tokenAddress) {
@@ -63,8 +43,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             return;
         }
 
-        handleCreateChannel(tokenAddress, String(+value));
-    }, [handleCreateChannel, value, chainId]);
+        // TODO: ask broker here about signature
+        handleCloseChannel(tokenAddress, String(value));
+    }, [handleCloseChannel, chainId, value]);
 
     const defaultComponent = useMemo(() => {
         return (
@@ -76,20 +57,14 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                     </div>
                 </div>
 
-                <span>
-                    Available: {yuzuBalance?.balance} {yuzuBalance?.symbol}
-                </span>
                 <button
-                    disabled={!+value}
-                    onClick={onOpenChannel}
+                    onClick={onCloseChannel}
                     className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
-                    Confirm
+                    Confirm Close
                 </button>
-
-                <NumberPad value={value} onChange={handleChange} />
             </div>
         );
-    }, [value, onOpenChannel, handleChange]);
+    }, [onCloseChannel, value]);
 
     const processingComponent = useMemo(() => {
         return (
@@ -120,7 +95,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
                 <div className="text-center">
                     <h2 className="text-2xl font-semibold mb-2 text-gray-800">Success!</h2>
-                    <p className="text-gray-600">Your account is ready</p>
+                    <p className="text-gray-600">Your channel is closed</p>
                 </div>
 
                 <div className="mt-4 text-sm text-gray-500">Closing in a moment...</div>
@@ -130,11 +105,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
     // Determine which component to show based on status
     const componentToShow =
-        nitroliteSnapshot.status === 'open_pending' ||
-        nitroliteSnapshot.status === 'deposit_pending' ||
-        nitroliteSnapshot.status === 'funded'
+        nitroliteSnapshot.status === 'close_pending'
             ? processingComponent
-            : nitroliteSnapshot.status === 'opened'
+            : nitroliteSnapshot.status === 'closed'
               ? successComponent
               : defaultComponent;
 
@@ -160,7 +133,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                             />
                         </svg>
                     </button>
-                    <h1 className="text-black text-sm uppercase tracking-wider font-normal">Open Account</h1>
+                    <h1 className="text-black text-sm uppercase tracking-wider font-normal">Close Channel</h1>
                     <div className="w-8" />
                 </div>
 

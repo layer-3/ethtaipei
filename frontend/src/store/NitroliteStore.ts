@@ -111,13 +111,7 @@ const NitroliteStore = {
         }
     },
 
-    async closeChannel(
-        channelId: string,
-        appState: bigint,
-        token: Address,
-        allocations: [bigint, bigint],
-        signatures: Signature[] = [],
-    ) {
+    async closeChannel(channelId: string, nitroState: State) {
         const previousStatus = state.status;
 
         try {
@@ -126,7 +120,7 @@ const NitroliteStore = {
             }
 
             state.status = 'close_pending';
-            await state.channelContext.close(appState, token, allocations, signatures);
+            await state.channelContext.close(nitroState);
             state.status = 'closed';
 
             return true;
