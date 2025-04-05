@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -349,28 +350,73 @@ func main() {
 	privKeyAHex := flag.String("privKeyA", "", "Private key for participant A (hex)")
 	privKeyBHex := flag.String("privKeyB", "", "Private key for participant B (hex)")
 	networkID := flag.String("network", "mainnet", "Network ID to use (mainnet, testnet, etc.)")
+	runMultiple := flag.Bool("multi", false, "Run tests for multiple networks sequentially")
+	networkIDs := flag.String("networks", "", "Comma-separated list of network IDs to test (overrides default networks in multi mode)")
 	flag.Parse()
-	
-	// Use fixed private keys for consistent testing if not specified
-	if *privKeyAHex == "" {
-		*privKeyAHex = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
-		log.Printf("Using default private key for A: %s", *privKeyAHex)
+
+	// If multi-network test is requested, run tests for multiple networks
+	if *runMultiple {
+		// Determine which networks to test
+		var networks []string
+		if *networkIDs != "" {
+			// Use user-provided networks
+			networks = strings.Split(*networkIDs, ",")
+			// Trim whitespace
+			for i, n := range networks {
+				networks[i] = strings.TrimSpace(n)
+			}
+		} else {
+			// Use default networks
+			networks = []string{"mainnet", "testnet", "optimism", "arbitrum", "polygon"}
+		}
+
+		log.Printf("Running ping-pong tests for multiple networks: %v", networks)
+
+		for i, network := range networks {
+			log.Printf("==================================================")
+			log.Printf("STARTING TEST #%d FOR NETWORK: %s", i+1, network)
+			log.Printf("==================================================")
+
+			// Update network ID for this test
+			*networkID = network
+
+			// Run the test with a small delay between networks
+			runPingPongTest(*serverAddr, *privKeyAHex, *privKeyBHex, *networkID)
+
+			// Small delay between network tests
+			time.Sleep(2 * time.Second)
+		}
+
+		log.Printf("All multi-network tests completed!")
+		return
 	}
 
-	if *privKeyBHex == "" {
-		*privKeyBHex = "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
-		log.Printf("Using default private key for B: %s", *privKeyBHex)
+	// Run single network test
+	runPingPongTest(*serverAddr, *privKeyAHex, *privKeyBHex, *networkID)
+}
+
+// runPingPongTest executes the ping-pong test for a single network
+func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
+	// Use fixed private keys for consistent testing if not specified
+	if privKeyAHex == "" {
+		privKeyAHex = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+		log.Printf("Using default private key for A: %s", privKeyAHex)
 	}
-	
-	log.Printf("Using network: %s", *networkID)
+
+	if privKeyBHex == "" {
+		privKeyBHex = "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
+		log.Printf("Using default private key for B: %s", privKeyBHex)
+	}
+
+	log.Printf("Using network: %s", networkID)
 
 	// Parse the private keys
-	privateKeyA, err := getPrivateKeyFromString(*privKeyAHex)
+	privateKeyA, err := getPrivateKeyFromString(privKeyAHex)
 	if err != nil {
 		log.Fatalf("Failed to parse private key A: %v", err)
 	}
 
-	privateKeyB, err := getPrivateKeyFromString(*privKeyBHex)
+	privateKeyB, err := getPrivateKeyFromString(privKeyBHex)
 	if err != nil {
 		log.Fatalf("Failed to parse private key B: %v", err)
 	}
@@ -385,13 +431,13 @@ func main() {
 	tokenAddress := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" // Same token address for both
 
 	// Connect and authenticate both participants.
-	connA, err := connectAndAuth(*serverAddr, addressA, privateKeyA)
+	connA, err := connectAndAuth(serverAddr, addressA, privateKeyA)
 	if err != nil {
 		log.Fatalf("Participant A connection error: %v", err)
 	}
 	defer connA.Close()
 
-	connB, err := connectAndAuth(*serverAddr, addressB, privateKeyB)
+	connB, err := connectAndAuth(serverAddr, addressB, privateKeyB)
 	if err != nil {
 		log.Fatalf("Participant B connection error: %v", err)
 	}
@@ -403,7 +449,7 @@ func main() {
 		ChannelID:    channelA,
 		TokenAddress: tokenAddress,
 		Amount:       big.NewInt(1000),
-		NetworkID:    *networkID,
+		NetworkID:    networkID,
 	}
 	createChannelAParamsJSON, _ := json.Marshal(createChannelAParams)
 	createChannelAReqData := []interface{}{2, "CreateChannel", []interface{}{json.RawMessage(createChannelAParamsJSON)}, uint64(time.Now().Unix())}
@@ -420,7 +466,7 @@ func main() {
 		ChannelID:    channelB,
 		TokenAddress: tokenAddress,
 		Amount:       big.NewInt(500),
-		NetworkID:    *networkID,
+		NetworkID:    networkID,
 	}
 	createChannelBParamsJSON, _ := json.Marshal(createChannelBParams)
 	createChannelBReqData := []interface{}{3, "CreateChannel", []interface{}{json.RawMessage(createChannelBParamsJSON)}, uint64(time.Now().Unix())}

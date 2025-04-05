@@ -91,21 +91,24 @@ type BlockchainClient interface {
 
 // EventHandler manages incoming MultiBaas webhook events
 type EventHandler struct {
-	webhookSecret    string
-	ledger           *Ledger
-	channelService   *ChannelService
-	brokerAddress    string
-	blockchainClient BlockchainClient
+	webhookSecret     string
+	ledger            *Ledger
+	channelService    *ChannelService
+	brokerAddress     string
+	blockchainClients map[string]BlockchainClient // Map of network ID to blockchain client
 }
 
 // NewEventHandler creates a new webhook handler
-func NewEventHandler(secret string, ledger *Ledger, channelService *ChannelService, brokerAddress string, blockchainClient BlockchainClient) *EventHandler {
+func NewEventHandler(secret string, ledger *Ledger, channelService *ChannelService, brokerAddress string, clients ...BlockchainClient) *EventHandler {
+	// Initialize a map to store clients by network ID
+	clientMap := make(map[string]BlockchainClient)
+
 	return &EventHandler{
-		webhookSecret:    secret,
-		ledger:           ledger,
-		channelService:   channelService,
-		brokerAddress:    brokerAddress,
-		blockchainClient: blockchainClient,
+		webhookSecret:     secret,
+		ledger:            ledger,
+		channelService:    channelService,
+		brokerAddress:     brokerAddress,
+		blockchainClients: clientMap,
 	}
 }
 
@@ -319,7 +322,7 @@ func (h *EventHandler) handleChannelOpenedEvent(event *MultiBaasEvent) {
 			log.Printf("[ChannelOpened] No network ID found or derived, using empty value")
 		}
 	}
-	
+
 	log.Printf("[ChannelOpened] Extracted params - Channel ID: %s, Participants: %s and %s, Token: %s, Network: %s",
 		channelID, participantA, participantB, tokenAddress, networkID)
 
@@ -484,10 +487,10 @@ func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 	}
 
 	// Check if the broker is the second participant (index 1)
-	log.Printf("[ChannelCreated] Checking if broker (%s) is participant on network %s", 
+	log.Printf("[ChannelCreated] Checking if broker (%s) is participant on network %s",
 		h.brokerAddress, networkID)
 	if e.Channel.Participants[1].Hex() == h.brokerAddress {
-		log.Printf("[ChannelCreated] Broker is participant in channel %s on network %s, joining...", 
+		log.Printf("[ChannelCreated] Broker is participant in channel %s on network %s, joining...",
 			channelID, networkID)
 
 		// Save the network ID to our local database before joining
@@ -498,7 +501,7 @@ func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 		if tokenAddr, ok := event.Data.Event.InputParams["tokenAddress"].(string); ok {
 			tokenAddress = tokenAddr
 		}
-		
+
 		// Create or update the channel with network ID
 		_, err := h.channelService.GetOrCreateChannel(
 			channelID.Hex(),
@@ -511,16 +514,20 @@ func (h *EventHandler) handleChannelCreatedEvent(event *MultiBaasEvent) {
 			// Continue anyway as the blockchain join is more important
 		}
 
-		// Broker should call join() on the blockchain for this channel
-		if err := h.blockchainClient.Join(channelID.Hex()); err != nil {
-			log.Printf("[ChannelCreated] Error: failed to join channel %s: %v", channelID.Hex(), err)
-			return
-		}
+		if client, exists := h.blockchainClients[networkID]; exists {
+			log.Printf("[ChannelCreated] Using blockchain client for network: %s", networkID)
+			if err := client.Join(channelID.Hex()); err != nil {
+				log.Printf("[ChannelCreated] Error: failed to join channel %s on network %s: %v",
+					channelID.Hex(), networkID, err)
+				return
+			}
 
-		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s", 
-			channelID, networkID)
-	} else {
-		log.Printf("[ChannelCreated] Broker is not a participant in this channel, skipping join")
+			// Broker should call join() on the blockchain for this channel using the selected client
+			log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
+				channelID, networkID)
+		} else {
+			log.Printf("[ChannelCreated] Broker is not a participant in this channel, skipping join")
+		}
 	}
 }
 

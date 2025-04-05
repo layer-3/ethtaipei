@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
@@ -14,6 +15,7 @@ type CustodyClientWrapper struct {
 	client       *ethclient.Client
 	custody      *Custody
 	transactOpts *bind.TransactOpts
+	networkID    string
 }
 
 // NewCustodyClientWrapper creates a new custody client wrapper
@@ -21,6 +23,7 @@ func NewCustodyClientWrapper(
 	client *ethclient.Client,
 	custodyAddress common.Address,
 	transactOpts *bind.TransactOpts,
+	networkID string,
 ) (*CustodyClientWrapper, error) {
 	custody, err := NewCustody(custodyAddress, client)
 	if err != nil {
@@ -31,6 +34,7 @@ func NewCustodyClientWrapper(
 		client:       client,
 		custody:      custody,
 		transactOpts: transactOpts,
+		networkID:    networkID,
 	}, nil
 }
 
@@ -57,4 +61,13 @@ func (c *CustodyClientWrapper) Join(channelID string) error {
 	}
 
 	return nil
+}
+
+// GetNetworkID returns the network ID for this client
+func (c *CustodyClientWrapper) GetNetworkID() (string, error) {
+	networkID, err := c.client.NetworkID(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("failed to get network ID: %w", err)
+	}
+	return networkID.String(), nil
 }

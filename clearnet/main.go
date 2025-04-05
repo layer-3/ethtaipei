@@ -38,12 +38,11 @@ type AuthResponse struct {
 
 // Global services
 var (
-	channelService   *ChannelService
-	ledger           *Ledger
-	router           *Router
-	messageRouter    RouterInterface // For handling message routing between participants
-	centrifugeNode   *centrifuge.Node
-	blockchainClient *CustodyClientWrapper
+	channelService *ChannelService
+	ledger         *Ledger
+	router         *Router
+	messageRouter  RouterInterface // For handling message routing between participants
+	centrifugeNode *centrifuge.Node
 )
 
 // getEnv gets an environment variable with a fallback value
@@ -77,11 +76,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 }
 
 // setupBlockchainClient initializes the Ethereum client and custody contract wrapper
-func setupBlockchainClient() (*ecdsa.PrivateKey, error) {
-	privateKeyHex, err := getEnv("BROKER_PRIVATE_KEY", "", true)
-	if err != nil {
-		return nil, err
-	}
+func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkID string) (*CustodyClientWrapper, error) {
 
 	// Remove '0x' prefix if present
 	if len(privateKeyHex) >= 2 && privateKeyHex[0:2] == "0x" {
@@ -93,10 +88,7 @@ func setupBlockchainClient() (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
-	infuraURL, err := getEnv("INFURA_URL", "", true)
-	if err != nil {
-		return nil, err
-	}
+	custodyAddress := common.HexToAddress(custodyAddressStr)
 
 	client, err := ethclient.Dial(infuraURL)
 	if err != nil {
@@ -119,12 +111,6 @@ func setupBlockchainClient() (*ecdsa.PrivateKey, error) {
 	auth.GasPrice = big.NewInt(20000000000) // 20 gwei
 	auth.GasLimit = uint64(3000000)
 
-	custodyAddressStr, err := getEnv("CUSTODY_CONTRACT_ADDRESS", "", true)
-	if err != nil {
-		return nil, err
-	}
-	custodyAddress := common.HexToAddress(custodyAddressStr)
-
 	// Derive the broker's Ethereum address from the private key
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
@@ -136,17 +122,14 @@ func setupBlockchainClient() (*ecdsa.PrivateKey, error) {
 	BrokerAddress = crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 
 	// Create the custody client wrapper
-	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth)
+	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create custody client: %w", err)
 	}
 
-	// Set as the global blockchain client
-	blockchainClient = custodyClient
-
 	log.Printf("Blockchain client initialized with address: %s", BrokerAddress)
 
-	return privateKey, nil
+	return custodyClient, nil
 }
 
 func main() {
@@ -167,7 +150,23 @@ func main() {
 	router = NewRouter(centrifugeNode)
 	messageRouter = NewRouter(centrifugeNode)
 
-	_, err = setupBlockchainClient()
+	// TODO: do a proper config
+	privateKeyHex, err := getEnv("BROKER_PRIVATE_KEY", "", true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	infuraURL, err := getEnv("POLYGON_INFURA_URL", "", true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	custodyAddressStr, err := getEnv("POLYGON_CUSTODY_CONTRACT_ADDRESS", "", true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	custody, err := setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, "80002")
 	if err != nil {
 		// Just log a warning and continue, but blockchain interactions will be disabled
 		log.Printf("Warning: Failed to initialize blockchain client: %v", err)
@@ -177,29 +176,6 @@ func main() {
 		log.Printf("Blockchain client successfully initialized and ready")
 		log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 	}
-
-	centrifugeNode.OnConnect(func(client *centrifuge.Client) {
-		transportName := client.Transport().Name()
-		transportProto := client.Transport().Protocol()
-		log.Printf("Client connected via %s (%s)", transportName, transportProto)
-
-		// Allow all channel subscriptions
-		client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-			log.Printf("Client subscribes to channel %s", e.Channel)
-			cb(centrifuge.SubscribeReply{}, nil)
-		})
-
-		// Allow publishing to channels
-		client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {
-			log.Printf("Client publishes to channel %s: %s", e.Channel, string(e.Data))
-			cb(centrifuge.PublishReply{}, nil)
-		})
-
-		// Handle disconnects
-		client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
-			log.Printf("Client disconnected")
-		})
-	})
 
 	// Run node
 	if err := centrifugeNode.Run(); err != nil {
@@ -218,7 +194,7 @@ func main() {
 	}
 
 	log.Printf("Initializing webhook handler with broker address: %s", BrokerAddress)
-	webhookHandler := NewEventHandler(webhookSecret, ledger, channelService, BrokerAddress, blockchainClient)
+	webhookHandler := NewEventHandler(webhookSecret, ledger, channelService, BrokerAddress, custody)
 	http.Handle("/webhook", webhookHandler)
 	log.Printf("Webhook handler registered at /webhook endpoint")
 
