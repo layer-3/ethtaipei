@@ -737,6 +737,24 @@ func HandleSendPublicMessage(address string, req *RPCRequest, ledger *Ledger, ws
 	return rpcResponse, nil
 }
 
+// BrokerConfig represents the broker configuration information
+type BrokerConfig struct {
+	BrokerAddress string `json:"brokerAddress"`
+}
+
+// Global variable to track server start time
+var serverStartTime = time.Now()
+
+// HandleGetConfig returns the broker configuration
+func HandleGetConfig(req *RPCRequest) (*RPCResponse, error) {
+	config := BrokerConfig{
+		BrokerAddress: BrokerAddress,
+	}
+
+	rpcResponse := CreateResponse(req.Req.RequestID, "config", []any{config}, time.Now())
+	return rpcResponse, nil
+}
+
 // HandlePing responds to a ping request with a pong response in RPC format
 func HandlePing(req *RPCRequest) (*RPCResponse, error) {
 	rpcResponse := CreateResponse(req.Req.RequestID, "pong", []any{}, time.Now())

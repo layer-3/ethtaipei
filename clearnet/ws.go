@@ -183,6 +183,14 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
+		case "GetConfig":
+			rpcResponse, handlerErr = HandleGetConfig(&rpcRequest)
+			if handlerErr != nil {
+				log.Printf("Error handling GetConfig: %v", handlerErr)
+				sendErrorResponse(uint64(requestID), method, conn, "Failed to get config: "+handlerErr.Error())
+				continue
+			}
+
 		// TODO: this will be triggered automatically when we receive an event from Blockchain.
 		case "CreateChannel":
 			rpcResponse, handlerErr = HandleCreateChannel(address, &rpcRequest, h.channelService, h.ledger)
