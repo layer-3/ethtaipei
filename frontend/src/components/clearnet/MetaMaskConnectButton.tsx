@@ -16,8 +16,17 @@ export const MetaMaskConnectButton: React.FC = () => {
 
     const connectWallet = useCallback(async () => {
         if (!isMetaMaskInstalled) {
-            alert('Please install MetaMask to use this feature');
-            return;
+            // Check if we're on mobile
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // Open MetaMask app via deep link for mobile users
+                window.location.href = 'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
+                return;
+            } else {
+                alert('Please install MetaMask to use this feature');
+                return;
+            }
         }
 
         try {
