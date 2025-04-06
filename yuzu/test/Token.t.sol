@@ -26,7 +26,7 @@ contract TokenTest is Test {
     function testNoInitialSupplyOnDifferentChain() public {
         uint256 differentChainId = block.chainid + 1;
         YuzuToken noSupplyToken = new YuzuToken(owner, differentChainId);
-        
+
         assertEq(noSupplyToken.balanceOf(owner), 0);
         assertEq(noSupplyToken.totalSupply(), 0);
     }
