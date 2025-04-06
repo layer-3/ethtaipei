@@ -9,6 +9,7 @@ import NitroliteStore from '@/store/NitroliteStore';
 import { AssetsStore } from '@/store';
 import APP_CONFIG, { DEFAULT_ADDRESS } from '@/config/app';
 import WalletStore from '@/store/WalletStore';
+import NetworkSelector from './NetworkSelector';
 
 interface DepositProps {
     isOpen: boolean;
@@ -73,6 +74,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                     <div className="flex gap-2 text-gray-800 items-start">
                         <span className="text-2xl font-bold">$</span>
                         <span className="text-6xl font-bold">{value}</span>
+                    </div>
+                    <div className="mt-6">
+                        <NetworkSelector />
                     </div>
                 </div>
 

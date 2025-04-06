@@ -80,6 +80,18 @@ const WalletStore = {
     setChannelOpen(isOpen: boolean) {
         state.channelOpen = isOpen;
     },
+
+    switchChain(chainId: number) {
+        if (typeof window !== 'undefined' && window.ethereum) {
+            window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${chainId.toString(16)}` }],
+            }).catch((error) => {
+                console.error('Error switching network:', error);
+            });
+        }
+        state.chainId = chainId;
+    },
 };
 
 export default WalletStore;

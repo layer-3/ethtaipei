@@ -14,6 +14,7 @@ import {
     avalanche,
     localhost,
     polygonAmoy,
+    celo,
 } from 'viem/chains';
 
 const polygon = defineChain({
@@ -65,6 +66,7 @@ const chainsArray = [
     scroll,
     localhost,
     polygonAmoy,
+    celo,
 ];
 
 export const chains = chainsArray.filter((chain) => supportedChains.includes(chain.id));
@@ -92,6 +94,8 @@ export const chainImageURLById = (id?: number) => {
             return 'https://assets.coingecko.com/asset_platforms/images/153/standard/scroll.jpeg?1706606782';
         case 42161:
             return 'https://s2.coinmarketcap.com/static/img/coins/64x64/11841.png';
+        case 42220:
+            return 'https://s2.coinmarketcap.com/static/img/coins/64x64/5567.png';
         default:
             return null;
     }

@@ -23,6 +23,8 @@ export const chainImageURLById = (id?: number) => {
             return 'https://s2.coinmarketcap.com/static/img/coins/64x64/11841.png';
         case 43114:
             return 'https://s2.coinmarketcap.com/static/img/coins/64x64/5805.png';
+        case 42220:
+            return 'https://s2.coinmarketcap.com/static/img/coins/64x64/10071.png';
         default:
             return null;
     }

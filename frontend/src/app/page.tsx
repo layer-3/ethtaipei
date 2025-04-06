@@ -15,6 +15,7 @@ import { MinimizedApps } from '@/components/MinimizedApps';
 import Privy from '@/providers/privy';
 import { MetaMaskConnectButton } from '@/components/clearnet/MetaMaskConnectButton';
 import CloseChannel from '@/components/clearnet/CloseChannel';
+import NetworkSelector from '@/components/clearnet/NetworkSelector';
 
 const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
 
@@ -53,21 +54,26 @@ export default function Connect() {
                 </Head>
 
                 <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
-                    <div className="flex gap-4 items-center justify-between">
-                        {(walletSnap.connected || walletSnap.privyConnected) && !walletSnap.channelOpen && (
-                            <button
-                                onClick={handleOpenDeposit}
-                                className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
-                                Deposit
-                            </button>
-                        )}
-                        {(walletSnap.connected || walletSnap.privyConnected) && walletSnap.channelOpen && (
-                            <button
-                                onClick={handleOpenCloseChannel}
-                                className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
-                                Close
-                            </button>
-                        )}
+                    <div className="flex gap-4 items-center justify-between flex-wrap">
+                        <div className="flex gap-4 items-center">
+                            {(walletSnap.connected || walletSnap.privyConnected) && !walletSnap.channelOpen && (
+                                <button
+                                    onClick={handleOpenDeposit}
+                                    className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
+                                    Deposit
+                                </button>
+                            )}
+                            {(walletSnap.connected || walletSnap.privyConnected) && walletSnap.channelOpen && (
+                                <button
+                                    onClick={handleOpenCloseChannel}
+                                    className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
+                                    Close
+                                </button>
+                            )}
+                            {(walletSnap.connected || walletSnap.privyConnected) && (
+                                <NetworkSelector className="ml-2" />
+                            )}
+                        </div>
                         <div className={walletSnap.connected || walletSnap.privyConnected ? '' : 'ml-auto'}>
                             {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}
                         </div>
