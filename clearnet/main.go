@@ -185,7 +185,7 @@ func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO, c
 
 	custodyPOLYGON, err := setupBlockchainClient(privateKeyHex, polInfuraURL, polCustodyAddress, "80002")
 	if err != nil {
-		log.Println("Warning: Failed to initialize Polygon blockchain client: %v", err)
+		log.Printf("Warning: Failed to initialize Polygon blockchain client: %v", err)
 	}
 
 	celoInfuraURL := os.Getenv("CELO_INFURA_URL")
@@ -200,7 +200,7 @@ func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO, c
 
 	custodyCELO, err = setupBlockchainClient(privateKeyHex, celoInfuraURL, celoCustodyAddress, "42220")
 	if err != nil {
-		log.Println("Warning: Failed to initialize Celo blockchain client: %v", err)
+		log.Printf("Warning: Failed to initialize Celo blockchain client: %v", err)
 	}
 
 	baseInfuraURL := os.Getenv("BASE_INFURA_URL")
@@ -215,7 +215,7 @@ func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO, c
 
 	custodyBASE, err = setupBlockchainClient(privateKeyHex, baseInfuraURL, baseCustodyAddress, "8453")
 	if err != nil {
-		log.Println("Warning: Failed to initialize Celo blockchain client: %v", err)
+		log.Printf("Warning: Failed to initialize Base blockchain client: %v", err)
 	}
 	return
 }

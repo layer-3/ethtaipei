@@ -191,7 +191,6 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
-		// TODO: this will be triggered automatically when we receive an event from Blockchain.
 		case "CreateChannel":
 			rpcResponse, handlerErr = HandleCreateChannel(address, &rpcRequest, h.channelService, h.ledger)
 			if handlerErr != nil {
