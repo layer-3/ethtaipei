@@ -91,7 +91,7 @@ The Broker implementation can be quite complex and the protocol has many cases t
 - [ ] Clients should keep rpc_state too
 - [X] Client can close VLC
 - [x] Broker update ledger db and LC Allocations
-- [ ] Client can close LC
+- [X] Client can close LC
 - [ ] Broker can reset LC allocation increased
 - [x] Frontend deployment (explorer and YuzuPay)
 - [x] Backend deployment
