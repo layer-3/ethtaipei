@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-// import { QrReader } from 'react-qr-reader';
+import dynamic from 'next/dynamic';
+
+const QrBarcodeScanner = dynamic(() => import('react-qr-barcode-scanner'), {
+    ssr: false,
+});
 
 interface QrScannerProps {
     onScan: (data: string) => void;
@@ -11,7 +15,6 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     const [permission, setPermission] = useState<boolean>(false);
     const [scanning, setScanning] = useState<boolean>(false);
 
-    // Check for camera availability
     useEffect(() => {
         const checkCamera = async () => {
             try {
@@ -29,19 +32,17 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         checkCamera();
     }, [onError]);
 
-    // Request camera permission if camera is available
     useEffect(() => {
         if (!hasCamera) return;
 
         const requestPermission = async () => {
             try {
+                // Ask for permission to access camera
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                    },
+                    video: { facingMode: 'environment' },
                 });
 
-                // Close the stream immediately after getting permission
+                // Immediately stop the stream to free the camera until we actually scan
                 stream.getTracks().forEach((track) => track.stop());
 
                 setPermission(true);
@@ -57,11 +58,17 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         requestPermission();
     }, [hasCamera, onError]);
 
-    const handleScan = (result: any) => {
+    const handleScan = (result: string) => {
         if (result) {
             setScanning(false);
-            onScan(result?.text || result);
+            onScan(result);
         }
+    };
+
+    const handleScannerError = (error: Error) => {
+        console.error('QR Scanner Error:', error);
+        setScanning(false);
+        onError?.(error);
     };
 
     if (!hasCamera) {
@@ -108,7 +115,9 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 
+               00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7
+               a4 4 0 00-8 0v4h8z"
                         />
                     </svg>
                     <p className="text-lg font-semibold">Camera Permission Required</p>
@@ -120,30 +129,26 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
     return (
         <div className="relative h-full bg-black">
-            {/* QR Scanner */}
             <div className="aspect-square max-w-md mx-auto overflow-hidden">
-                {/* {scanning && (
-                    <QrReader
-                        constraints={{ facingMode: 'environment' }}
-                        onResult={handleScan}
-                        scanDelay={500}
-                        videoId="qr-reader-video"
-                        videoStyle={{ width: '100%', height: '100%' }}
+                {scanning && (
+                    <QrBarcodeScanner
+                        // @ts-ignore
+                        onUpdate={(error: Error | null, result: { text: string } | null) => {
+                            if (error) handleScannerError(error);
+                            if (result?.text) handleScan(result.text);
+                        }}
                     />
-                )} */}
+                )}
             </div>
 
-            {/* Scanning overlay */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="h-full flex flex-col justify-center items-center">
                     <div className="w-64 h-64 border-2 border-white/50 rounded-lg relative">
-                        {/* Scanner corner markers */}
                         <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white" />
                         <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white" />
                         <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white" />
                         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white" />
 
-                        {/* Scanning line animation */}
                         {scanning && <div className="absolute left-0 right-0 h-0.5 bg-red-500 animate-scan-line" />}
                     </div>
 

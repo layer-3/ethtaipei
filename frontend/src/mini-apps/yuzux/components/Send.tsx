@@ -1,4 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
+'use client';
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal } from './common/Modal';
 import { QrScanner } from './QrScanner';
 import { TokenSelector } from './TokenSelector';
@@ -17,26 +19,27 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
     const [step, setStep] = useState<SendStep>('scan');
     const [recipientAddress, setRecipientAddress] = useState('');
     const [amount, setAmount] = useState('0');
-    const [selectedToken, setSelectedToken] = useState({ id: '1', name: 'Yuzu Token', symbol: 'YUZU' });
+    const [selectedToken, setSelectedToken] = useState({
+        id: '1',
+        name: 'Yuzu Token',
+        symbol: 'YUZU',
+    });
 
-    const chainId = useMemo(() => {
-        return WalletStore.state.chainId;
-    }, [WalletStore]);
+    // Example chain ID from your global store
+    const chainId = useMemo(() => WalletStore.state.chainId, []);
 
+    // Example balance from your global store (Nitrolite)
     const currentBalance = useMemo(() => {
         const nitroState = NitroliteStore.getLatestState();
 
-        if (!nitroState) {
-            return BigInt(0);
-        }
-
+        if (!nitroState) return BigInt(0);
         const creatorAllocation = nitroState.allocations[0];
 
         return creatorAllocation.amount;
     }, []);
 
-    // Reset state when modal opens
-    React.useEffect(() => {
+    // Reset state whenever the modal is opened
+    useEffect(() => {
         if (isOpen) {
             setStep('scan');
             setRecipientAddress('');
@@ -44,60 +47,65 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         }
     }, [isOpen]);
 
-    // Handle QR code scan
+    // ----- Handlers -----
+
+    // 1. When we successfully scan a QR code
     const handleScan = useCallback((data: string) => {
         setRecipientAddress(data);
-        setStep('amount');
+        setStep('amount'); // Move to the amount entry step
     }, []);
 
-    // Handle manual address entry
+    // 2. Switch to manual entry of address
     const handleManualEntry = useCallback(() => {
         setStep('manual');
     }, []);
 
-    // Handle address input change
+    // 3. Manual address input change
     const handleAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setRecipientAddress(e.target.value);
     }, []);
 
-    // Handle address submission
+    // 4. Manual address submit
     const handleAddressSubmit = useCallback(() => {
         if (recipientAddress) {
             setStep('amount');
         }
     }, [recipientAddress]);
 
-    // Handle amount change from NumberPad
+    // 5. Amount change (via NumberPad)
     const handleAmountChange = useCallback((newValue: string) => {
         if (newValue === '') {
             setAmount('0');
         } else {
-            setAmount(newValue.replaceAll(/^0/g, ''));
+            // Remove leading zeros
+            setAmount(newValue.replace(/^0+/, ''));
         }
     }, []);
 
-    // Handle payment submission
+    // 6. Send transaction
     const handleSend = useCallback(() => {
-        // Add logic to handle send transaction
         console.log('Sending', amount, selectedToken.symbol, 'to', recipientAddress);
         setStep('processing');
 
+        // Example usage with your global store
         const token = APP_CONFIG.TOKENS[chainId];
 
+        // Very rough example of updating store:
         NitroliteStore.appendState(token, [BigInt(+currentBalance.toString() - +amount), BigInt(0)]);
 
-        // Simulate processing and success
+        // Simulate an async transaction
         setTimeout(() => {
             setStep('success');
-
-            // Close modal after success
+            // Optionally close the modal after success
             setTimeout(() => {
                 onClose();
             }, 2000);
         }, 2000);
-    }, [amount, selectedToken, recipientAddress, onClose, currentBalance]);
+    }, [amount, selectedToken, recipientAddress, onClose, chainId, currentBalance]);
 
-    // QR Scanning view
+    // ----- Step Components -----
+
+    // Scan step: shows the QrScanner + a button to enter address manually
     const scanComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
@@ -116,7 +124,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [handleScan, handleManualEntry],
     );
 
-    // Manual address entry view
+    // Manual address entry
     const manualEntryComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
@@ -145,7 +153,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [recipientAddress, handleAddressChange, handleAddressSubmit],
     );
 
-    // Amount entry view
+    // Amount entry (token selector + number pad)
     const amountComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
@@ -159,14 +167,14 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                             <span className="text-5xl font-bold">{amount}</span>
                         </div>
                         <div className="mt-2 text-sm text-gray-400">
-                            Recipient: {recipientAddress.substring(0, 6)}...
+                            to: {recipientAddress.substring(0, 6)}...
                             {recipientAddress.substring(recipientAddress.length - 4)}
                         </div>
                     </div>
 
                     <div className="p-4">
                         <button
-                            disabled={!+amount}
+                            disabled={!+amount} // disable if amount is zero
                             onClick={handleSend}
                             className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                             Pay
@@ -182,13 +190,13 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [amount, selectedToken, recipientAddress, handleAmountChange, handleSend],
     );
 
-    // Processing component
+    // Processing step
     const processingComponent = useMemo(
         () => (
             <div className="flex flex-col items-center justify-center h-full">
                 <div className="mb-6 relative">
                     <div className="w-16 h-16 border-4 border-white rounded-full animate-spin" />
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                         <div className="w-8 h-8 bg-black rounded-full" />
                     </div>
                 </div>
@@ -202,7 +210,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [],
     );
 
-    // Success component
+    // Success step
     const successComponent = useMemo(
         () => (
             <div className="flex flex-col items-center justify-center h-full">
@@ -223,7 +231,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [],
     );
 
-    // Determine which component to show based on step
+    // ----- Which step to show -----
     const componentToShow = useMemo(() => {
         switch (step) {
             case 'scan':

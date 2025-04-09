@@ -33,18 +33,19 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Receive">
-            <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col items-center">
-                    {walletSnap.walletAddress && (
-                        <div className="pt-6 rounded-lg mx-auto">
-                            <QrCodeDisplay address={walletSnap.walletAddress} />
-                        </div>
-                    )}
-
-                    <AddressDisplay address={walletSnap.walletAddress || '0x0'} />
+            <div className="flex flex-col h-full">
+                <div className="flex-1 overflow-y-auto">
+                    <div className="flex flex-col items-center">
+                        {walletSnap.walletAddress && (
+                            <div className="pt-6 rounded-lg mx-auto">
+                                <QrCodeDisplay address={walletSnap.walletAddress} />
+                            </div>
+                        )}
+                        <AddressDisplay address={walletSnap.walletAddress || '0x0'} />
+                    </div>
                 </div>
 
-                <div className="w-full px-6">
+                <div className="mt-auto w-full px-6 pb-4">
                     <button
                         onClick={handleShare}
                         className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white">

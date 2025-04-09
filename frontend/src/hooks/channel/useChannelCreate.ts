@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Address, Hex, parseSignature } from 'viem';
+import { Address, Hex, parseSignature, parseUnits } from 'viem';
 import { AdjudicatorApp } from '@/services/apps/adjudicator_app';
 import NitroliteStore from '@/store/NitroliteStore';
 import WalletStore from '@/store/WalletStore';
@@ -31,12 +31,17 @@ export function useChannelCreate() {
 
         try {
             const channel: Channel = {
-                // participants: [WalletStore.state.walletAddress as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
                 participants: [stateSigner.address as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
-                adjudicator: adjudicator,
+                adjudicator,
                 challenge: BigInt(APP_CONFIG.CHANNEL.CHALLENGE_PERIOD),
                 nonce: BigInt(Date.now()),
             };
+
+            // For USDC, decimals = 6. Adjust if you have different tokens.
+            const decimals = 6;
+
+            // Convert user’s input "5" to on-chain amount "5000000" (bigint)
+            const amountBigInt = parseUnits(amount, decimals);
 
             // Create initial app state
             const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;
@@ -46,10 +51,9 @@ export function useChannelCreate() {
                 data: app.encode(appState),
                 allocations: [
                     {
-                        // destination: channel.participants[0],
                         destination: WalletStore.state.walletAddress as Address,
                         token: tokenAddress,
-                        amount: BigInt(amount),
+                        amount: amountBigInt, // Use the converted amount
                     },
                     {
                         destination: channel.participants[1],
@@ -62,17 +66,17 @@ export function useChannelCreate() {
 
             // Create channel context with initial state
             const channelContext = NitroliteStore.setChannelContext(channel, initialState, app);
-
             const channelId = channelContext.getChannelId();
 
             if (!window.ethereum) {
                 throw new Error('MetaMask is not installed');
             }
 
-            await NitroliteStore.deposit(channelId, tokenAddress as Address, amount);
+            // Pass the same converted amount to deposit
+            await NitroliteStore.deposit(channelId, tokenAddress, amountBigInt.toString());
 
+            // Sign the initial state
             const stateHash = channelContext.getStateHash(initialState);
-
             const [signature] = await stateSigner.sign(stateHash);
             const parsedSig = parseSignature(signature as Hex);
 
@@ -84,12 +88,16 @@ export function useChannelCreate() {
                 },
             ];
 
+            // Update the channel context with the signed initial state
             NitroliteStore.setChannelContext(channel, initialState, app);
 
+            // Finally, create the channel on-chain or in your contract
             await NitroliteStore.createChannel(channelId);
 
-            WalletStore.openChannel(tokenAddress as Address, amount);
+            // Update your wallet store that channel is open
+            WalletStore.openChannel(tokenAddress, amountBigInt.toString());
         } catch (error) {
+            // If anything fails, mark channel as closed
             WalletStore.setChannelOpen(false);
             throw error;
         }
