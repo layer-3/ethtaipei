@@ -5,7 +5,7 @@ This example demonstrates how to integrate the Nitrolite SDK with a NextJS appli
 ## Features
 
 - Integration with MetaMask for wallet connection
-- Nitrolite client initialization and configuration 
+- Nitrolite client initialization and configuration
 - State channel creation and management
 - Channel state updates and visualization
 - Counter application example with custom application logic
@@ -54,7 +54,7 @@ This example demonstrates how to integrate the Nitrolite SDK with a NextJS appli
 You can configure the application in the following files:
 
 - `src/config/app.ts`: Application configuration including WebSocket URL and default addresses
-- `src/config/contracts/index.ts`: Contract addresses for the Nitrolite framework 
+- `src/config/contracts/index.ts`: Contract addresses for the Nitrolite framework
 - `src/config/chains/index.ts`: Blockchain network configuration
 
 ## Project Structure

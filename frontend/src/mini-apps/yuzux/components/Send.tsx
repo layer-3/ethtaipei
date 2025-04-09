@@ -115,7 +115,8 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 <div className="p-4">
                     <button
                         onClick={handleManualEntry}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white"
+                    >
                         Enter Manually
                     </button>
                 </div>
@@ -144,7 +145,8 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     <button
                         onClick={handleAddressSubmit}
                         disabled={!recipientAddress}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed">
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                         Continue
                     </button>
                 </div>
@@ -176,7 +178,8 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                         <button
                             disabled={!+amount} // disable if amount is zero
                             onClick={handleSend}
-                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
+                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                        >
                             Pay
                         </button>
                     </div>

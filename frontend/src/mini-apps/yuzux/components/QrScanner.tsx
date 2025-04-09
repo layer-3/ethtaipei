@@ -80,7 +80,8 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor">
+                        stroke="currentColor"
+                    >
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -110,7 +111,8 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor">
+                        stroke="currentColor"
+                    >
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"

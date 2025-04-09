@@ -45,7 +45,8 @@ const Privy: FC<IPrivyProps> = ({ children }) => {
                     privacyPolicyUrl: 'https://clearnet.com/privacy_policy',
                 },
                 supportedChains: chains,
-            }}>
+            }}
+        >
             {children}
         </PrivyProvider>
     );

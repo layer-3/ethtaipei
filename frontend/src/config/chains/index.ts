@@ -45,11 +45,15 @@ const polygon = defineChain({
 });
 
 // Get supported chains from env or use defaults
-const envSupportedChains = process.env.NEXT_PUBLIC_SUPPORTED_CHAINS?.split(',').map((chain) => {
-    const sanitizedChain = chain.trim().replace(/^\"|\"$/g, '');
-    const number = Number(sanitizedChain);
-    return !isNaN(number) && number !== 0 ? number : null;
-}).filter((chain): chain is number => chain !== null) ?? [];
+const envSupportedChains =
+    process.env.NEXT_PUBLIC_SUPPORTED_CHAINS?.split(',')
+        .map((chain) => {
+            const sanitizedChain = chain.trim().replace(/^\"|\"$/g, '');
+            const number = Number(sanitizedChain);
+
+            return !isNaN(number) && number !== 0 ? number : null;
+        })
+        .filter((chain): chain is number => chain !== null) ?? [];
 
 // Always include Polygon (137) as a supported chain
 const supportedChains = Array.from(new Set([137, ...envSupportedChains]));

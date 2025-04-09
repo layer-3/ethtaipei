@@ -1,93 +1,93 @@
- [
-        {
-            "type": "function",
-            "name": "adjudicate",
-            "inputs": [
-                {
-                    "name": "chan",
-                    "type": "tuple",
-                    "internalType": "struct Channel",
-                    "components": [
-                        { "name": "participants", "type": "address[]", "internalType": "address[]" },
-                        { "name": "adjudicator", "type": "address", "internalType": "address" },
-                        { "name": "challenge", "type": "uint64", "internalType": "uint64" },
-                        { "name": "nonce", "type": "uint64", "internalType": "uint64" }
-                    ]
-                },
-                {
-                    "name": "candidate",
-                    "type": "tuple",
-                    "internalType": "struct State",
-                    "components": [
-                        { "name": "data", "type": "bytes", "internalType": "bytes" },
-                        {
-                            "name": "allocations",
-                            "type": "tuple[]",
-                            "internalType": "struct Allocation[]",
-                            "components": [
-                                { "name": "destination", "type": "address", "internalType": "address" },
-                                { "name": "token", "type": "address", "internalType": "address" },
-                                { "name": "amount", "type": "uint256", "internalType": "uint256" }
-                            ]
-                        },
-                        {
-                            "name": "sigs",
-                            "type": "tuple[]",
-                            "internalType": "struct Signature[]",
-                            "components": [
-                                { "name": "v", "type": "uint8", "internalType": "uint8" },
-                                { "name": "r", "type": "bytes32", "internalType": "bytes32" },
-                                { "name": "s", "type": "bytes32", "internalType": "bytes32" }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "name": "proofs",
-                    "type": "tuple[]",
-                    "internalType": "struct State[]",
-                    "components": [
-                        { "name": "data", "type": "bytes", "internalType": "bytes" },
-                        {
-                            "name": "allocations",
-                            "type": "tuple[]",
-                            "internalType": "struct Allocation[]",
-                            "components": [
-                                { "name": "destination", "type": "address", "internalType": "address" },
-                                { "name": "token", "type": "address", "internalType": "address" },
-                                { "name": "amount", "type": "uint256", "internalType": "uint256" }
-                            ]
-                        },
-                        {
-                            "name": "sigs",
-                            "type": "tuple[]",
-                            "internalType": "struct Signature[]",
-                            "components": [
-                                { "name": "v", "type": "uint8", "internalType": "uint8" },
-                                { "name": "r", "type": "bytes32", "internalType": "bytes32" },
-                                { "name": "s", "type": "bytes32", "internalType": "bytes32" }
-                            ]
-                        }
-                    ]
-                }
-            ],
-            "outputs": [{ "name": "valid", "type": "bool", "internalType": "bool" }],
-            "stateMutability": "pure"
-        },
-        { "type": "error", "name": "DecreasingPayment", "inputs": [] },
-        { "type": "error", "name": "ECDSAInvalidSignature", "inputs": [] },
-        {
-            "type": "error",
-            "name": "ECDSAInvalidSignatureLength",
-            "inputs": [{ "name": "length", "type": "uint256", "internalType": "uint256" }]
-        },
-        {
-            "type": "error",
-            "name": "ECDSAInvalidSignatureS",
-            "inputs": [{ "name": "s", "type": "bytes32", "internalType": "bytes32" }]
-        },
-        { "type": "error", "name": "InsufficientSignatures", "inputs": [] },
-        { "type": "error", "name": "InvalidSignature", "inputs": [] },
-        { "type": "error", "name": "NotSignedByHost", "inputs": [] },
-        { "type": "error", "name": "PaymentExceedsDeposit", "inputs": [] }
-    ]
+[
+    {
+        "type": "function",
+        "name": "adjudicate",
+        "inputs": [
+            {
+                "name": "chan",
+                "type": "tuple",
+                "internalType": "struct Channel",
+                "components": [
+                    { "name": "participants", "type": "address[]", "internalType": "address[]" },
+                    { "name": "adjudicator", "type": "address", "internalType": "address" },
+                    { "name": "challenge", "type": "uint64", "internalType": "uint64" },
+                    { "name": "nonce", "type": "uint64", "internalType": "uint64" }
+                ]
+            },
+            {
+                "name": "candidate",
+                "type": "tuple",
+                "internalType": "struct State",
+                "components": [
+                    { "name": "data", "type": "bytes", "internalType": "bytes" },
+                    {
+                        "name": "allocations",
+                        "type": "tuple[]",
+                        "internalType": "struct Allocation[]",
+                        "components": [
+                            { "name": "destination", "type": "address", "internalType": "address" },
+                            { "name": "token", "type": "address", "internalType": "address" },
+                            { "name": "amount", "type": "uint256", "internalType": "uint256" }
+                        ]
+                    },
+                    {
+                        "name": "sigs",
+                        "type": "tuple[]",
+                        "internalType": "struct Signature[]",
+                        "components": [
+                            { "name": "v", "type": "uint8", "internalType": "uint8" },
+                            { "name": "r", "type": "bytes32", "internalType": "bytes32" },
+                            { "name": "s", "type": "bytes32", "internalType": "bytes32" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "proofs",
+                "type": "tuple[]",
+                "internalType": "struct State[]",
+                "components": [
+                    { "name": "data", "type": "bytes", "internalType": "bytes" },
+                    {
+                        "name": "allocations",
+                        "type": "tuple[]",
+                        "internalType": "struct Allocation[]",
+                        "components": [
+                            { "name": "destination", "type": "address", "internalType": "address" },
+                            { "name": "token", "type": "address", "internalType": "address" },
+                            { "name": "amount", "type": "uint256", "internalType": "uint256" }
+                        ]
+                    },
+                    {
+                        "name": "sigs",
+                        "type": "tuple[]",
+                        "internalType": "struct Signature[]",
+                        "components": [
+                            { "name": "v", "type": "uint8", "internalType": "uint8" },
+                            { "name": "r", "type": "bytes32", "internalType": "bytes32" },
+                            { "name": "s", "type": "bytes32", "internalType": "bytes32" }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "outputs": [{ "name": "valid", "type": "bool", "internalType": "bool" }],
+        "stateMutability": "pure"
+    },
+    { "type": "error", "name": "DecreasingPayment", "inputs": [] },
+    { "type": "error", "name": "ECDSAInvalidSignature", "inputs": [] },
+    {
+        "type": "error",
+        "name": "ECDSAInvalidSignatureLength",
+        "inputs": [{ "name": "length", "type": "uint256", "internalType": "uint256" }]
+    },
+    {
+        "type": "error",
+        "name": "ECDSAInvalidSignatureS",
+        "inputs": [{ "name": "s", "type": "bytes32", "internalType": "bytes32" }]
+    },
+    { "type": "error", "name": "InsufficientSignatures", "inputs": [] },
+    { "type": "error", "name": "InvalidSignature", "inputs": [] },
+    { "type": "error", "name": "NotSignedByHost", "inputs": [] },
+    { "type": "error", "name": "PaymentExceedsDeposit", "inputs": [] }
+]

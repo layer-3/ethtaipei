@@ -116,10 +116,10 @@ subscribe(SettingsStore.state, () => {
     } else if (SettingsStore.state.activeChain !== prevActiveChain) {
         // Reset balances when network changes to avoid showing stale data
         AssetsStore.setBalances([]);
-        
+
         // Update the previous chain reference
         prevActiveChain = SettingsStore.state.activeChain;
-        
+
         // Fetch assets for the new chain
         fetchAssets();
     }

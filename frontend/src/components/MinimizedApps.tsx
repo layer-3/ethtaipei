@@ -46,7 +46,8 @@ export function MinimizedApps() {
                 <button
                     key={appName}
                     onClick={() => handleMaximize(appName)}
-                    className="flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-700 transition-colors">
+                    className="flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-700 transition-colors"
+                >
                     <Image
                         src={getAppIcon(appName)}
                         alt={getAppLabel(appName)}

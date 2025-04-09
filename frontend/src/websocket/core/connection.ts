@@ -78,7 +78,7 @@ export class WebSocketConnection {
     get currentSubscribedChannel(): Channel | null {
         return this.currentChannel;
     }
-    
+
     /**
      * Gets the currently subscribed nitrolite channel, if any
      */
@@ -216,7 +216,7 @@ export class WebSocketConnection {
     setCurrentChannel(channel: Channel): void {
         this.currentChannel = channel;
     }
-    
+
     /**
      * Sets the current nitrolite channel
      */

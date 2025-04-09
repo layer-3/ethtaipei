@@ -56,6 +56,7 @@ export function useNitroliteClient() {
                     // @ts-ignore
                     account: address,
                 });
+
                 console.log('walletClient', walletClient);
 
                 // Setup addresses for your custody and adjudicators

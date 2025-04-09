@@ -201,18 +201,15 @@ export function useWebSocket(url: string) {
     }, []);
 
     // Store Nitrolite channel ID without subscribing
-    const setNitroliteChannel = useCallback(
-        (nitroliteChannel: NitroliteChannel) => {
-            // Update our state directly without WebSocket subscription
-            setCurrentNitroliteChannel(nitroliteChannel);
-            
-            // Tell the connection about the Nitrolite channel
-            if (clientRef.current) {
-                clientRef.current.setNitroliteChannel(nitroliteChannel);
-            }
-        },
-        [],
-    );
+    const setNitroliteChannel = useCallback((nitroliteChannel: NitroliteChannel) => {
+        // Update our state directly without WebSocket subscription
+        setCurrentNitroliteChannel(nitroliteChannel);
+
+        // Tell the connection about the Nitrolite channel
+        if (clientRef.current) {
+            clientRef.current.setNitroliteChannel(nitroliteChannel);
+        }
+    }, []);
 
     // Send a message to a channel
     const sendMessage = useCallback(async (message: string, channelOverride?: Channel) => {

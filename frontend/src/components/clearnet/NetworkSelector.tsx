@@ -64,7 +64,8 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
         <div className={`relative ${className}`}>
             <button
                 onClick={() => document.getElementById('network-dropdown')?.classList.toggle('hidden')}
-                className="flex items-center gap-2 bg-gray-100 rounded-md px-3 py-2 text-sm hover:bg-gray-200 transition-colors">
+                className="flex items-center gap-2 bg-gray-100 rounded-md px-3 py-2 text-sm hover:bg-gray-200 transition-colors"
+            >
                 {currentChain && chainImageURLById(currentChain.id) ? (
                     <Image
                         src={chainImageURLById(currentChain.id) || ''}
@@ -82,14 +83,16 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
                     className="h-4 w-4"
                     fill="none"
                     viewBox="0 0 24 24"
-                    stroke="currentColor">
+                    stroke="currentColor"
+                >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
 
             <div
                 id="network-dropdown"
-                className="absolute z-10 mt-1 hidden w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                className="absolute z-10 mt-1 hidden w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+            >
                 <div className="py-1 max-h-64 overflow-y-auto">
                     {chains.map((chain) => (
                         <button
@@ -100,7 +103,8 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
                             }}
                             className={`flex items-center gap-2 px-4 py-2 text-sm w-full text-left hover:bg-gray-100 ${
                                 chain.id === currentChain?.id ? 'bg-gray-50' : ''
-                            }`}>
+                            }`}
+                        >
                             {chainImageURLById(chain.id) ? (
                                 <Image
                                     src={chainImageURLById(chain.id) || ''}
@@ -119,7 +123,8 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
                                     className="h-4 w-4 ml-auto"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    stroke="currentColor">
+                                    stroke="currentColor"
+                                >
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"

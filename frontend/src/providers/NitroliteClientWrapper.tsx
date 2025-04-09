@@ -10,9 +10,9 @@ import APP_CONFIG from '@/config/app';
 
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-type NitroliteClientWrapperProps = {
+interface NitroliteClientWrapperProps {
     children?: React.ReactNode;
-};
+}
 
 export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps) {
     const { ready } = usePrivy();

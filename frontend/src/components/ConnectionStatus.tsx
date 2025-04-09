@@ -40,14 +40,16 @@ export function ConnectionStatus({
                     <button
                         onClick={onConnect}
                         disabled={status !== 'disconnected' || !keyPair}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed">
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    >
                         Connect
                     </button>
 
                     <button
                         onClick={onDisconnect}
                         disabled={status === 'disconnected'}
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed">
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    >
                         Disconnect
                     </button>
                 </div>
@@ -60,14 +62,16 @@ export function ConnectionStatus({
                     <button
                         onClick={onGenerateKeys}
                         disabled={isGeneratingKeys}
-                        className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-normal py-2 px-4 rounded">
+                        className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-normal py-2 px-4 rounded"
+                    >
                         {isGeneratingKeys ? (
                             <>
                                 <svg
                                     className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
-                                    viewBox="0 0 24 24">
+                                    viewBox="0 0 24 24"
+                                >
                                     <circle
                                         className="opacity-25"
                                         cx="12"
@@ -91,7 +95,8 @@ export function ConnectionStatus({
                                     className="h-5 w-5 mr-2"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    stroke="currentColor">
+                                    stroke="currentColor"
+                                >
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -137,13 +142,15 @@ export function ConnectionStatus({
                             {onClearKeys && (
                                 <button
                                     onClick={onClearKeys}
-                                    className="w-full flex items-center justify-center bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-normal py-2 px-4 rounded mt-4">
+                                    className="w-full flex items-center justify-center bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-normal py-2 px-4 rounded mt-4"
+                                >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="h-5 w-5 mr-2"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        stroke="currentColor">
+                                        stroke="currentColor"
+                                    >
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"

@@ -28,7 +28,7 @@ export function useWalletConnection(status: string, disconnect: () => void) {
             // Default to MetaMask
             await disconnectWallet();
         }
-        
+
         addSystemMessage('Disconnected from wallet');
     }, [status, disconnect, addSystemMessage, walletSnap.walletProvider]);
 

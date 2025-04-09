@@ -289,7 +289,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <button
                     disabled={!isValidAmount || hasInsufficientBalance}
                     onClick={onOpenChannel}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8"
+                >
                     Confirm
                 </button>
 
@@ -349,20 +350,23 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         <div
             className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}>
+            }`}
+        >
             <div className="p-4 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <button
                         onClick={onClose}
                         className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                        aria-label="Close">
+                        aria-label="Close"
+                    >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
                             strokeWidth={1.5}
                             stroke="currentColor"
-                            className="w-6 h-6">
+                            className="w-6 h-6"
+                        >
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"

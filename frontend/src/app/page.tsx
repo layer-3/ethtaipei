@@ -56,14 +56,16 @@ export default function Connect() {
                                 {walletSnap.connected && !walletSnap.channelOpen && (
                                     <button
                                         onClick={handleOpenDeposit}
-                                        className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
+                                        className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal"
+                                    >
                                         Deposit
                                     </button>
                                 )}
                                 {walletSnap.connected && walletSnap.channelOpen && (
                                     <button
                                         onClick={handleOpenCloseChannel}
-                                        className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal">
+                                        className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover px-8 transition-colors font-normal"
+                                    >
                                         Close
                                     </button>
                                 )}
@@ -86,7 +88,8 @@ export default function Connect() {
 
                             <button
                                 onClick={handleOpenYuzux}
-                                className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover transition-all font-normal transform hover:scale-105 duration-200">
+                                className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover transition-all font-normal transform hover:scale-105 duration-200"
+                            >
                                 Open App
                             </button>
                         </div>
@@ -128,7 +131,8 @@ export default function Connect() {
                             appSnap.openApp === 'yuzux'
                                 ? 'opacity-100 scale-100'
                                 : 'opacity-0 scale-95 pointer-events-none'
-                        }`}>
+                        }`}
+                    >
                         {appSnap.openApp === 'yuzux' && <YuzuxApp />}
                     </div>
 

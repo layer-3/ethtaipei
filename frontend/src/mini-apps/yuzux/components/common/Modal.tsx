@@ -47,7 +47,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
                         : animationState === 'entered'
                           ? 'translate-x-0'
                           : 'translate-x-full'
-                }`}>
+                }`}
+            >
                 <div className="flex items-center p-4 relative">
                     <button onClick={handleClose} className="absolute left-4 text-white hover:text-gray-200">
                         <svg
@@ -58,7 +59,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
                             stroke="currentColor"
                             strokeWidth="2"
                             strokeLinecap="round"
-                            strokeLinejoin="round">
+                            strokeLinejoin="round"
+                        >
                             <path d="M19 12H5M12 19l-7-7 7-7" />
                         </svg>
                     </button>
