@@ -4,7 +4,9 @@ import { useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
+import SettingsStore from '@/store/SettingsStore';
 import { chains, chainImageURLById } from '@/config/chains';
+import { usePrivyWallet } from '@/hooks';
 
 interface NetworkSelectorProps {
     onNetworkChange?: (chainId: number) => void;
@@ -13,20 +15,49 @@ interface NetworkSelectorProps {
 
 export default function NetworkSelector({ onNetworkChange, className = '' }: NetworkSelectorProps) {
     const walletSnap = useSnapshot(WalletStore.state);
+    const settingsSnap = useSnapshot(SettingsStore.state);
+    const { switchNetwork } = usePrivyWallet();
 
+    // Use the chain from SettingsStore
     const currentChain = useMemo(() => {
-        return chains.find((chain) => chain.id === walletSnap.chainId);
-    }, [walletSnap.chainId]);
+        if (settingsSnap.activeChain) {
+            return settingsSnap.activeChain;
+        }
+
+        // Default to Polygon if no chain is selected
+        const polygonChain = chains.find((chain) => chain.id === 137);
+
+        if (polygonChain) {
+            // This updates the UI without triggering a storage update
+            return polygonChain;
+        }
+
+        // Fallback to first available chain
+        return chains[0];
+    }, [settingsSnap.activeChain]);
 
     const handleNetworkChange = useCallback(
-        (chainId: number) => {
+        async (chainId: number) => {
             if (onNetworkChange) {
                 onNetworkChange(chainId);
             } else {
-                WalletStore.switchChain(chainId);
+                // Find the target chain
+                const targetChain = chains.find((chain) => chain.id === chainId);
+
+                if (!targetChain) return;
+
+                // Update the SettingsStore first
+                SettingsStore.setActiveChain(targetChain);
+
+                // Then attempt to switch the wallet's network based on provider
+                if (walletSnap.walletProvider === 'privy') {
+                    await switchNetwork(chainId);
+                } else if (walletSnap.walletProvider === 'metamask') {
+                    WalletStore.switchChain(chainId);
+                }
             }
         },
-        [onNetworkChange],
+        [onNetworkChange, walletSnap.walletProvider, switchNetwork],
     );
 
     return (
@@ -45,7 +76,7 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
                 ) : (
                     <div className="w-5 h-5 bg-gray-300 rounded-full" />
                 )}
-                <span>{currentChain?.name || 'Select Network'}</span>
+                <span>{currentChain?.name || 'Polygon'}</span>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -68,7 +99,7 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
                                 document.getElementById('network-dropdown')?.classList.add('hidden');
                             }}
                             className={`flex items-center gap-2 px-4 py-2 text-sm w-full text-left hover:bg-gray-100 ${
-                                chain.id === walletSnap.chainId ? 'bg-gray-50' : ''
+                                chain.id === currentChain?.id ? 'bg-gray-50' : ''
                             }`}>
                             {chainImageURLById(chain.id) ? (
                                 <Image
@@ -82,7 +113,7 @@ export default function NetworkSelector({ onNetworkChange, className = '' }: Net
                                 <div className="w-5 h-5 bg-gray-300 rounded-full" />
                             )}
                             <span>{chain.name}</span>
-                            {chain.id === walletSnap.chainId && (
+                            {chain.id === currentChain?.id && (
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     className="h-4 w-4 ml-auto"

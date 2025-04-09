@@ -3,19 +3,17 @@ import { chains } from '@/config/chains';
 import { proxy } from 'valtio';
 
 const defaultChain = () => {
-    // It doesn't work on linea sepolia
-    // const chainByDevMode = process.env.NEXT_PUBLIC_DEV_MODE ? 59141 : 137;
-    const chainByDevMode = 1337;
-
+    // Always default to Polygon (137) unless explicitly set in localStorage
     const chainId =
         typeof localStorage !== 'undefined' && Number(localStorage.getItem('chainId'))
             ? Number(localStorage.getItem('chainId'))
-            : chainByDevMode;
+            : 137;
 
     const chain = chains.find((chain) => chain.id === chainId);
 
+    // If chain not found or not supported, default to Polygon
     if (!chain) {
-        return chains.find((chain) => chain.id === 137);
+        return chains.find((chain) => chain.id === 137) || chains[0];
     }
 
     return chain;

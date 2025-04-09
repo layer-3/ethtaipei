@@ -37,7 +37,7 @@ const Privy: FC<IPrivyProps> = ({ children }) => {
                     theme: 'light',
                 },
                 embeddedWallets: {
-                    createOnLogin: 'all-users',
+                    createOnLogin: 'users-without-wallets',
                     showWalletUIs: true,
                 },
                 legal: {

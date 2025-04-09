@@ -20,10 +20,13 @@ import {
 const polygon = defineChain({
     id: 137,
     name: 'Polygon',
-    nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
+    nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
     rpcUrls: {
         default: {
-            http: ['https://polygon.drpc.org', 'https://polygon-rpc.com'],
+            http: ['https://polygon-rpc.com'],
+        },
+        public: {
+            http: ['https://polygon-rpc.com', 'https://rpc-mainnet.matic.network', 'https://polygon.llamarpc.com'],
         },
     },
     blockExplorers: {
@@ -41,14 +44,15 @@ const polygon = defineChain({
     },
 });
 
-const supportedChains = (
-    process.env.NEXT_PUBLIC_SUPPORTED_CHAINS?.split(',').map((chain) => {
-        const sanitizedChain = chain.trim().replace(/^\"|\"$/g, '');
-        const number = Number(sanitizedChain);
+// Get supported chains from env or use defaults
+const envSupportedChains = process.env.NEXT_PUBLIC_SUPPORTED_CHAINS?.split(',').map((chain) => {
+    const sanitizedChain = chain.trim().replace(/^\"|\"$/g, '');
+    const number = Number(sanitizedChain);
+    return !isNaN(number) && number !== 0 ? number : null;
+}).filter((chain): chain is number => chain !== null) ?? [];
 
-        return !isNaN(number) && number !== 0 ? number : null;
-    }) ?? [137, 80002]
-).filter((chain) => chain !== null);
+// Always include Polygon (137) as a supported chain
+const supportedChains = Array.from(new Set([137, ...envSupportedChains]));
 
 const chainsArray = [
     mainnet,

@@ -79,6 +79,8 @@ const NitroliteStore = {
                 throw new Error(`Channel context not found for channel: ${channelId}`);
             }
 
+            console.log('channelContext', state.channelContext);
+
             state.status = 'deposit_pending';
             await state.channelContext.deposit(tokenAddress, BigInt(amount));
             state.status = 'funded';

@@ -1,5 +1,6 @@
 // Re-export wallet-related hooks
 export * from './useMetaMask';
+export * from './usePrivy';
 export * from './useWalletConnection';
 export { getBalances } from './getTokenBalances';
 

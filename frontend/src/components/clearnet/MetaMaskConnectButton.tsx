@@ -1,9 +1,10 @@
 import { chainImageURLById } from '@/config/chains';
 import { shortenHex } from '@/helpers/shortenHex';
 import { useMetaMask } from '@/hooks';
-import { WalletStore } from '@/store';
+import { SettingsStore } from '@/store';
 import Image from 'next/image';
 import { useCallback } from 'react';
+import { useSnapshot } from 'valtio';
 
 export const MetaMaskConnectButton: React.FC = () => {
     const {
@@ -13,15 +14,18 @@ export const MetaMaskConnectButton: React.FC = () => {
         connect: connectMetaMask,
         disconnect: disconnectMetaMask,
     } = useMetaMask();
+    
+    const settingsSnapshot = useSnapshot(SettingsStore.state);
 
     const connectWallet = useCallback(async () => {
         if (!isMetaMaskInstalled) {
             // Check if we're on mobile
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            
+
             if (isMobile) {
                 // Open MetaMask app via deep link for mobile users
-                window.location.href = 'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
+                window.location.href =
+                    'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
                 return;
             } else {
                 alert('Please install MetaMask to use this feature');
@@ -42,7 +46,12 @@ export const MetaMaskConnectButton: React.FC = () => {
             <button
                 onClick={disconnectMetaMask}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary">
-                <Image src={chainImageURLById(WalletStore.state.chainId)} alt="chain-icon" width={24} height={24} />
+                <Image 
+                    src={chainImageURLById(settingsSnapshot.activeChain?.id)} 
+                    alt="chain-icon" 
+                    width={24} 
+                    height={24} 
+                />
 
                 <span className="text-black">{shortenHex(account)}</span>
             </button>
