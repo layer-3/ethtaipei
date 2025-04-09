@@ -1,12 +1,18 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import AppStore from '@/store/AppStore';
 import { useSnapshot } from 'valtio';
+import { formatUnits } from 'viem';
+
+import AppStore from '@/store/AppStore';
+import NitroliteStore from '@/store/NitroliteStore'; // confirm correct import path
+import AssetsStore from '@/store/AssetsStore'; // use your real import path if different
+
 import { Send, Receive } from './components/SendReceive';
-import { NitroliteStore } from '@/store';
 
 export function YuzuxApp() {
     const [isExiting, setIsExiting] = useState(false);
     const appSnap = useSnapshot(AppStore.state);
+    // Snapshot your assets
+    const assetsSnap = useSnapshot(AssetsStore.state);
 
     // Handle exit animation
     const handleMinimize = () => {
@@ -45,24 +51,36 @@ export function YuzuxApp() {
     const currentBalance = useMemo(() => {
         const nitroState = NitroliteStore.getLatestState();
 
-        if (!nitroState) {
-            return 0;
-        }
+        if (!nitroState) return '0';
 
-        const creatorAllocation = nitroState.allocations[0];
+        const allocation = nitroState.allocations[0];
 
-        return creatorAllocation.amount;
-    }, [NitroliteStore, appSnap.isSendOpen]);
+        if (!allocation) return '0';
+
+        // If your State includes `token` field, use that
+        // If not, adjust code to find which token address you're using
+        const tokenAddress = allocation.token?.toLowerCase();
+        const rawBalance = allocation.amount; // BigInt
+
+        // Find decimals from your AssetsStore.
+        // Fallback to 18 decimals if not found.
+        const matchedAsset = assetsSnap.assets?.find((asset) => asset.address.toLowerCase() === tokenAddress);
+        const decimals = matchedAsset?.decimals ?? 18;
+
+        // Convert BigInt to a readable decimal string
+        const displayValue = formatUnits(rawBalance, decimals);
+
+        return displayValue;
+    }, [appSnap.isSendOpen, assetsSnap.assets]);
 
     return (
         <div
             className={`fixed inset-0 bg-black z-50 flex flex-col p-6 transition-opacity duration-300 ease-in-out ${
                 isExiting ? 'opacity-0' : 'opacity-100'
             }`}>
+            {/* Header */}
             <div className="flex justify-between items-center py-2">
-                <div className="flex items-center">
-                    <h1 className="text-3xl font-bold text-white">Yuzux</h1>
-                </div>
+                <h1 className="text-3xl font-bold text-white">Yuzux</h1>
                 <button
                     onClick={handleMinimize}
                     className="bg-white hover:bg-gray-200 text-black p-2 rounded-full flex items-center justify-center transition-colors"
@@ -77,19 +95,21 @@ export function YuzuxApp() {
                 </button>
             </div>
 
+            {/* Main Balance Display */}
             <div className="flex-grow flex items-center justify-center">
                 <div
                     className={`text-white text-center transform transition-transform duration-300 ${
                         isExiting ? 'scale-95' : 'scale-100'
                     }`}>
                     <div className="flex flex-col items-center">
+                        {/* Show decimal string */}
                         <span className="text-[56px] font-bold leading-none text-white">$ {currentBalance}</span>
                     </div>
                 </div>
             </div>
 
             {/* Bottom action buttons */}
-            <div className="">
+            <div>
                 <div className="flex justify-between max-w-md mx-auto">
                     <button
                         onClick={handleOpenReceive}
