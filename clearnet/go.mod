@@ -7,6 +7,8 @@ require (
 	github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/gorilla/websocket v1.5.3
+	github.com/ipfs/go-log/v2 v2.5.1
+	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.10.0
 	gorm.io/driver/sqlite v1.5.7
@@ -40,6 +42,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/maypok86/otter v1.2.4 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
@@ -59,6 +62,9 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect

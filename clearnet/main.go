@@ -86,7 +86,7 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction signer: %w", err)
 	}
-	auth.GasPrice = big.NewInt(20000000000) // 20 gwei.
+	auth.GasPrice = big.NewInt(30000000000) // 20 gwei.
 	auth.GasLimit = uint64(3000000)
 
 	// Derive broker's Ethereum address.
@@ -102,6 +102,8 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 	}
 
 	log.Printf("Blockchain client initialized with address: %s", BrokerAddress)
+
+	go custodyClient.ListenEvents()
 	return custodyClient, nil
 }
 
@@ -183,7 +185,7 @@ func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO, c
 		log.Println("POLYGON_CUSTODY_CONTRACT_ADDRESS environment variable is required")
 	}
 
-	custodyPOLYGON, err := setupBlockchainClient(privateKeyHex, polInfuraURL, polCustodyAddress, "80002")
+	custodyPOLYGON, err := setupBlockchainClient(privateKeyHex, polInfuraURL, polCustodyAddress, "137")
 	if err != nil {
 		log.Printf("Warning: Failed to initialize Polygon blockchain client: %v", err)
 	}
