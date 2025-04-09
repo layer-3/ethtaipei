@@ -126,7 +126,7 @@ export function useMetaMask() {
                             const chainId = parseInt(chainIdHex, 16);
 
                             // Update store
-                            WalletStore.connect(accounts[0] as Address, chainId);
+                            WalletStore.connect(accounts[0] as Address, chainId, 'metamask');
 
                             // Check if we need to switch networks
                             if (settingsSnap.activeChain && settingsSnap.activeChain.id !== chainId) {
@@ -160,8 +160,8 @@ export function useMetaMask() {
             // @ts-ignore
             const chainId = parseInt(chainIdHex, 16);
 
-            // Update store
-            WalletStore.connect(accounts[0] as Address, chainId);
+            // Update store with provider type
+            WalletStore.connect(accounts[0] as Address, chainId, 'metamask');
 
             // Save connection state to localStorage
             localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
@@ -219,9 +219,9 @@ export function useMetaMask() {
                     // User disconnected their wallet
                     WalletStore.disconnect();
                     localStorage.removeItem(WALLET_CONNECTION_KEY);
-                } else if (accounts[0] !== walletSnap.account) {
+                } else if (accounts[0] !== walletSnap.walletAddress) {
                     // Account changed
-                    WalletStore.connect(accounts[0] as Address, walletSnap.chainId || 1);
+                    WalletStore.connect(accounts[0] as Address, walletSnap.chainId || 1, 'metamask');
                     localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
                 }
             };
@@ -240,12 +240,12 @@ export function useMetaMask() {
                 window.ethereum.removeListener('chainChanged', handleChainChanged);
             };
         }
-    }, [walletSnap.account, walletSnap.chainId]);
+    }, [walletSnap.walletAddress, walletSnap.chainId]);
 
     return {
         isMetaMaskInstalled,
         isConnected: walletSnap.connected,
-        account: walletSnap.account,
+        account: walletSnap.walletAddress,
         chainId: walletSnap.chainId,
         error: walletSnap.error,
         connect,

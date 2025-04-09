@@ -11,7 +11,7 @@ export function useNitroliteClient() {
     const walletState = useSnapshot(WalletStore.state);
 
     useEffect(() => {
-        if (!walletState.connected || !walletState.account || !walletState.chainId) {
+        if (!walletState.connected || !walletState.walletAddress || !walletState.chainId) {
             return;
         }
 
@@ -33,7 +33,7 @@ export function useNitroliteClient() {
                 const walletClient = createWalletClient({
                     transport: custom(window.ethereum),
                     chain,
-                    account: walletState.account,
+                    account: walletState.walletAddress,
                 });
 
                 const addresses = {
@@ -60,7 +60,7 @@ export function useNitroliteClient() {
         };
 
         initializeClient();
-    }, [walletState.connected, walletState.account, walletState.chainId]);
+    }, [walletState.connected, walletState.walletAddress, walletState.chainId]);
 
     return;
 }

@@ -1,32 +1,58 @@
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useCallback, useEffect } from 'react';
 import { UserPill } from '@privy-io/react-auth/ui';
+import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
+import SettingsStore from '@/store/SettingsStore';
+import { shortenHex } from '@/helpers/shortenHex';
 
 export const ConnectButton: React.FC = () => {
-    const { login, user, authenticated } = usePrivy();
+    const { login, user, authenticated, ready } = usePrivy();
+    const { wallets } = useWallets();
+    const settingsSnap = useSnapshot(SettingsStore.state);
 
     useEffect(() => {
-        if (authenticated && user) {
-            WalletStore.connectPrivy(user.id);
-        } else {
-            WalletStore.disconnectPrivy();
+        if (authenticated && user && ready) {
+            const setupWallet = async () => {
+                try {
+                    if (wallets.length > 0) {
+                        const embeddedPrivyWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
+
+                        if (embeddedPrivyWallet && embeddedPrivyWallet.address) {
+                            WalletStore.connect(embeddedPrivyWallet.address as `0x${string}`, 'privy');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error setting up Privy wallet:', error);
+                    WalletStore.setError('Failed to setup Privy wallet');
+                }
+            };
+
+            setupWallet();
+        } else if (!authenticated) {
+            WalletStore.disconnect();
         }
-    }, [authenticated, user]);
+    }, [authenticated, user, ready, wallets, settingsSnap.activeChain]);
 
     const connectWallet = useCallback(async () => {
         try {
             await login();
         } catch (error) {
             console.log('error', error);
-            WalletStore.setError('Failed to connect with Privy');
+            WalletStore.setError('Failed to connect wallet');
         }
     }, [login]);
 
-    if (user) {
+    if (WalletStore.isWalletConnected()) {
         return (
             <div className="flex items-center gap-2">
-                <UserPill />
+                {WalletStore.state.walletProvider === 'privy' ? (
+                    <UserPill />
+                ) : (
+                    <div className="px-4 py-2 rounded-xl border border-gray-200 bg-primary">
+                        {shortenHex(WalletStore.getWalletAddress() || '', 4)}
+                    </div>
+                )}
             </div>
         );
     }

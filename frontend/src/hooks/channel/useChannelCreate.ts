@@ -31,7 +31,7 @@ export function useChannelCreate() {
 
         try {
             const channel: Channel = {
-                // participants: [WalletStore.state.account as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
+                // participants: [WalletStore.state.walletAddress as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
                 participants: [stateSigner.address as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
                 adjudicator: adjudicator,
                 challenge: BigInt(APP_CONFIG.CHANNEL.CHALLENGE_PERIOD),
@@ -47,7 +47,7 @@ export function useChannelCreate() {
                 allocations: [
                     {
                         // destination: channel.participants[0],
-                        destination: WalletStore.state.account as Address,
+                        destination: WalletStore.state.walletAddress as Address,
                         token: tokenAddress,
                         amount: BigInt(amount),
                     },

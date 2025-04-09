@@ -3,7 +3,7 @@ import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
 import NitroliteStore from '@/store/NitroliteStore';
 import { useMemo } from 'react';
-import { useChannelClosing } from '@/hooks/channel/useChannelClosing';
+// import { useChannelClosing } from '@/hooks/channel/useChannelClosing';
 
 interface ChannelStatusProps {
     status: string;
@@ -17,7 +17,7 @@ export function ChannelStatus({ status }: ChannelStatusProps) {
         return nitroliteSnap.channelContext.getChannelId();
     }, [nitroliteSnap]);
 
-    const { handleCloseChannel } = useChannelClosing();
+    // const { handleCloseChannel } = useChannelClosing();
 
     return (
         <div className="bg-white p-3 rounded-lg border border-[#3531ff]/30 shadow-sm flex-1">
@@ -86,9 +86,9 @@ export function ChannelStatus({ status }: ChannelStatusProps) {
                     </div>
                 </div>
                 <button
-                    onClick={() =>
-                        handleCloseChannel(channelId, walletSnap.selectedTokenAddress, [walletSnap.selectedAmount, '0'])
-                    }
+                    // onClick={() =>
+                    //     handleCloseChannel(channelId, walletSnap.selectedTokenAddress, [walletSnap.selectedAmount, '0'])
+                    // }
                     className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors pointer">
                     Close
                 </button>

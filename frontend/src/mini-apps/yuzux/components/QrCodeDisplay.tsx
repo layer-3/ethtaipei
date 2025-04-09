@@ -19,7 +19,7 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({ address }) => {
     const qrFgColor = '#000000';
 
     return (
-        <div className="h-[280px] flex items-center justify-center rounded-sm">
+        <div className="flex items-center justify-center rounded-sm">
             <QRCode
                 value={address}
                 size={240}
@@ -28,6 +28,9 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({ address }) => {
                 logoWidth={40}
                 logoPadding={6}
                 logoPaddingStyle="circle"
+                style={{
+                    borderRadius: '8px',
+                }}
                 qrStyle="dots"
                 removeQrCodeBehindLogo
                 eyeRadius={360}

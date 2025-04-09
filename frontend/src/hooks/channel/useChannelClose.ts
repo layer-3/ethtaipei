@@ -34,7 +34,7 @@ export function useChannelClose() {
                 data: app.encode(appState),
                 allocations: [
                     {
-                        destination: WalletStore.state.account as Address,
+                        destination: WalletStore.state.walletAddress as Address,
                         token: tokenAddress as Address,
                         amount: BigInt(amount),
                     },

@@ -24,6 +24,7 @@
         "bs58": "6.0.0",
         "centrifuge": "5.3.4",
         "ethers": "5.7.2",
+        "html2canvas": "1.4.1",
         "next": "15.2.4",
         "picomatch": "4.0.2",
         "prettier": "3.5.3",
