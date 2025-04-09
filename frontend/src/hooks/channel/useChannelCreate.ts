@@ -59,15 +59,18 @@ export function useChannelCreate() {
                 const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;
 
                 // Create initial channel state
+                console.log('WalletStore.state.walletAddress', WalletStore.state.walletAddress);
                 const initialState: State = {
                     data: app.encode(appState),
                     allocations: [
                         {
+                            // metamask address
                             destination: WalletStore.state.walletAddress as Address,
                             token: tokenAddress,
                             amount: amountBigInt, // Use the converted amount
                         },
                         {
+                            // BOB
                             destination: channel.participants[1],
                             token: tokenAddress,
                             amount: BigInt(0),
@@ -75,6 +78,9 @@ export function useChannelCreate() {
                     ],
                     sigs: [],
                 };
+
+                console.log('initialState', initialState);
+                console.log('channel', channel);
 
                 // Create channel context with initial state
                 const channelContext = NitroliteStore.setChannelContext(channel, initialState, app);
@@ -89,26 +95,34 @@ export function useChannelCreate() {
                     await NitroliteStore.deposit(channelId, tokenAddress, amountBigInt.toString());
                 } catch (depositError) {
                     console.error('Deposit error:', depositError);
-                    
+
                     // Provide specific error for deposit failure
-                    if (String(depositError).includes('approve') && String(depositError).includes('not been authorized')) {
+                    if (
+                        String(depositError).includes('approve') &&
+                        String(depositError).includes('not been authorized')
+                    ) {
                         throw new Error(
-                            'Token approval was rejected. Please approve the USDC spend in your wallet to proceed.'
+                            'Token approval was rejected. Please approve the USDC spend in your wallet to proceed.',
                         );
                     }
-                    
+
                     // Provide specific error for other common issues
                     if (String(depositError).includes('user rejected transaction')) {
                         throw new Error('Transaction was rejected. Please confirm the transaction in your wallet.');
                     }
-                    
+
                     throw depositError;
                 }
 
                 // Sign the initial state
                 const stateHash = channelContext.getStateHash(initialState);
+
                 const [signature] = await stateSigner.sign(stateHash);
                 const parsedSig = parseSignature(signature as Hex);
+
+                console.log('parsedSig', parsedSig);
+                console.log('signature', signature);
+                console.log('stateHash', stateHash);
 
                 initialState.sigs = [
                     {
