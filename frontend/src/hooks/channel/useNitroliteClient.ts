@@ -19,7 +19,6 @@ export function useNitroliteClient() {
     const { activeChain } = useSnapshot(SettingsStore.state);
 
     useEffect(() => {
-        // Only proceed if user’s wallets array is populated & we have an active chain
         if (!ready || !activeChain) return;
 
         // 3) Pick a user wallet from the array. For example, find an embedded wallet:

@@ -22,7 +22,7 @@ export interface WalletSigner {
     /** Optional Ethereum address derived from the public key */
     address?: string;
     /** Function to sign a message and return a hex signature */
-    sign: (message: string) => Promise<[Hex]>;
+    sign: (message: string, isContract?: boolean) => Promise<[Hex]>;
 }
 
 /**
@@ -64,14 +64,24 @@ export const createEthersSigner = (privateKey: string): WalletSigner => {
         return {
             publicKey: wallet.publicKey,
             address: wallet.address,
-            sign: async (message: string): Promise<[Hex]> => {
+            sign: async (message: string, isContract?: boolean): Promise<[Hex]> => {
                 try {
-                    // Sign the hash directly without EIP-191 prefix
-                    const flatSignature = await wallet._signingKey().signDigest(message);
-                    // Format signature as hex string
-                    const signature = ethers.utils.joinSignature(flatSignature);
+                    if (isContract) {
+                        const flatSignature = await wallet._signingKey().signDigest(message);
+                        // Format signature as hex string
+                        const signature = ethers.utils.joinSignature(flatSignature);
 
-                    return [signature as Hex];
+                        return [signature as Hex];
+                    } else {
+                        const messageBytes = ethers.utils.arrayify(ethers.utils.id(message));
+
+                        // Sign the hash directly without EIP-191 prefix
+                        const flatSignature = await wallet._signingKey().signDigest(messageBytes);
+                        // Format signature as hex string
+                        const signature = ethers.utils.joinSignature(flatSignature);
+
+                        return [signature as Hex];
+                    }
                 } catch (error) {
                     console.error('Error signing message:', error);
                     throw error;
