@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
 import { Modal } from './common/Modal';
@@ -12,6 +12,27 @@ interface ReceiveProps {
 
 export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
     const walletSnap = useSnapshot(WalletStore.state);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkIfMobile = () => {
+            const hasShareApi = !!navigator.share;
+
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobileUserAgent =
+                /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i.test(userAgent);
+
+            const isSmallScreen = window.innerWidth <= 768;
+
+            setIsMobile((hasShareApi && (isMobileUserAgent || isSmallScreen)) || (isMobileUserAgent && isSmallScreen));
+        };
+
+        checkIfMobile();
+
+        // Also check on window resize
+        window.addEventListener('resize', checkIfMobile);
+        return () => window.removeEventListener('resize', checkIfMobile);
+    }, []);
 
     const handleShare = async () => {
         if (!walletSnap.walletAddress) return;
@@ -45,14 +66,16 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
                     </div>
                 </div>
 
-                <div className="mt-auto w-full px-6 pb-4">
-                    <button
-                        onClick={handleShare}
-                        className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white"
-                    >
-                        Share
-                    </button>
-                </div>
+                {/* Only show share button on mobile devices */}
+                {isMobile && (
+                    <div className="mt-auto w-full px-6 pb-4">
+                        <button
+                            onClick={handleShare}
+                            className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white">
+                            Share
+                        </button>
+                    </div>
+                )}
             </div>
         </Modal>
     );
