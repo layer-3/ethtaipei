@@ -145,15 +145,16 @@ func main() {
 	log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 
 	// Initialize blockchain clients.
-	custodyPOLYGON, custodyCELO, custodyBASE := initBlockchainClients(privateKeyHex)
+	initBlockchainClients(privateKeyHex)
+	// custodyPOLYGON, custodyCELO, custodyBASE := initBlockchainClients(privateKeyHex)
 
 	// Start the Centrifuge node.
 	if err := centrifugeNode.Run(); err != nil {
 		log.Fatal(err)
 	}
 
-	webhookHandler := NewEventHandler(ledger, channelService, BrokerAddress, custodyPOLYGON, custodyCELO, custodyBASE)
-	http.Handle("/webhook", webhookHandler)
+	// webhookHandler := NewEventHandler(ledger, channelService, BrokerAddress, custodyPOLYGON, custodyCELO, custodyBASE)
+	// http.Handle("/webhook", webhookHandler)
 
 	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
