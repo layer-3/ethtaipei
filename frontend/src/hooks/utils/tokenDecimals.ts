@@ -1,6 +1,7 @@
 import { Address, formatUnits, parseUnits } from 'viem';
 import { AssetsStore } from '@/store';
 
+// FIXME: This file is a temporary workaround for handling token decimals.
 /**
  * Token decimals utility functions
  *
@@ -12,7 +13,7 @@ import { AssetsStore } from '@/store';
 const KNOWN_TOKENS: Record<string, number> = {
     // USDC
     '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': 6, // Mainnet
-    '0x2791bca1f2de4661ed88a30c99a7a9449aa84174': 6, // Polygon
+    '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359': 6, // Polygon
 
     // USDT
     '0xdac17f958d2ee523a2206206994597c13d831ec7': 6, // Mainnet
@@ -28,7 +29,7 @@ const KNOWN_TOKENS: Record<string, number> = {
 };
 
 // Default decimals for ERC20 tokens
-const DEFAULT_DECIMALS = 18;
+const DEFAULT_DECIMALS = 6;
 
 /**
  * Get token decimals from token address
@@ -81,5 +82,13 @@ export function parseTokenUnits(tokenAddress: Address, amount: string): bigint {
 export function formatTokenUnits(tokenAddress: Address, amount: bigint): string {
     const decimals = getTokenDecimals(tokenAddress);
 
-    return formatUnits(amount, decimals);
+    return formatUnits(amount, 6);
+}
+
+/**
+ * Simple utility to get token decimals
+ * Used in components that need just the decimal value
+ */
+export function tokenDecimals(tokenAddress: Address): number {
+    return getTokenDecimals(tokenAddress);
 }

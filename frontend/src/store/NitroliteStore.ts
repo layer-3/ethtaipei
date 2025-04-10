@@ -2,7 +2,7 @@ import { WalletSigner } from '@/websocket';
 import { AppLogic, ChannelContext, NitroliteClient, Channel, State } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
-import { NitroliteState, ChannelStatus } from './types';
+import { NitroliteState, ChannelStatus, ChannelId, AccountInfo } from './types';
 import { WalletStore } from './index';
 
 /**
@@ -161,7 +161,7 @@ const NitroliteStore = {
     },
 
     /**
-     * Withdraw funds
+     * Withdraw funds from channel
      */
     async withdraw(channelId: string, token: Address, amount: bigint): Promise<boolean> {
         const previousStatus = state.status;
@@ -179,6 +179,38 @@ const NitroliteStore = {
         } catch (error) {
             state.status = previousStatus;
             console.error(`Failed to withdraw funds from ${channelId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get channels associated with an account for a specific token
+     */
+    async getAccountChannels(account: Address): Promise<ChannelId[]> {
+        try {
+            if (!state.client) {
+                throw new Error('Nitrolite client not initialized');
+            }
+
+            return await state.client.getAccountChannels(account);
+        } catch (error) {
+            console.error('Failed to get account channels:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get account info
+     */
+    async getAccountInfo(account: Address, tokenAddress: Address): Promise<AccountInfo> {
+        try {
+            if (!state.client) {
+                throw new Error('Nitrolite client not initialized');
+            }
+
+            return await state.client.getAccountInfo(account, tokenAddress);
+        } catch (error) {
+            console.error('Failed to get account info:', error);
             throw error;
         }
     },

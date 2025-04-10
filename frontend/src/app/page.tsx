@@ -6,8 +6,7 @@ import { AppStore } from '@/store';
 import Privy from '@/providers/privy';
 import { NitroliteClientWrapper } from '@/providers/NitroliteClientWrapper';
 import { MinimizedApps, MainHeader, AppCatalog, YuzuxSection, YuzuxAppContainer } from '@/components';
-import CloseChannel from '@/components/wallet/clearnet/CloseChannel';
-import Deposit from '@/components/wallet/clearnet/Deposit';
+import { Deposit } from '@/components/wallet/clearnet';
 
 export default function HomePage() {
     const appSnap = useSnapshot(AppStore.state);
@@ -47,7 +46,7 @@ export default function HomePage() {
                     </main>
 
                     <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
-                    <CloseChannel isOpen={appSnap.isCloseChannelOpen || false} onClose={handleCloseCloseChannel} />
+                    {/* <CloseChannel isOpen={appSnap.isCloseChannelOpen || false} onClose={handleCloseCloseChannel} /> */}
 
                     <YuzuxAppContainer />
 

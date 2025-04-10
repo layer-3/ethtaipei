@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect } from 'react';
 import { useSnapshot } from 'valtio';
 import { createPublicClient, createWalletClient, custom, http } from 'viem';
@@ -24,11 +26,10 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
         if (!ready || !activeChain) return;
 
         // Example: pick the embedded wallet
-        console.log('wallets', wallets);
         const embeddedWallet = wallets.find((w) => w.type === 'ethereum');
 
         if (!embeddedWallet) {
-            console.warn('No embedded wallet found. Please connect or create one before using Nitrolite.');
+            console.warn('No embedded wallet found. Please connect one before using Nitrolite.');
             return;
         }
 
@@ -67,6 +68,7 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
 
                 // 6) Save to store
                 NitroliteStore.setClient(client);
+
                 console.log('Nitrolite client initialized!');
             } catch (error) {
                 console.error('Failed to initialize Nitrolite client:', error);
@@ -77,9 +79,5 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
         initializeNitrolite();
     }, [ready, wallets, activeChain]);
 
-    // Option 1: If you want to block rendering until Nitrolite is set:
-    // - can check if NitroliteStore.state.client is non-null
-
-    // Here we just always render children
     return <>{children}</>;
 }

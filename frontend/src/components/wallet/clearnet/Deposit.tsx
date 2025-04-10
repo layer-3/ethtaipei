@@ -2,7 +2,6 @@
 
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useChannelCreate } from '@/hooks/channel/useChannelCreate';
 import { useSnapshot } from 'valtio';
 import Image from 'next/image';
 import NitroliteStore from '@/store/NitroliteStore';
@@ -15,6 +14,7 @@ import SettingsStore from '@/store/SettingsStore';
 import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
 import { chains } from '@/config/chains';
 import { generateKeyPair, createEthersSigner, createWebSocketClient } from '@/websocket';
+import { useChannelCreate } from '@/hooks';
 
 interface DepositProps {
     isOpen: boolean;
@@ -27,6 +27,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
     const { walletAddress } = useSnapshot(WalletStore.state);
     const { activeChain } = useSnapshot(SettingsStore.state);
+
+    const { handleDepositToChannel } = useChannelCreate();
 
     const usdcBalance = useMemo(() => {
         // First try to find USDC by symbol
@@ -193,9 +195,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         }
     };
 
-    const { handleCreateChannel } = useChannelCreate();
-
-    const onOpenChannel = useCallback(async () => {
+    const onDeposit = useCallback(async () => {
         try {
             // First initialize keys and WebSocket connection
             await initializeKeysAndWebSocket();
@@ -228,7 +228,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             const formattedValue = numericValue.toString();
 
             try {
-                await handleCreateChannel(tokenAddress, formattedValue);
+                await handleDepositToChannel(tokenAddress, formattedValue);
+                console.log('Deposit successful');
             } catch (error) {
                 // Check for specific error messages
                 const errorMsg = String(error);
@@ -244,7 +245,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 }
             }
         } catch (error) {
-            console.error('Error creating channel:', error);
+            console.error('Error depositing funds:', error);
 
             // More descriptive error message to the user
             const errorMsg = String(error).toLowerCase();
@@ -254,10 +255,10 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             } else if (errorMsg.includes('not initialized')) {
                 alert('Wallet connection issue. Please reconnect your wallet and try again.');
             } else {
-                alert('Failed to create channel. Please try again later.');
+                alert('Failed to deposit. Please try again later.');
             }
         }
-    }, [handleCreateChannel, value, activeChain, usdcBalance]);
+    }, [value, activeChain, usdcBalance, nitroliteSnapshot]);
 
     const defaultComponent = useMemo(() => {
         const numericValue = parseFloat(value);
@@ -288,16 +289,15 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
                 <button
                     disabled={!isValidAmount || hasInsufficientBalance}
-                    onClick={onOpenChannel}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8"
-                >
-                    Confirm
+                    onClick={onDeposit}
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
+                    Deposit
                 </button>
 
                 <NumberPad value={value} onChange={handleChange} />
             </div>
         );
-    }, [value, onOpenChannel, handleChange, usdcBalance, activeChain]);
+    }, [value, onDeposit, handleChange, usdcBalance, activeChain]);
 
     const processingComponent = useMemo(() => {
         return (
@@ -311,7 +311,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
                 <div className="text-center">
                     <h2 className="text-2xl font-semibold mb-2 text-gray-800">Processing</h2>
-                    <p className="text-gray-600">Setting up the connection</p>
+                    <p className="text-gray-600">Processing your deposit</p>
                 </div>
             </div>
         );
@@ -328,7 +328,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
                 <div className="text-center">
                     <h2 className="text-2xl font-semibold mb-2 text-gray-800">Success!</h2>
-                    <p className="text-gray-600">Your account is ready</p>
+                    <p className="text-gray-600">Your deposit was successful</p>
                 </div>
 
                 <div className="mt-4 text-sm text-gray-500">Closing in a moment...</div>
@@ -350,23 +350,20 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         <div
             className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-        >
+            }`}>
             <div className="p-4 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <button
                         onClick={onClose}
                         className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                        aria-label="Close"
-                    >
+                        aria-label="Close">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
                             strokeWidth={1.5}
                             stroke="currentColor"
-                            className="w-6 h-6"
-                        >
+                            className="w-6 h-6">
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -374,7 +371,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                             />
                         </svg>
                     </button>
-                    <h1 className="text-black text-sm uppercase tracking-wider font-normal">Open Account</h1>
+                    <h1 className="text-black text-sm uppercase tracking-wider font-normal">Deposit Funds</h1>
                     <div className="w-8" />
                 </div>
 

@@ -31,6 +31,14 @@ export type ChannelStatus =
     | 'withdraw_pending'
     | 'withdrawn';
 
+export type ChannelId = string;
+
+export interface AccountInfo {
+    deposited: bigint;
+    locked: bigint;
+    channelCount: number;
+}
+
 export interface NitroliteState {
     client: NitroliteClient | null;
     channelContext: ChannelContext<bigint> | null;
