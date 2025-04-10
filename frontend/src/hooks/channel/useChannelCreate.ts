@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSnapshot } from 'valtio';
 import { Address, Hex, parseSignature } from 'viem';
 import { AdjudicatorApp } from '@/services/apps/adjudicator_app';
@@ -7,8 +7,82 @@ import APP_CONFIG from '@/config/app';
 import { Channel, State } from '@erc7824/nitrolite';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 
+// Define localStorage keys
+const STORAGE_KEYS = {
+    CHANNEL: 'nitrolite_channel',
+    CHANNEL_STATE: 'nitrolite_channel_state',
+    CHANNEL_ID: 'nitrolite_channel_id',
+};
+
 export function useChannelCreate() {
     const { activeChain } = useSnapshot(SettingsStore.state);
+    const walletSnap = useSnapshot(WalletStore.state);
+
+    // Restore channel data from localStorage when hook initializes
+    useEffect(() => {
+        // Only attempt to restore if we have a wallet connection
+        if (walletSnap.walletAddress && !NitroliteStore.getChannelContext()) {
+            try {
+                const savedChannelData = localStorage.getItem(STORAGE_KEYS.CHANNEL);
+                const savedChannelState = localStorage.getItem(STORAGE_KEYS.CHANNEL_STATE);
+
+                if (savedChannelData && savedChannelState) {
+                    const channel = JSON.parse(savedChannelData, (key, value) => {
+                        // Convert strings that look like BigInts back to BigInt
+                        if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                            return BigInt(value.substring(0, value.length - 1));
+                        }
+                        return value;
+                    });
+
+                    const state = JSON.parse(savedChannelState, (key, value) => {
+                        // Convert strings that look like BigInts back to BigInt
+                        if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                            return BigInt(value.substring(0, value.length - 1));
+                        }
+                        return value;
+                    });
+
+                    // Only restore if the wallet address matches the channel participant
+                    if (channel.participants[0] === walletSnap.walletAddress) {
+                        const app = new AdjudicatorApp();
+
+                        NitroliteStore.setChannelContext(channel, state, app);
+                        WalletStore.setChannelOpen(true);
+                        console.log('Restored channel from localStorage');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to restore channel from localStorage:', error);
+                // Clear potentially corrupt data
+                localStorage.removeItem(STORAGE_KEYS.CHANNEL);
+                localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
+                localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
+            }
+        }
+    }, [walletSnap.walletAddress]);
+
+    // Helper to save channel data to localStorage
+    const saveChannelToStorage = useCallback((channel: Channel, state: State, channelId: string) => {
+        try {
+            // Convert BigInt values to string representation for JSON serialization
+            const channelData = JSON.stringify(channel, (key, value) =>
+                typeof value === 'bigint' ? value.toString() + 'n' : value,
+            );
+
+            const stateData = JSON.stringify(state, (key, value) =>
+                typeof value === 'bigint' ? value.toString() + 'n' : value,
+            );
+
+            localStorage.setItem(STORAGE_KEYS.CHANNEL, channelData);
+            localStorage.setItem(STORAGE_KEYS.CHANNEL_STATE, stateData);
+            localStorage.setItem(STORAGE_KEYS.CHANNEL_ID, channelId);
+
+            console.log('Saved channel data to localStorage');
+        } catch (error) {
+            console.error('Failed to save channel to localStorage:', error);
+        }
+    }, []);
 
     // Function to create a channel without depositing
     const handleCreateChannel = useCallback(
@@ -90,6 +164,9 @@ export function useChannelCreate() {
                 // Update the channel context with the signed initial state
                 NitroliteStore.setChannelContext(channel, initialState, app);
 
+                // Save channel data to localStorage
+                saveChannelToStorage(channel, initialState, channelId);
+
                 // Create the channel on-chain
                 await NitroliteStore.createChannel(channelId);
 
@@ -100,7 +177,7 @@ export function useChannelCreate() {
                 throw error;
             }
         },
-        [activeChain],
+        [activeChain, saveChannelToStorage],
     );
 
     // Function to deposit to a channel
@@ -137,20 +214,17 @@ export function useChannelCreate() {
         }
     }, []);
 
-    // Combined function that does both in sequence
-    // const handleCreateAndDeposit = useCallback(
-    //     async (tokenAddress: Address, amount: string) => {
-    //         const { channelId } = await handleCreateChannel(tokenAddress, amount);
-
-    //         await handleDepositToChannel(channelId, tokenAddress, amount);
-    //         return channelId;
-    //     },
-    //     [handleCreateChannel, handleDepositToChannel],
-    // );
+    // Function to clear stored channel data
+    const clearStoredChannel = useCallback(() => {
+        localStorage.removeItem(STORAGE_KEYS.CHANNEL);
+        localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
+        localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
+        console.log('Cleared channel data from localStorage');
+    }, []);
 
     return {
         handleCreateChannel,
         handleDepositToChannel,
-        // handleCreateAndDeposit,
+        clearStoredChannel,
     };
 }

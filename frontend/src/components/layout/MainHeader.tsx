@@ -94,7 +94,7 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
         }
     };
 
-    const handleCloseChannels = async () => {
+    const handleClose = async () => {
         if (!walletSnap.connected) return;
 
         try {
@@ -107,19 +107,13 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                 return;
             }
 
-            const tokenAddress = APP_CONFIG.TOKENS[activeChain.id];
+            try {
+                // The hook will handle all the state creation and signing
+                await handleCloseChannel();
 
-            // Use the hook's function to close each channel
-            // Using a hardcoded amount of 0.3
-            for (const channel of channels) {
-                try {
-                    // The hook will handle all the state creation and signing
-                    await handleCloseChannel(tokenAddress, '0.3');
-
-                    console.log('Channel closed successfully');
-                } catch (channelError) {
-                    console.error('Failed to close channel:', channelError);
-                }
+                console.log('Channel closed successfully');
+            } catch (channelError) {
+                console.error('Failed to close channel:', channelError);
             }
 
             console.log('All channels processed');
@@ -156,14 +150,14 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
     return (
         <header className="flex gap-4 items-center justify-between flex-wrap">
             <div className="flex gap-4 items-center">
-                <span>Locked: $ {currentLocked}</span>
+                <span>Channel: $ {currentLocked}</span>
                 <span>Available: $ {currentDeposit}</span>
                 {walletSnap.connected && !walletSnap.channelOpen && (
                     <ActionButton onClick={onOpenDeposit}>Deposit</ActionButton>
                 )}
                 {walletSnap.connected && <ActionButton onClick={onCreateChannel}>Create Channel</ActionButton>}
                 {walletSnap.connected && <ActionButton onClick={handleWithdrawal}>Withdraw</ActionButton>}
-                {walletSnap.connected && <ActionButton onClick={handleCloseChannels}>Close all</ActionButton>}
+                {walletSnap.connected && <ActionButton onClick={handleClose}>Close Channel</ActionButton>}
             </div>
             <div className={walletSnap.connected ? '' : 'ml-auto'}>
                 {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}
