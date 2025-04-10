@@ -1,9 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-
-const QrBarcodeScanner = dynamic(() => import('react-qr-barcode-scanner'), {
-    ssr: false,
-});
+import React, { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface QrScannerProps {
     onScan: (data: string) => void;
@@ -14,7 +10,10 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     const [hasCamera, setHasCamera] = useState<boolean>(false);
     const [permission, setPermission] = useState<boolean>(false);
     const [scanning, setScanning] = useState<boolean>(false);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const scannerDivId = 'html5-qrcode-scanner';
 
+    // Check if device has a camera
     useEffect(() => {
         const checkCamera = async () => {
             try {
@@ -32,6 +31,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         checkCamera();
     }, [onError]);
 
+    // Request camera permission
     useEffect(() => {
         if (!hasCamera) return;
 
@@ -39,7 +39,9 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
             try {
                 // Ask for permission to access camera
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
+                    video: {
+                        facingMode: 'environment',
+                    },
                 });
 
                 // Immediately stop the stream to free the camera until we actually scan
@@ -58,19 +60,69 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         requestPermission();
     }, [hasCamera, onError]);
 
-    const handleScan = (result: string) => {
-        if (result) {
-            setScanning(false);
-            onScan(result);
-        }
-    };
+    // Initialize scanner when permission is granted
+    useEffect(() => {
+        if (!permission || !scanning) return;
 
-    const handleScannerError = (error: Error) => {
-        console.error('QR Scanner Error:', error);
-        setScanning(false);
-        onError?.(error);
-    };
+        let html5QrcodeScanner: Html5Qrcode | null = null;
 
+        const startScanner = async () => {
+            try {
+                // Create an instance of the scanner
+                html5QrcodeScanner = new Html5Qrcode(scannerDivId);
+                scannerRef.current = html5QrcodeScanner;
+
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1,
+                    disableFlip: false,
+                };
+
+                // Start scanning
+                await html5QrcodeScanner.start(
+                    { facingMode: 'environment' },
+                    config,
+                    (decodedText) => {
+                        // On successful scan
+                        onScan(decodedText);
+                        // Don't stop scanning - let the parent component control this
+                        // html5QrcodeScanner.stop();
+                    },
+                    (errorMessage) => {
+                        // Ignore not found errors (these are normal when no QR code is in view)
+                        if (errorMessage.includes('No MultiFormat Readers')) {
+                            return;
+                        }
+
+                        // For other errors, log them
+                        console.warn(`QR scan error: ${errorMessage}`);
+                    },
+                );
+            } catch (error) {
+                console.error('Error initializing QR scanner:', error);
+                onError?.(error as Error);
+            }
+        };
+
+        startScanner();
+
+        // Clean up function
+        return () => {
+            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                html5QrcodeScanner
+                    .stop()
+                    .then(() => {
+                        console.log('QR Scanner stopped');
+                    })
+                    .catch((err) => {
+                        console.error('Error stopping QR scanner:', err);
+                    });
+            }
+        };
+    }, [permission, scanning, onScan, onError]);
+
+    // No camera view
     if (!hasCamera) {
         return (
             <div className="flex flex-col items-center justify-center h-full bg-black text-white p-4">
@@ -80,8 +132,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
+                        stroke="currentColor">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -102,6 +153,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         );
     }
 
+    // No permission view
     if (!permission) {
         return (
             <div className="flex flex-col items-center justify-center h-full bg-black text-white p-4">
@@ -111,15 +163,12 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
+                        stroke="currentColor">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 
-               00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7
-               a4 4 0 00-8 0v4h8z"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                         />
                     </svg>
                     <p className="text-lg font-semibold">Camera Permission Required</p>
@@ -131,34 +180,11 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
     return (
         <div className="relative h-full bg-black">
-            <div className="aspect-square max-w-md mx-auto overflow-hidden">
-                {scanning && (
-                    <QrBarcodeScanner
-                        // @ts-ignore
-                        onUpdate={(error: Error | null, result: { text: string } | null) => {
-                            if (error) handleScannerError(error);
-                            if (result?.text) handleScan(result.text);
-                        }}
-                    />
-                )}
-            </div>
-
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="h-full flex flex-col justify-center items-center">
-                    <div className="w-64 h-64 border-2 border-white/50 rounded-lg relative">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white" />
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white" />
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white" />
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white" />
-
-                        {scanning && <div className="absolute left-0 right-0 h-0.5 bg-red-500 animate-scan-line" />}
-                    </div>
-
-                    <div className="mt-4 text-white text-center">
-                        <p>Align QR code within the frame</p>
-                    </div>
-                </div>
-            </div>
+            <div
+                id={scannerDivId}
+                className="aspect-square max-w-md mx-auto overflow-hidden"
+                style={{ width: '100%', height: 'auto' }}
+            />
         </div>
     );
 };
