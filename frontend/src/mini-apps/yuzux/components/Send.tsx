@@ -19,6 +19,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
     const [step, setStep] = useState<SendStep>('scan');
     const [recipientAddress, setRecipientAddress] = useState('');
     const [amount, setAmount] = useState('0');
+    const [isMobile, setIsMobile] = useState(false);
     const [selectedToken, setSelectedToken] = useState({
         id: '1',
         name: 'Yuzu Token',
@@ -38,14 +39,43 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         return creatorAllocation.amount;
     }, []);
 
+    // Detect if device is mobile
+    useEffect(() => {
+        const checkIfMobile = () => {
+            // Check for mobile user agent
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobileUserAgent =
+                /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i.test(userAgent);
+
+            // Check for small screen
+            const isSmallScreen = window.innerWidth <= 768;
+
+            // Check for touch capability
+            const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+            // Device is mobile if it meets at least two conditions
+            const mobileDevice =
+                (isMobileUserAgent && isSmallScreen) || (isMobileUserAgent && hasTouch) || (isSmallScreen && hasTouch);
+
+            setIsMobile(mobileDevice);
+        };
+
+        checkIfMobile();
+
+        // Update on resize
+        window.addEventListener('resize', checkIfMobile);
+        return () => window.removeEventListener('resize', checkIfMobile);
+    }, []);
+
     // Reset state whenever the modal is opened
     useEffect(() => {
         if (isOpen) {
-            setStep('scan');
+            // Set initial step based on device type
+            setStep(isMobile ? 'scan' : 'manual');
             setRecipientAddress('');
             setAmount('0');
         }
-    }, [isOpen]);
+    }, [isOpen, isMobile]);
 
     // ----- Handlers -----
 
@@ -115,8 +145,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 <div className="p-4">
                     <button
                         onClick={handleManualEntry}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
                         Enter Manually
                     </button>
                 </div>
@@ -138,6 +167,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                             value={recipientAddress}
                             onChange={handleAddressChange}
                             className="block w-full px-3 py-3 bg-black border border-white rounded-md text-white shadow-sm focus:outline-none focus:ring-white focus:border-white"
+                            autoFocus={!isMobile} // Auto focus on desktop
                         />
                     </div>
                 </div>
@@ -145,14 +175,22 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     <button
                         onClick={handleAddressSubmit}
                         disabled={!recipientAddress}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed">
                         Continue
                     </button>
+
+                    {/* Only show "Scan QR" option on mobile devices */}
+                    {isMobile && (
+                        <button
+                            onClick={() => setStep('scan')}
+                            className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-800 transition-colors text-lg font-normal border border-white mt-4">
+                            Scan QR Code
+                        </button>
+                    )}
                 </div>
             </div>
         ),
-        [recipientAddress, handleAddressChange, handleAddressSubmit],
+        [recipientAddress, handleAddressChange, handleAddressSubmit, isMobile],
     );
 
     // Amount entry (token selector + number pad)
@@ -178,8 +216,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                         <button
                             disabled={!+amount} // disable if amount is zero
                             onClick={handleSend}
-                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4"
-                        >
+                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                             Pay
                         </button>
                     </div>

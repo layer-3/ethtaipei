@@ -77,6 +77,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                     qrbox: { width: 250, height: 250 },
                     aspectRatio: 1,
                     disableFlip: false,
+                    borderWidth: '50px 10px',
                 };
 
                 // Start scanning
