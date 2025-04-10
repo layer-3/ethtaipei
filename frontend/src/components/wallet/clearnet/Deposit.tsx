@@ -23,67 +23,54 @@ interface DepositProps {
 
 export default function Deposit({ isOpen, onClose }: DepositProps) {
     const [value, setValue] = useState<string>('0');
+    const [transactionStatus, setTransactionStatus] = useState<'idle' | 'processing' | 'success'>('idle');
     const { balances, assets } = useSnapshot(AssetsStore.state);
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
     const { walletAddress } = useSnapshot(WalletStore.state);
     const { activeChain } = useSnapshot(SettingsStore.state);
-
     const { handleDepositToChannel } = useChannelCreate();
 
+    // Get USDC balance or fallback to first token
     const usdcBalance = useMemo(() => {
-        // First try to find USDC by symbol
         const usdc = balances?.find((asset) => asset.symbol.toUpperCase() === 'USDC');
 
-        if (usdc) return usdc;
+        return usdc || (balances && balances.length > 0 ? balances[0] : null);
+    }, [balances]);
 
-        // If no USDC found, return the first token as fallback
-        return balances && balances.length > 0 ? balances[0] : null;
-    }, [balances, activeChain]);
-
-    // Always set Polygon when component opens
+    // Always set Polygon when component opens and fetch assets
     useEffect(() => {
         if (isOpen) {
-            // Always set to Polygon regardless of current selection
             const polygonChain = chains.find((chain) => chain.id === 137);
 
             if (polygonChain) {
                 SettingsStore.setActiveChain(polygonChain);
             }
-
-            // Always fetch assets first when the component opens
             fetchAssets();
+            // Reset status when opening
+            setTransactionStatus('idle');
         }
     }, [isOpen]);
 
-    // Fetch balances whenever assets or chain changes
+    // Fetch balances and reset value when needed
     useEffect(() => {
         if (isOpen && walletAddress && activeChain) {
-            // Reset value whenever chain changes to avoid confusion
             setValue('0');
-
-            // Fetch balances for the current chain
             fetchBalances(walletAddress as Address, activeChain);
         }
     }, [isOpen, walletAddress, activeChain, assets]);
 
-    // Reset value when component opens
-    useEffect(() => {
-        if (isOpen) {
-            setValue('0');
-        }
-    }, [isOpen]);
-
     // Auto-hide deposit panel when transaction is successful
     useEffect(() => {
-        if (nitroliteSnapshot.status === 'opened') {
+        if (transactionStatus === 'success' || nitroliteSnapshot.status === 'opened') {
             const timer = setTimeout(() => {
                 onClose();
             }, 2500); // Hide after 2.5 seconds
 
             return () => clearTimeout(timer);
         }
-    }, [nitroliteSnapshot.status, onClose]);
+    }, [transactionStatus, nitroliteSnapshot.status, onClose]);
 
+    // Handle number pad input changes with proper formatting
     const handleChange = useCallback((newValue: string) => {
         if (!newValue || newValue === '') {
             setValue('0');
@@ -106,17 +93,13 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
         // Handle decimal values properly
         if (newValue.includes('.')) {
-            // For decimal values, ensure we keep the format correct
             const [whole, fraction] = newValue.split('.');
 
             if (whole === '' || whole === '00') {
-                // If whole part is empty or multiple zeros, replace with '0'
                 setValue(`0.${fraction}`);
             } else if (whole.startsWith('0') && whole.length > 1) {
-                // Remove leading zeros from the whole part if it's not just '0'
                 setValue(`${whole.replace(/^0+/, '')}.${fraction}`);
             } else {
-                // Keep as is for normal decimal values
                 setValue(newValue);
             }
         } else {
@@ -124,7 +107,6 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             if (newValue === '0' || newValue === '00') {
                 setValue('0');
             } else if (newValue.startsWith('0')) {
-                // Remove leading zeros for whole numbers
                 setValue(newValue.replace(/^0+/, ''));
             } else {
                 setValue(newValue);
@@ -132,11 +114,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         }
     }, []);
 
-    // Helper function to initialize keys and WebSocket
-    const initializeKeysAndWebSocket = async () => {
+    // Initialize keys and WebSocket connection
+    const initializeKeysAndWebSocket = useCallback(async () => {
         try {
-            console.log('Initializing crypto keys and WebSocket connection');
-
             // Check if we already have keys
             let keyPair = null;
             const CRYPTO_KEYPAIR_KEY = 'crypto_keypair';
@@ -145,19 +125,14 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             if (savedKeys) {
                 try {
                     keyPair = JSON.parse(savedKeys);
-                    console.log('Using existing crypto keys');
                 } catch (error) {
-                    console.error('Failed to parse saved keys:', error);
                     keyPair = null;
                 }
             }
 
             // Generate new keys if none exist
             if (!keyPair) {
-                console.log('Generating new crypto keys');
                 keyPair = await generateKeyPair();
-
-                // Store the keys in localStorage
                 if (typeof window !== 'undefined') {
                     localStorage.setItem(CRYPTO_KEYPAIR_KEY, JSON.stringify(keyPair));
                 }
@@ -177,27 +152,25 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 requestTimeout: 10000,
             });
 
-            // Connect to WebSocket and authenticate
             try {
                 await client.connect();
-                console.log('WebSocket connection established and authenticated');
             } catch (wsError) {
-                console.error('WebSocket connection failed:', wsError);
-                // Continue execution even if WebSocket fails - we still have the keys
+                // Continue even if WebSocket fails
             }
 
             return { keyPair, client };
         } catch (error) {
-            console.error('Error initializing keys and WebSocket:', error);
-            // We don't throw here to avoid breaking the wallet connection
-            // Just log the error and return null
             return null;
         }
-    };
+    }, []);
 
+    // Handle deposit process
     const onDeposit = useCallback(async () => {
         try {
-            // First initialize keys and WebSocket connection
+            // Update status to processing
+            setTransactionStatus('processing');
+
+            // Initialize keys and WebSocket
             await initializeKeysAndWebSocket();
 
             const chainId = activeChain?.id || 0;
@@ -205,61 +178,68 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
             if (!tokenAddress) {
                 alert('Token address not found for this network');
+                setTransactionStatus('idle');
                 return;
             }
 
-            // Parse and format the value to ensure proper decimal handling
+            // Parse and validate the amount
             const numericValue = parseFloat(value);
 
             if (isNaN(numericValue) || numericValue <= 0) {
                 alert('Please enter a valid amount');
+                setTransactionStatus('idle');
+
                 return;
             }
 
-            // Check if user has sufficient balance
+            // Check balance
             const availableBalance = parseFloat(usdcBalance?.balance as string) || 0;
 
             if (numericValue > availableBalance) {
                 alert('Insufficient balance');
+                setTransactionStatus('idle');
                 return;
             }
 
-            // Use the parsed value with proper string representation for decimals
+            // Deposit with formatted value
             const formattedValue = numericValue.toString();
 
-            try {
-                await handleDepositToChannel(tokenAddress, formattedValue);
-                console.log('Deposit successful');
-            } catch (error) {
-                // Check for specific error messages
-                const errorMsg = String(error);
+            await handleDepositToChannel(tokenAddress as Address, formattedValue);
 
-                if (errorMsg.includes('not been authorized by the user')) {
+            // Success! Set status
+            setTransactionStatus('success');
+            console.log('Deposit successful');
+        } catch (error) {
+            const errorMsg = String(error).toLowerCase();
+
+            setTransactionStatus('idle');
+
+            // Handle specific errors with friendly messages
+            if (error && typeof error === 'object' && 'message' in error) {
+                const msg = String(error.message).toLowerCase();
+
+                if (msg.includes('not been authorized') || msg.includes('approve')) {
                     alert('Transaction was rejected. Please approve the transaction in your wallet to continue.');
-                } else if (errorMsg.includes('user rejected transaction')) {
+                } else if (msg.includes('user rejected') || msg.includes('user denied')) {
                     alert(
                         "You've rejected the transaction. Please try again and approve the transaction in your wallet.",
                     );
+                } else if (msg.includes('insufficient funds') || msg.includes('exceeds balance')) {
+                    alert('Insufficient funds for gas fees plus deposit amount.');
+                } else if (msg.includes('not initialized')) {
+                    alert('Wallet connection issue. Please reconnect your wallet and try again.');
                 } else {
-                    throw error; // re-throw for general error handling
+                    alert('Failed to deposit. Please try again later.');
                 }
-            }
-        } catch (error) {
-            console.error('Error depositing funds:', error);
-
-            // More descriptive error message to the user
-            const errorMsg = String(error).toLowerCase();
-
-            if (errorMsg.includes('insufficient funds') || errorMsg.includes('exceeds balance')) {
-                alert('Insufficient funds for gas fees plus deposit amount.');
-            } else if (errorMsg.includes('not initialized')) {
-                alert('Wallet connection issue. Please reconnect your wallet and try again.');
             } else {
-                alert('Failed to deposit. Please try again later.');
+                alert('An unexpected error occurred. Please try again.');
             }
-        }
-    }, [value, activeChain, usdcBalance, nitroliteSnapshot]);
 
+            console.error('Error depositing funds:', error);
+        }
+    }, [value, activeChain, usdcBalance, handleDepositToChannel, initializeKeysAndWebSocket]);
+
+    // Default component with number pad
     const defaultComponent = useMemo(() => {
         const numericValue = parseFloat(value);
         const availableBalance = parseFloat(usdcBalance?.balance as string) || 0;
@@ -290,17 +270,19 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <button
                     disabled={!isValidAmount || hasInsufficientBalance}
                     onClick={onDeposit}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8"
+                >
                     Deposit
                 </button>
 
                 <NumberPad value={value} onChange={handleChange} />
             </div>
         );
-    }, [value, onDeposit, handleChange, usdcBalance, activeChain]);
+    }, [value, onDeposit, handleChange, usdcBalance]);
 
-    const processingComponent = useMemo(() => {
-        return (
+    // Processing component
+    const processingComponent = useMemo(
+        () => (
             <div className="flex flex-col items-center justify-center h-full">
                 <div className="mb-6 relative">
                     <Image src="/eclipse.svg" alt="eclipse" width={82} height={82} className="animate-spin" />
@@ -314,11 +296,13 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                     <p className="text-gray-600">Processing your deposit</p>
                 </div>
             </div>
-        );
-    }, []);
+        ),
+        [],
+    );
 
-    const successComponent = useMemo(() => {
-        return (
+    // Success component
+    const successComponent = useMemo(
+        () => (
             <div className="flex flex-col items-center justify-center h-full">
                 <div className="mb-6 relative">
                     <div className="w-16 h-16 border-4 border-green-500 rounded-full flex items-center justify-center">
@@ -333,37 +317,47 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
                 <div className="mt-4 text-sm text-gray-500">Closing in a moment...</div>
             </div>
-        );
-    }, []);
+        ),
+        [],
+    );
 
-    // Determine which component to show based on status
+    // Determine component to show based on transaction status or nitrolite status
     const componentToShow = useMemo(() => {
+        // Local status takes priority
+        if (transactionStatus === 'processing') return processingComponent;
+        if (transactionStatus === 'success') return successComponent;
+
+        // Fallback to nitrolite status
         if (['open_pending', 'deposit_pending', 'funded'].includes(nitroliteSnapshot.status)) {
             return processingComponent;
         } else if (nitroliteSnapshot.status === 'opened') {
             return successComponent;
         }
+
         return defaultComponent;
-    }, [nitroliteSnapshot.status, processingComponent, successComponent, defaultComponent]);
+    }, [transactionStatus, nitroliteSnapshot.status, processingComponent, successComponent, defaultComponent]);
 
     return (
         <div
             className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}>
+            }`}
+        >
             <div className="p-4 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <button
                         onClick={onClose}
                         className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                        aria-label="Close">
+                        aria-label="Close"
+                    >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
                             strokeWidth={1.5}
                             stroke="currentColor"
-                            className="w-6 h-6">
+                            className="w-6 h-6"
+                        >
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
