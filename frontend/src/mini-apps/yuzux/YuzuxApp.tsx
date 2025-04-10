@@ -1,14 +1,17 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSnapshot } from 'valtio';
 
-import { AppStore, NitroliteStore } from '@/store';
+import { AppStore, NitroliteStore, SettingsStore } from '@/store';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 import { Send, Receive } from './components/SendReceive';
+import APP_CONFIG from '@/config/app';
 
 export function YuzuxApp() {
     const [isExiting, setIsExiting] = useState(false);
     const appSnap = useSnapshot(AppStore.state);
+    const nitroSnap = useSnapshot(NitroliteStore.state);
+    const settingsSnap = useSnapshot(SettingsStore.state);
 
     // Handle exit animation
     const handleMinimize = () => {
@@ -45,23 +48,18 @@ export function YuzuxApp() {
     }, []);
 
     const currentBalance = useMemo(() => {
-        const nitroState = NitroliteStore.getLatestState();
+        console.log('nitroSnap.accountInfo.locked', nitroSnap.accountInfo.locked);
 
-        if (!nitroState) return '0';
-
-        const allocation = nitroState.allocations[0];
-
-        if (!allocation) return '0';
-
-        // Get token address and amount
-        const tokenAddress = allocation.token;
-        const rawBalance = allocation.amount; // BigInt
-
+        if (!settingsSnap.activeChain) return '0';
+        if (!nitroSnap.accountInfo.locked) return '0';
         // Use our utility to format with the correct decimals
-        const displayValue = formatTokenUnits(tokenAddress, rawBalance);
+        const displayValue = formatTokenUnits(
+            APP_CONFIG.TOKENS[settingsSnap.activeChain.id],
+            nitroSnap.accountInfo.locked,
+        );
 
         return displayValue;
-    }, [appSnap.isSendOpen]);
+    }, [appSnap.isSendOpen, settingsSnap.activeChain, nitroSnap.accountInfo.locked]);
 
     return (
         <div

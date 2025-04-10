@@ -17,10 +17,9 @@ const STORAGE_KEYS = {
 export function useChannelCreate() {
     const { activeChain } = useSnapshot(SettingsStore.state);
     const walletSnap = useSnapshot(WalletStore.state);
+    const nitroliteSnap = useSnapshot(NitroliteStore.state);
 
-    // Restore channel data from localStorage when hook initializes
     useEffect(() => {
-        // Only attempt to restore if we have a wallet connection
         if (walletSnap.walletAddress && !NitroliteStore.getChannelContext()) {
             try {
                 const savedChannelData = localStorage.getItem(STORAGE_KEYS.CHANNEL);
@@ -28,7 +27,6 @@ export function useChannelCreate() {
 
                 if (savedChannelData && savedChannelState) {
                     const channel = JSON.parse(savedChannelData, (key, value) => {
-                        // Convert strings that look like BigInts back to BigInt
                         if (typeof value === 'string' && /^\d+n$/.test(value)) {
                             return BigInt(value.substring(0, value.length - 1));
                         }
@@ -36,14 +34,12 @@ export function useChannelCreate() {
                     });
 
                     const state = JSON.parse(savedChannelState, (key, value) => {
-                        // Convert strings that look like BigInts back to BigInt
                         if (typeof value === 'string' && /^\d+n$/.test(value)) {
                             return BigInt(value.substring(0, value.length - 1));
                         }
                         return value;
                     });
 
-                    // Only restore if the wallet address matches the channel participant
                     if (channel.participants[0] === walletSnap.walletAddress) {
                         const app = new AdjudicatorApp();
 
@@ -54,7 +50,6 @@ export function useChannelCreate() {
                 }
             } catch (error) {
                 console.error('Failed to restore channel from localStorage:', error);
-                // Clear potentially corrupt data
                 localStorage.removeItem(STORAGE_KEYS.CHANNEL);
                 localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
                 localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
@@ -62,10 +57,44 @@ export function useChannelCreate() {
         }
     }, [walletSnap.walletAddress]);
 
-    // Helper to save channel data to localStorage
+    // Check if a channel already exists
+    const checkForExistingChannel = useCallback(async () => {
+        // Check local storage
+        const savedChannelId = localStorage.getItem(STORAGE_KEYS.CHANNEL_ID);
+
+        if (savedChannelId) {
+            return { exists: true, source: 'localStorage' };
+        }
+
+        // Check wallet store state
+        if (walletSnap.channelOpen) {
+            return { exists: true, source: 'walletStore' };
+        }
+
+        // Check Nitrolite store for channel context
+        if (NitroliteStore.getChannelContext()) {
+            return { exists: true, source: 'channelContext' };
+        }
+
+        // Check for existing channels in the account
+        if (NitroliteStore.state.client && walletSnap.walletAddress) {
+            try {
+                const channels = await NitroliteStore.state.client.getAccountChannels(walletSnap.walletAddress);
+
+                if (channels && channels.length > 0) {
+                    return { exists: true, source: 'accountChannels', count: channels.length };
+                }
+            } catch (error) {
+                console.error('Error checking existing channels:', error);
+            }
+        }
+
+        // No existing channel found
+        return { exists: false };
+    }, [walletSnap.channelOpen, walletSnap.walletAddress]);
+
     const saveChannelToStorage = useCallback((channel: Channel, state: State, channelId: string) => {
         try {
-            // Convert BigInt values to string representation for JSON serialization
             const channelData = JSON.stringify(channel, (key, value) =>
                 typeof value === 'bigint' ? value.toString() + 'n' : value,
             );
@@ -84,9 +113,26 @@ export function useChannelCreate() {
         }
     }, []);
 
-    // Function to create a channel without depositing
     const handleCreateChannel = useCallback(
         async (tokenAddress: Address, amount: string) => {
+            // Check if a channel already exists
+            const existingChannel = await checkForExistingChannel();
+
+            if (existingChannel.exists) {
+                const source = existingChannel.source;
+                let message = 'Cannot create a new channel because one already exists.';
+
+                if (source === 'accountChannels') {
+                    message += ` You have ${existingChannel.count} active channel(s). Please close existing channels before creating a new one.`;
+                } else {
+                    message += ' Please close the existing channel before creating a new one.';
+                }
+
+                alert(message);
+                throw new Error(message);
+            }
+
+            // Continue with channel creation if no existing channel
             if (!NitroliteStore.state.stateSigner) {
                 throw new Error('Nitrolite stateSigner not initialized');
             }
@@ -106,9 +152,6 @@ export function useChannelCreate() {
 
             const stateSigner = NitroliteStore.state.stateSigner;
 
-            console.log('Creating channel with stateSigner:', stateSigner.address);
-
-            // Set the channel open flag
             WalletStore.setChannelOpen(true);
 
             try {
@@ -119,10 +162,8 @@ export function useChannelCreate() {
                     nonce: BigInt(Date.now()),
                 };
 
-                // Parse amount to BigInt with proper decimals
                 const amountBigInt = parseTokenUnits(tokenAddress, amount);
 
-                console.log('amountBigInt', amountBigInt);
                 // Create initial app state
                 const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;
 
@@ -177,7 +218,7 @@ export function useChannelCreate() {
                 throw error;
             }
         },
-        [activeChain, saveChannelToStorage],
+        [activeChain, saveChannelToStorage, checkForExistingChannel],
     );
 
     // Function to deposit to a channel

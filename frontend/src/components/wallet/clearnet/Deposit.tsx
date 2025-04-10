@@ -13,7 +13,7 @@ import { Address } from 'viem';
 import SettingsStore from '@/store/SettingsStore';
 import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
 import { chains } from '@/config/chains';
-import { generateKeyPair, createEthersSigner, createWebSocketClient } from '@/websocket';
+import { generateKeyPair, createEthersSigner } from '@/websocket';
 import { useChannelCreate } from '@/hooks';
 
 interface DepositProps {
@@ -115,7 +115,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
     }, []);
 
     // Initialize keys and WebSocket connection
-    const initializeKeysAndWebSocket = useCallback(async () => {
+    const initializeKeys = useCallback(async () => {
         try {
             // Check if we already have keys
             let keyPair = null;
@@ -143,22 +143,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
             NitroliteStore.setStateSigner(signer);
 
-            // Create and connect WebSocket client
-            const wsUrl = APP_CONFIG.WEBSOCKET.URL;
-            const client = createWebSocketClient(wsUrl, signer, {
-                autoReconnect: true,
-                reconnectDelay: 1000,
-                maxReconnectAttempts: 5,
-                requestTimeout: 10000,
-            });
-
-            try {
-                await client.connect();
-            } catch (wsError) {
-                // Continue even if WebSocket fails
-            }
-
-            return { keyPair, client };
+            return { keyPair };
         } catch (error) {
             return null;
         }
@@ -171,7 +156,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             setTransactionStatus('processing');
 
             // Initialize keys and WebSocket
-            await initializeKeysAndWebSocket();
+            await initializeKeys();
 
             const chainId = activeChain?.id || 0;
             const tokenAddress = APP_CONFIG.TOKENS[chainId];
@@ -237,7 +222,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
             console.error('Error depositing funds:', error);
         }
-    }, [value, activeChain, usdcBalance, handleDepositToChannel, initializeKeysAndWebSocket]);
+    }, [value, activeChain, usdcBalance, handleDepositToChannel, initializeKeys]);
 
     // Default component with number pad
     const defaultComponent = useMemo(() => {

@@ -2,7 +2,7 @@ import { WalletSigner } from '@/websocket';
 import { AppLogic, ChannelContext, NitroliteClient, Channel, State } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
-import { NitroliteState, ChannelStatus, ChannelId, AccountInfo } from './types';
+import { NitroliteState, ChannelId, AccountInfo } from './types';
 import { WalletStore } from './index';
 
 /**
@@ -32,9 +32,6 @@ const state = proxy<NitroliteState>({
 const NitroliteStore = {
     state,
 
-    /**
-     * Set Nitrolite client
-     */
     setClient(client: NitroliteClient | null): boolean {
         if (!client) {
             console.error('Attempted to set null or undefined Nitrolite client');
@@ -44,9 +41,6 @@ const NitroliteStore = {
         return true;
     },
 
-    /**
-     * Set channel context
-     */
     setChannelContext(channel: Channel, nitroState: State, app: AppLogic<bigint>): ChannelContext<bigint> {
         try {
             if (!state.client) {
@@ -57,7 +51,6 @@ const NitroliteStore = {
 
             state.channelContext = channelContext;
 
-            // Add channel ID to open channels list if not already there
             const channelId = channelContext.getChannelId();
 
             this.addOpenChannelId(channelId);
@@ -81,37 +74,14 @@ const NitroliteStore = {
         state.stateSigner = signer;
     },
 
-    /**
-     * Get channel context
-     */
     getChannelContext(): ChannelContext<bigint> | null {
         return state.channelContext;
     },
 
-    /**
-     * Get channel status
-     */
-    getStatus(): ChannelStatus {
-        return state.status;
-    },
-
-    /**
-     * Update stored account information
-     */
     updateAccountInfo(info: AccountInfo): void {
         state.accountInfo = info;
     },
 
-    /**
-     * Get stored account information
-     */
-    getStoredAccountInfo(): AccountInfo {
-        return state.accountInfo;
-    },
-
-    /**
-     * Add a channel ID to open channels list
-     */
     addOpenChannelId(channelId: ChannelId): void {
         if (!state.openChannelIds.includes(channelId)) {
             state.openChannelIds.push(channelId);
@@ -120,34 +90,16 @@ const NitroliteStore = {
         }
     },
 
-    /**
-     * Remove a channel ID from open channels list
-     */
     removeOpenChannelId(channelId: ChannelId): void {
         state.openChannelIds = state.openChannelIds.filter((id) => id !== channelId);
         // Update channel count in account info
         state.accountInfo.channelCount = state.openChannelIds.length;
     },
 
-    /**
-     * Get list of open channel IDs
-     */
-    getOpenChannelIds(): ChannelId[] {
-        return state.openChannelIds;
-    },
-
-    /**
-     * Set list of open channel IDs
-     */
     setOpenChannelIds(channelIds: ChannelId[]): void {
         state.openChannelIds = channelIds;
-        // Update channel count in account info
-        state.accountInfo.channelCount = channelIds.length;
     },
 
-    /**
-     * Deposit into channel
-     */
     async deposit(channelId: string, tokenAddress: Address, amount: string): Promise<boolean> {
         const previousStatus = state.status;
 
@@ -178,9 +130,6 @@ const NitroliteStore = {
         }
     },
 
-    /**
-     * Create channel
-     */
     async createChannel(channelId: string): Promise<boolean> {
         const previousStatus = state.status;
 
@@ -207,9 +156,6 @@ const NitroliteStore = {
         }
     },
 
-    /**
-     * Close channel
-     */
     async closeChannel(channelId: string, nitroState: State): Promise<boolean> {
         const previousStatus = state.status;
 
@@ -277,27 +223,6 @@ const NitroliteStore = {
     },
 
     /**
-     * Get channels associated with an account for a specific token
-     */
-    async getAccountChannels(account: Address): Promise<ChannelId[]> {
-        try {
-            if (!state.client) {
-                throw new Error('Nitrolite client not initialized');
-            }
-
-            const channels = await state.client.getAccountChannels(account);
-
-            // Update our stored list of channel IDs
-            this.setOpenChannelIds(channels);
-
-            return channels;
-        } catch (error) {
-            console.error('Failed to get account channels:', error);
-            throw error;
-        }
-    },
-
-    /**
      * Get account info
      */
     async getAccountInfo(account: Address, tokenAddress: Address): Promise<AccountInfo> {
@@ -318,9 +243,6 @@ const NitroliteStore = {
         }
     },
 
-    /**
-     * Get latest state
-     */
     getLatestState(): State | null {
         if (!state.channelContext) {
             console.error('Channel context not found');
@@ -330,9 +252,6 @@ const NitroliteStore = {
         return state.channelContext.getCurrentState();
     },
 
-    /**
-     * Append state
-     */
     appendState(tokenAddress: Address, amounts: [bigint, bigint]): State | null {
         if (!state.channelContext) {
             console.error('Channel context not found');
@@ -342,9 +261,6 @@ const NitroliteStore = {
         return state.channelContext.appendAppState(BigInt(0), tokenAddress, amounts);
     },
 
-    /**
-     * Reset state (for testing and cleanup)
-     */
     reset(): void {
         state.channelContext = null;
         state.status = 'none';
@@ -355,7 +271,6 @@ const NitroliteStore = {
             channelCount: 0,
         };
         state.openChannelIds = [];
-        // We don't reset the client as it's expensive to recreate
     },
 };
 
