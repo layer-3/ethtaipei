@@ -13,7 +13,7 @@ import { Address } from 'viem';
 import SettingsStore from '@/store/SettingsStore';
 import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
 import { chains } from '@/config/chains';
-import { generateKeyPair, createEthersSigner, createWebSocketClient } from '@/websocket';
+import { generateKeyPair, createEthersSigner } from '@/websocket';
 import { useChannelCreate } from '@/hooks';
 
 interface DepositProps {
@@ -115,7 +115,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
     }, []);
 
     // Initialize keys and WebSocket connection
-    const initializeKeysAndWebSocket = useCallback(async () => {
+    const initializeKeys = useCallback(async () => {
         try {
             // Check if we already have keys
             let keyPair = null;
@@ -143,22 +143,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
             NitroliteStore.setStateSigner(signer);
 
-            // Create and connect WebSocket client
-            const wsUrl = APP_CONFIG.WEBSOCKET.URL;
-            const client = createWebSocketClient(wsUrl, signer, {
-                autoReconnect: true,
-                reconnectDelay: 1000,
-                maxReconnectAttempts: 5,
-                requestTimeout: 10000,
-            });
-
-            try {
-                await client.connect();
-            } catch (wsError) {
-                // Continue even if WebSocket fails
-            }
-
-            return { keyPair, client };
+            return { keyPair };
         } catch (error) {
             return null;
         }
@@ -171,7 +156,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             setTransactionStatus('processing');
 
             // Initialize keys and WebSocket
-            await initializeKeysAndWebSocket();
+            await initializeKeys();
 
             const chainId = activeChain?.id || 0;
             const tokenAddress = APP_CONFIG.TOKENS[chainId];
@@ -237,7 +222,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
             console.error('Error depositing funds:', error);
         }
-    }, [value, activeChain, usdcBalance, handleDepositToChannel, initializeKeysAndWebSocket]);
+    }, [value, activeChain, usdcBalance, handleDepositToChannel, initializeKeys]);
 
     // Default component with number pad
     const defaultComponent = useMemo(() => {
@@ -270,8 +255,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <button
                     disabled={!isValidAmount || hasInsufficientBalance}
                     onClick={onDeposit}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8"
-                >
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
                     Deposit
                 </button>
 
@@ -341,23 +325,20 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         <div
             className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-        >
+            }`}>
             <div className="p-4 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <button
                         onClick={onClose}
                         className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                        aria-label="Close"
-                    >
+                        aria-label="Close">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
                             strokeWidth={1.5}
                             stroke="currentColor"
-                            className="w-6 h-6"
-                        >
+                            className="w-6 h-6">
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"

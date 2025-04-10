@@ -18,9 +18,7 @@ export function useChannelCreate() {
     const { activeChain } = useSnapshot(SettingsStore.state);
     const walletSnap = useSnapshot(WalletStore.state);
 
-    // Restore channel data from localStorage when hook initializes
     useEffect(() => {
-        // Only attempt to restore if we have a wallet connection
         if (walletSnap.walletAddress && !NitroliteStore.getChannelContext()) {
             try {
                 const savedChannelData = localStorage.getItem(STORAGE_KEYS.CHANNEL);
@@ -28,7 +26,6 @@ export function useChannelCreate() {
 
                 if (savedChannelData && savedChannelState) {
                     const channel = JSON.parse(savedChannelData, (key, value) => {
-                        // Convert strings that look like BigInts back to BigInt
                         if (typeof value === 'string' && /^\d+n$/.test(value)) {
                             return BigInt(value.substring(0, value.length - 1));
                         }
@@ -36,14 +33,12 @@ export function useChannelCreate() {
                     });
 
                     const state = JSON.parse(savedChannelState, (key, value) => {
-                        // Convert strings that look like BigInts back to BigInt
                         if (typeof value === 'string' && /^\d+n$/.test(value)) {
                             return BigInt(value.substring(0, value.length - 1));
                         }
                         return value;
                     });
 
-                    // Only restore if the wallet address matches the channel participant
                     if (channel.participants[0] === walletSnap.walletAddress) {
                         const app = new AdjudicatorApp();
 
@@ -54,7 +49,6 @@ export function useChannelCreate() {
                 }
             } catch (error) {
                 console.error('Failed to restore channel from localStorage:', error);
-                // Clear potentially corrupt data
                 localStorage.removeItem(STORAGE_KEYS.CHANNEL);
                 localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
                 localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
@@ -62,10 +56,8 @@ export function useChannelCreate() {
         }
     }, [walletSnap.walletAddress]);
 
-    // Helper to save channel data to localStorage
     const saveChannelToStorage = useCallback((channel: Channel, state: State, channelId: string) => {
         try {
-            // Convert BigInt values to string representation for JSON serialization
             const channelData = JSON.stringify(channel, (key, value) =>
                 typeof value === 'bigint' ? value.toString() + 'n' : value,
             );
@@ -84,7 +76,6 @@ export function useChannelCreate() {
         }
     }, []);
 
-    // Function to create a channel without depositing
     const handleCreateChannel = useCallback(
         async (tokenAddress: Address, amount: string) => {
             if (!NitroliteStore.state.stateSigner) {
@@ -106,9 +97,6 @@ export function useChannelCreate() {
 
             const stateSigner = NitroliteStore.state.stateSigner;
 
-            console.log('Creating channel with stateSigner:', stateSigner.address);
-
-            // Set the channel open flag
             WalletStore.setChannelOpen(true);
 
             try {
@@ -119,10 +107,8 @@ export function useChannelCreate() {
                     nonce: BigInt(Date.now()),
                 };
 
-                // Parse amount to BigInt with proper decimals
                 const amountBigInt = parseTokenUnits(tokenAddress, amount);
 
-                console.log('amountBigInt', amountBigInt);
                 // Create initial app state
                 const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;
 
