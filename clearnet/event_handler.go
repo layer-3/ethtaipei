@@ -305,7 +305,7 @@ func (h *EventHandler) handleChannelCreatedEventNodit(networkID string, ethLog t
 
 	if client, exists := h.blockchainClients[networkID]; exists {
 		log.Printf("[ChannelCreated] Using blockchain client for network: %s", networkID)
-		if err := client.Join(channelID.Hex()); err != nil {
+		if err := client.Join(channelID.Hex(), nil); err != nil {
 			log.Printf("[ChannelCreated] Error: failed to join channel %s on network %s: %v",
 				channelID.Hex(), networkID, err)
 			return

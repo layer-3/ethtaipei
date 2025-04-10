@@ -96,7 +96,7 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 	}
 	BrokerAddress = crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 
-	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID)
+	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create custody client: %w", err)
 	}
