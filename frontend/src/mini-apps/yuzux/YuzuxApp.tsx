@@ -1,18 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSnapshot } from 'valtio';
-import { formatUnits } from 'viem';
 
-import AppStore from '@/store/AppStore';
-import NitroliteStore from '@/store/NitroliteStore'; // confirm correct import path
-import AssetsStore from '@/store/AssetsStore'; // use your real import path if different
+import { AppStore, NitroliteStore } from '@/store';
+import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 import { Send, Receive } from './components/SendReceive';
 
 export function YuzuxApp() {
     const [isExiting, setIsExiting] = useState(false);
     const appSnap = useSnapshot(AppStore.state);
-    // Snapshot your assets
-    const assetsSnap = useSnapshot(AssetsStore.state);
 
     // Handle exit animation
     const handleMinimize = () => {
@@ -57,21 +53,15 @@ export function YuzuxApp() {
 
         if (!allocation) return '0';
 
-        // If your State includes `token` field, use that
-        // If not, adjust code to find which token address you're using
-        const tokenAddress = allocation.token?.toLowerCase();
+        // Get token address and amount
+        const tokenAddress = allocation.token;
         const rawBalance = allocation.amount; // BigInt
 
-        // Find decimals from your AssetsStore.
-        // Fallback to 18 decimals if not found.
-        const matchedAsset = assetsSnap.assets?.find((asset) => asset.address.toLowerCase() === tokenAddress);
-        const decimals = matchedAsset?.decimals ?? 18;
-
-        // Convert BigInt to a readable decimal string
-        const displayValue = formatUnits(rawBalance, decimals);
+        // Use our utility to format with the correct decimals
+        const displayValue = formatTokenUnits(tokenAddress, rawBalance);
 
         return displayValue;
-    }, [appSnap.isSendOpen, assetsSnap.assets]);
+    }, [appSnap.isSendOpen]);
 
     return (
         <div

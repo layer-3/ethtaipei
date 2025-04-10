@@ -1,4 +1,4 @@
-import { AppCard } from '@/components/AppCard';
+import { AppCard } from '@/components/ui/AppCard';
 
 export function AppCatalog() {
   return (

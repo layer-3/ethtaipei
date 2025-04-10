@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
 import { useSnapshot } from 'valtio';
-import { Address, Hex, parseSignature, parseUnits } from 'viem';
+import { Address, Hex, parseSignature } from 'viem';
 import { AdjudicatorApp } from '@/services/apps/adjudicator_app';
 import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { Channel, State } from '@erc7824/nitrolite';
+import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 export function useChannelCreate() {
     const { activeChain } = useSnapshot(SettingsStore.state);
@@ -47,11 +48,11 @@ export function useChannelCreate() {
                     nonce: BigInt(Date.now()),
                 };
 
-                // For USDC, decimals = 6. Adjust if you have different tokens.
-                const decimals = 6;
+                // Log token information
+                console.log(`Creating channel with token: ${tokenAddress}`);
 
-                // Convert user’s input "5" to on-chain amount "5000000" (bigint)
-                const amountBigInt = parseUnits(amount, decimals);
+                // Convert user's input to on-chain amount with the correct decimals for this token
+                const amountBigInt = parseTokenUnits(tokenAddress, amount);
 
                 // Create initial app state
                 const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;

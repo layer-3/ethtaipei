@@ -5,8 +5,10 @@ import { NitroliteStore, WalletStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { State } from '@erc7824/nitrolite';
 import { createEthersSigner } from '@/websocket';
+import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 export function useChannelClose() {
+
     const handleCloseChannel = useCallback(async (tokenAddress: string, amount: string) => {
         if (!NitroliteStore.state.client || !NitroliteStore.state.client.walletClient) {
             const errorMsg = 'Nitrolite client not initialized - please connect your wallet first';
@@ -35,7 +37,7 @@ export function useChannelClose() {
                     {
                         destination: WalletStore.state.walletAddress as Address,
                         token: tokenAddress as Address,
-                        amount: BigInt(amount),
+                        amount: parseTokenUnits(tokenAddress as Address, amount),
                     },
                     {
                         destination: channelContext.channel.participants[1],

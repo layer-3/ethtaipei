@@ -1,5 +1,6 @@
 import { useSnapshot } from 'valtio';
-import AppStore, { AppName } from '@/store/AppStore';
+import { AppStore } from '@/store';
+import type { AppName } from '@/store/AppStore';
 import Image from 'next/image';
 
 export function MinimizedApps() {

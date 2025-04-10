@@ -1,5 +1,5 @@
 import { useSnapshot } from 'valtio';
-import AppStore from '@/store/AppStore';
+import { AppStore } from '@/store';
 import { YuzuxApp } from '@/mini-apps';
 
 export function YuzuxAppContainer() {
