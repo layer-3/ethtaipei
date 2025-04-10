@@ -27,9 +27,9 @@ export default function HomePage() {
         AppStore.openCloseChannel();
     }, []);
 
-    const handleCloseCloseChannel = useCallback(() => {
-        AppStore.closeCloseChannel();
-    }, []);
+    // const handleCloseChannel = useCallback(() => {
+    //     AppStore.closeCloseChannel();
+    // }, []);
 
     return (
         <Privy>

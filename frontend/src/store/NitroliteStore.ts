@@ -13,6 +13,7 @@ import { WalletStore } from './index';
  * - Managing Nitrolite client instance
  * - Handling channel operations (deposit, create, close, withdraw)
  * - Tracking channel status and context
+ * - Storing account information and open channels
  */
 
 const state = proxy<NitroliteState>({
@@ -20,6 +21,12 @@ const state = proxy<NitroliteState>({
     channelContext: null,
     status: 'none',
     stateSigner: null,
+    accountInfo: {
+        deposited: 0n,
+        locked: 0n,
+        channelCount: 0,
+    },
+    openChannelIds: [],
 });
 
 const NitroliteStore = {
@@ -49,6 +56,12 @@ const NitroliteStore = {
             const channelContext = new ChannelContext<bigint>(state.client, channel, nitroState, app);
 
             state.channelContext = channelContext;
+
+            // Add channel ID to open channels list if not already there
+            const channelId = channelContext.getChannelId();
+
+            this.addOpenChannelId(channelId);
+
             return channelContext;
         } catch (error) {
             console.error('Failed to set channel context:', error);
@@ -83,6 +96,56 @@ const NitroliteStore = {
     },
 
     /**
+     * Update stored account information
+     */
+    updateAccountInfo(info: AccountInfo): void {
+        state.accountInfo = info;
+    },
+
+    /**
+     * Get stored account information
+     */
+    getStoredAccountInfo(): AccountInfo {
+        return state.accountInfo;
+    },
+
+    /**
+     * Add a channel ID to open channels list
+     */
+    addOpenChannelId(channelId: ChannelId): void {
+        if (!state.openChannelIds.includes(channelId)) {
+            state.openChannelIds.push(channelId);
+            // Update channel count in account info
+            state.accountInfo.channelCount = state.openChannelIds.length;
+        }
+    },
+
+    /**
+     * Remove a channel ID from open channels list
+     */
+    removeOpenChannelId(channelId: ChannelId): void {
+        state.openChannelIds = state.openChannelIds.filter((id) => id !== channelId);
+        // Update channel count in account info
+        state.accountInfo.channelCount = state.openChannelIds.length;
+    },
+
+    /**
+     * Get list of open channel IDs
+     */
+    getOpenChannelIds(): ChannelId[] {
+        return state.openChannelIds;
+    },
+
+    /**
+     * Set list of open channel IDs
+     */
+    setOpenChannelIds(channelIds: ChannelId[]): void {
+        state.openChannelIds = channelIds;
+        // Update channel count in account info
+        state.accountInfo.channelCount = channelIds.length;
+    },
+
+    /**
      * Deposit into channel
      */
     async deposit(channelId: string, tokenAddress: Address, amount: string): Promise<boolean> {
@@ -99,6 +162,13 @@ const NitroliteStore = {
 
             // Update wallet store with token and amount
             WalletStore.openChannel(tokenAddress, amount);
+
+            // Update account info after successful deposit
+            if (state.client && WalletStore.state.walletAddress) {
+                const updatedInfo = await state.client.getAccountInfo(WalletStore.state.walletAddress, tokenAddress);
+
+                this.updateAccountInfo(updatedInfo);
+            }
 
             return true;
         } catch (error) {
@@ -122,6 +192,9 @@ const NitroliteStore = {
             state.status = 'open_pending';
             await state.channelContext.create();
             state.status = 'opened';
+
+            // Add to open channels list
+            this.addOpenChannelId(channelId);
 
             // Update wallet store
             WalletStore.setChannelOpen(true);
@@ -149,8 +222,21 @@ const NitroliteStore = {
             await state.channelContext.close(nitroState);
             state.status = 'closed';
 
+            // Remove from open channels list
+            this.removeOpenChannelId(channelId);
+
             // Update wallet store
             WalletStore.closeChannel();
+
+            // Update account info if possible
+            if (state.client && WalletStore.state.walletAddress && WalletStore.state.selectedTokenAddress) {
+                const updatedInfo = await state.client.getAccountInfo(
+                    WalletStore.state.walletAddress,
+                    WalletStore.state.selectedTokenAddress,
+                );
+
+                this.updateAccountInfo(updatedInfo);
+            }
 
             return true;
         } catch (error) {
@@ -175,6 +261,13 @@ const NitroliteStore = {
             await state.channelContext.withdraw(token, amount);
             state.status = 'withdrawn';
 
+            // Update account info if possible
+            if (state.client && WalletStore.state.walletAddress) {
+                const updatedInfo = await state.client.getAccountInfo(WalletStore.state.walletAddress, token);
+
+                this.updateAccountInfo(updatedInfo);
+            }
+
             return true;
         } catch (error) {
             state.status = previousStatus;
@@ -192,7 +285,12 @@ const NitroliteStore = {
                 throw new Error('Nitrolite client not initialized');
             }
 
-            return await state.client.getAccountChannels(account);
+            const channels = await state.client.getAccountChannels(account);
+
+            // Update our stored list of channel IDs
+            this.setOpenChannelIds(channels);
+
+            return channels;
         } catch (error) {
             console.error('Failed to get account channels:', error);
             throw error;
@@ -208,7 +306,12 @@ const NitroliteStore = {
                 throw new Error('Nitrolite client not initialized');
             }
 
-            return await state.client.getAccountInfo(account, tokenAddress);
+            const info = await state.client.getAccountInfo(account, tokenAddress);
+
+            // Update our stored account info
+            this.updateAccountInfo(info);
+
+            return info;
         } catch (error) {
             console.error('Failed to get account info:', error);
             throw error;
@@ -246,6 +349,12 @@ const NitroliteStore = {
         state.channelContext = null;
         state.status = 'none';
         state.stateSigner = null;
+        state.accountInfo = {
+            deposited: 0n,
+            locked: 0n,
+            channelCount: 0,
+        };
+        state.openChannelIds = [];
         // We don't reset the client as it's expensive to recreate
     },
 };

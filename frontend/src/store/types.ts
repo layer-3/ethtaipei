@@ -44,6 +44,8 @@ export interface NitroliteState {
     channelContext: ChannelContext<bigint> | null;
     status: ChannelStatus;
     stateSigner: WalletSigner | null;
+    accountInfo: AccountInfo;
+    openChannelIds: ChannelId[];
 }
 
 // Settings related types

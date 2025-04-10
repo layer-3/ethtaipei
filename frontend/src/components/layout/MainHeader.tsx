@@ -9,7 +9,9 @@ import { AccountInfo } from '@/store/types';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 import { useChannelClose } from '@/hooks/channel/useChannelClose';
 import { useChannelCreate } from '@/hooks/channel/useChannelCreate';
-import { Address } from 'viem';
+import { Address, Hex, parseSignature } from 'viem';
+import { Channel, State } from '@erc7824/nitrolite';
+import { AdjudicatorApp } from '@/services';
 
 interface MainHeaderProps {
     onOpenDeposit: () => void;
@@ -98,15 +100,6 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
         if (!walletSnap.connected) return;
 
         try {
-            const channels = await nitroliteStore.client.getAccountChannels(walletSnap.walletAddress);
-
-            console.log('Found channels:', channels);
-
-            if (channels.length === 0) {
-                console.log('No channels to close');
-                return;
-            }
-
             try {
                 // The hook will handle all the state creation and signing
                 await handleCloseChannel();
@@ -147,6 +140,64 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
         }
     };
 
+    const handleChallenge = async () => {
+        if (!walletSnap.connected || !nitroliteStore.client) return;
+
+        try {
+            // Define localStorage keys - must match those in useChannelCreate and useChannelClose
+            const STORAGE_KEYS = {
+                CHANNEL: 'nitrolite_channel',
+                CHANNEL_STATE: 'nitrolite_channel_state',
+                CHANNEL_ID: 'nitrolite_channel_id',
+            };
+
+            // Get channel ID from localStorage
+            const channelId = localStorage.getItem(STORAGE_KEYS.CHANNEL_ID) as Hex;
+
+            if (!channelId) {
+                console.error('No channel ID found in localStorage');
+                return;
+            }
+
+            // Get and parse channel state from localStorage
+            const savedChannelState = localStorage.getItem(STORAGE_KEYS.CHANNEL_STATE);
+
+            if (!savedChannelState) {
+                console.error('No channel state found in localStorage');
+                return;
+            }
+
+            // Parse the state with BigInt handling
+            const state = JSON.parse(savedChannelState, (key, value) => {
+                // Convert strings that look like BigInts back to BigInt
+                if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                    return BigInt(value.substring(0, value.length - 1));
+                }
+                return value;
+            });
+
+            console.log('Challenging channel with ID:', channelId);
+            console.log('Using state:', state);
+
+            // Call the challenge function with the channel ID and state from localStorage
+            await nitroliteStore.client.challengeChannel(channelId, state);
+
+            console.log('Channel challenged successfully');
+
+            // Refresh account info after challenging
+            await fetchAccountInfo();
+        } catch (error) {
+            console.error('Error challenging channel:', error);
+
+            // Show user friendly message
+            if (error instanceof Error) {
+                alert(`Challenge failed: ${error.message}`);
+            } else {
+                alert('Challenge failed with an unknown error');
+            }
+        }
+    };
+
     return (
         <header className="flex gap-4 items-center justify-between flex-wrap">
             <div className="flex gap-4 items-center">
@@ -157,6 +208,7 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                 )}
                 {walletSnap.connected && <ActionButton onClick={onCreateChannel}>Create Channel</ActionButton>}
                 {walletSnap.connected && <ActionButton onClick={handleWithdrawal}>Withdraw</ActionButton>}
+                {walletSnap.connected && <ActionButton onClick={handleChallenge}>Challenge</ActionButton>}
                 {walletSnap.connected && <ActionButton onClick={handleClose}>Close Channel</ActionButton>}
             </div>
             <div className={walletSnap.connected ? '' : 'ml-auto'}>
