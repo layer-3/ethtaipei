@@ -86,10 +86,6 @@ export function useChannelCreate() {
                 const channelContext = NitroliteStore.setChannelContext(channel, initialState, app);
                 const channelId = channelContext.getChannelId();
 
-                if (!window.ethereum) {
-                    throw new Error('MetaMask is not installed');
-                }
-
                 // Pass the same converted amount to deposit
                 try {
                     await NitroliteStore.deposit(channelId, tokenAddress, amountBigInt.toString());
