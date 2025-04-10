@@ -5,7 +5,7 @@ import { SettingsState } from './types';
 
 /**
  * Settings Store
- * 
+ *
  * Manages user settings and preferences.
  * Responsible for:
  * - Chain selection preferences
@@ -79,14 +79,14 @@ const SettingsStore = {
         if (state.testnets) {
             return chains;
         }
-        return chains.filter(chain => !chain.testnet);
+        return chains.filter((chain) => !chain.testnet);
     },
 
     /**
      * Get chain by ID
      */
     getChainById(chainId: number): Chain | undefined {
-        return chains.find(chain => chain.id === chainId);
+        return chains.find((chain) => chain.id === chainId);
     },
 
     /**
@@ -95,8 +95,9 @@ const SettingsStore = {
     getChainName(chainId: number | undefined): string {
         if (!chainId) return 'Unknown Network';
         const chain = this.getChainById(chainId);
+
         return chain ? chain.name : 'Unknown Network';
-    }
+    },
 };
 
 export default SettingsStore;

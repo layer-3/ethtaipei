@@ -8,7 +8,6 @@ import { createEthersSigner } from '@/websocket';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 export function useChannelClose() {
-
     const handleCloseChannel = useCallback(async (tokenAddress: string, amount: string) => {
         if (!NitroliteStore.state.client || !NitroliteStore.state.client.walletClient) {
             const errorMsg = 'Nitrolite client not initialized - please connect your wallet first';

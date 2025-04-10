@@ -5,7 +5,7 @@ import { SettingsStore } from './index';
 
 /**
  * Wallet Store
- * 
+ *
  * Handles wallet connections, addresses, and basic channel state.
  * Responsible for:
  * - Managing wallet connection state
@@ -30,7 +30,7 @@ const WalletStore = {
 
     /**
      * Connect wallet
-     * @param address Wallet address 
+     * @param address Wallet address
      * @param provider Wallet provider (metamask or privy)
      */
     connect(address: Address, provider: WalletProvider = 'metamask') {
@@ -73,6 +73,7 @@ const WalletStore = {
         // Update the active chain in settings if it's different
         if (SettingsStore.state.activeChain?.id !== chainId) {
             const chain = SettingsStore.getChainById(chainId);
+
             if (chain) {
                 SettingsStore.setActiveChain(chain);
             }
@@ -116,13 +117,14 @@ const WalletStore = {
                 });
             }
             state.chainId = chainId;
-            
+
             // Update settings
             const chain = SettingsStore.getChainById(chainId);
+
             if (chain) {
                 SettingsStore.setActiveChain(chain);
             }
-            
+
             return true;
         } catch (error) {
             console.error('Error switching network:', error);
@@ -144,16 +146,16 @@ const WalletStore = {
     getWalletAddress(): Address | null {
         return state.walletAddress;
     },
-    
+
     /**
      * Get selected token and amount
      */
-    getSelectedToken(): { address: Address | null, amount: string | null } {
+    getSelectedToken(): { address: Address | null; amount: string | null } {
         return {
             address: state.selectedTokenAddress,
-            amount: state.selectedAmount
+            amount: state.selectedAmount,
         };
-    }
+    },
 };
 
 export default WalletStore;

@@ -27,31 +27,31 @@ import { proxy } from 'valtio';
 
 // 1. Define state interface
 interface MyState {
-  value: string;
-  isLoading: boolean;
+    value: string;
+    isLoading: boolean;
 }
 
 // 2. Create proxy state
 const state = proxy<MyState>({
-  value: '',
-  isLoading: false,
+    value: '',
+    isLoading: false,
 });
 
 // 3. Define store with actions
 const MyStore = {
-  state,
-  
-  setValue(newValue: string) {
-    state.value = newValue;
-  },
-  
-  startLoading() {
-    state.isLoading = true;
-  },
-  
-  stopLoading() {
-    state.isLoading = false;
-  }
+    state,
+
+    setValue(newValue: string) {
+        state.value = newValue;
+    },
+
+    startLoading() {
+        state.isLoading = true;
+    },
+
+    stopLoading() {
+        state.isLoading = false;
+    },
 };
 
 export default MyStore;
@@ -74,12 +74,12 @@ import MyStore from '@/store/MyStore';
 function MyComponent() {
   // Subscribe to state changes
   const snap = useSnapshot(MyStore.state);
-  
+
   const handleClick = () => {
     // Call actions directly
     MyStore.setValue('new value');
   };
-  
+
   return <div>{snap.value}</div>;
 }
 ```

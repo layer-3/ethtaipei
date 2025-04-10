@@ -7,7 +7,7 @@ import { WalletStore } from './index';
 
 /**
  * Nitrolite Store
- * 
+ *
  * Manages Nitrolite client and payment channel state.
  * Responsible for:
  * - Managing Nitrolite client instance
@@ -215,7 +215,7 @@ const NitroliteStore = {
         state.status = 'none';
         state.stateSigner = null;
         // We don't reset the client as it's expensive to recreate
-    }
+    },
 };
 
 export default NitroliteStore;

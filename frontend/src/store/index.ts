@@ -1,9 +1,9 @@
 /**
  * Store exports
- * 
+ *
  * This file re-exports all stores to provide a single import point.
  * Import stores from this file like:
- * 
+ *
  * import { AppStore, WalletStore } from '@/store';
  */
 
