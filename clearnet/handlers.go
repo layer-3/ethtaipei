@@ -85,6 +85,7 @@ func HandleCreateChannel(hostAddress string, req *RPCRequest, channelService *Ch
 		params.ChannelID,
 		hostAddress,
 		params.TokenAddress,
+		0,
 		params.NetworkID,
 	)
 	if err != nil {

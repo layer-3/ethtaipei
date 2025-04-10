@@ -224,19 +224,7 @@ func (h *EventHandler) processNoditEvent(event *NoditEvent) {
 }
 
 // handleERC20Transfer processes ERC20 transfer events from Nodit webhooks
-func (h *EventHandler) handleERC20Transfer(message struct {
-	Address          string   `json:"address"`
-	Topics           []string `json:"topics"`
-	Data             string   `json:"data"`
-	BlockNumber      int64    `json:"block_number"`
-	TransactionHash  string   `json:"transaction_hash"`
-	TransactionIndex int      `json:"transaction_index"`
-	LogIndex         int      `json:"log_index"`
-	BlockHash        string   `json:"block_hash"`
-	BlockTimestamp   int64    `json:"block_timestamp"`
-	Removed          bool     `json:"removed"`
-	Type             string   `json:"type"`
-}) {
+func (h *EventHandler) handleERC20Transfer(message NoditMessage) {
 	log.Printf("[ERC20Transfer] Processing Transfer event from transaction: %s", message.TransactionHash)
 
 	// For ERC20 Transfer: topic[0] = signature, topic[1] = from address, topic[2] = to address, data = value
@@ -307,6 +295,7 @@ func (h *EventHandler) handleChannelCreatedEventNodit(networkID string, ethLog t
 		channelID.Hex(),
 		participantA,
 		tokenAddress,
+		channelCreatedEvent.Channel.Nonce,
 		networkID,
 	)
 	if err != nil {
@@ -316,7 +305,7 @@ func (h *EventHandler) handleChannelCreatedEventNodit(networkID string, ethLog t
 
 	if client, exists := h.blockchainClients[networkID]; exists {
 		log.Printf("[ChannelCreated] Using blockchain client for network: %s", networkID)
-		if err := client.Join(channelID.Hex()); err != nil {
+		if err := client.Join(channelID.Hex(), nil); err != nil {
 			log.Printf("[ChannelCreated] Error: failed to join channel %s on network %s: %v",
 				channelID.Hex(), networkID, err)
 			return
