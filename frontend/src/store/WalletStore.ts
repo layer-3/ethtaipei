@@ -1,18 +1,20 @@
 import { proxy } from 'valtio';
 import { Address } from 'viem';
+import { WalletState, WalletProvider } from './types';
+import { SettingsStore } from './index';
 
-export interface IWalletState {
-    connected: boolean;
-    walletAddress: Address | null;
-    chainId: number | null;
-    error: string | null;
-    channelOpen: boolean;
-    selectedTokenAddress: Address | null;
-    selectedAmount: string | null;
-    walletProvider: 'metamask' | 'privy' | null;
-}
+/**
+ * Wallet Store
+ * 
+ * Handles wallet connections, addresses, and basic channel state.
+ * Responsible for:
+ * - Managing wallet connection state
+ * - Tracking wallet addresses
+ * - Tracking chain ID
+ * - Basic channel open/close state
+ */
 
-const state = proxy<IWalletState>({
+const state = proxy<WalletState>({
     connected: false,
     walletAddress: null,
     chainId: null,
@@ -26,13 +28,21 @@ const state = proxy<IWalletState>({
 const WalletStore = {
     state,
 
-    connect(address: Address, provider: 'metamask' | 'privy' = 'metamask') {
+    /**
+     * Connect wallet
+     * @param address Wallet address 
+     * @param provider Wallet provider (metamask or privy)
+     */
+    connect(address: Address, provider: WalletProvider = 'metamask') {
         state.connected = true;
         state.walletAddress = address;
         state.walletProvider = provider;
         state.error = null;
     },
 
+    /**
+     * Disconnect wallet
+     */
     disconnect() {
         state.connected = false;
         state.walletAddress = null;
@@ -41,57 +51,109 @@ const WalletStore = {
         // We keep the channel open status since that's managed by the backend
     },
 
+    /**
+     * Set error message
+     */
     setError(message: string) {
         state.error = message;
     },
 
+    /**
+     * Clear error message
+     */
     clearError() {
         state.error = null;
     },
 
+    /**
+     * Set chain ID and update settings
+     */
     setChainId(chainId: number) {
         state.chainId = chainId;
+        // Update the active chain in settings if it's different
+        if (SettingsStore.state.activeChain?.id !== chainId) {
+            const chain = SettingsStore.getChainById(chainId);
+            if (chain) {
+                SettingsStore.setActiveChain(chain);
+            }
+        }
     },
 
+    /**
+     * Open payment channel
+     */
     openChannel(tokenAddress: Address, amount: string) {
         state.channelOpen = true;
         state.selectedTokenAddress = tokenAddress;
         state.selectedAmount = amount;
     },
 
+    /**
+     * Close payment channel
+     */
     closeChannel() {
         state.channelOpen = false;
         state.selectedTokenAddress = null;
         state.selectedAmount = null;
     },
 
+    /**
+     * Set channel open status
+     */
     setChannelOpen(isOpen: boolean) {
         state.channelOpen = isOpen;
     },
 
-    switchChain(chainId: number) {
-        if (typeof window !== 'undefined' && window.ethereum && state.walletProvider === 'metamask') {
-            window.ethereum
-                .request({
+    /**
+     * Switch chain (for metamask)
+     */
+    async switchChain(chainId: number) {
+        try {
+            if (typeof window !== 'undefined' && window.ethereum && state.walletProvider === 'metamask') {
+                await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
                     params: [{ chainId: `0x${chainId.toString(16)}` }],
-                })
-                .catch((error) => {
-                    console.error('Error switching network:', error);
                 });
+            }
+            state.chainId = chainId;
+            
+            // Update settings
+            const chain = SettingsStore.getChainById(chainId);
+            if (chain) {
+                SettingsStore.setActiveChain(chain);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error switching network:', error);
+            this.setError('Failed to switch network');
+            return false;
         }
-        state.chainId = chainId;
     },
 
-    // Helper method to check if wallet is connected regardless of provider
-    isWalletConnected() {
+    /**
+     * Check if wallet is connected
+     */
+    isWalletConnected(): boolean {
         return state.connected && state.walletAddress !== null;
     },
 
-    // Helper to get current wallet address
+    /**
+     * Get wallet address
+     */
     getWalletAddress(): Address | null {
         return state.walletAddress;
     },
+    
+    /**
+     * Get selected token and amount
+     */
+    getSelectedToken(): { address: Address | null, amount: string | null } {
+        return {
+            address: state.selectedTokenAddress,
+            amount: state.selectedAmount
+        };
+    }
 };
 
 export default WalletStore;

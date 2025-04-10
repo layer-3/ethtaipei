@@ -2,10 +2,16 @@
 
 import { useCallback } from 'react';
 import { useSnapshot } from 'valtio';
-import AppStore from '@/store/AppStore';
+import { AppStore } from '@/store';
 import Privy from '@/providers/privy';
 import { NitroliteClientWrapper } from '@/providers/NitroliteClientWrapper';
-import { MinimizedApps, MainHeader, AppCatalog, YuzuxSection, YuzuxAppContainer } from '@/components';
+import { 
+  MinimizedApps, 
+  MainHeader, 
+  AppCatalog, 
+  YuzuxSection, 
+  YuzuxAppContainer 
+} from '@/components';
 import CloseChannel from '@/components/wallet/clearnet/CloseChannel';
 import Deposit from '@/components/wallet/clearnet/Deposit';
 

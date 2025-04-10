@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
-import { Address, createWalletClient, Hex, http, parseSignature } from 'viem';
+import { Address, Hex, parseSignature } from 'viem';
 import { AdjudicatorApp } from '@/services/apps/adjudicator_app';
-import NitroliteStore from '@/store/NitroliteStore';
-import WalletStore from '@/store/WalletStore';
+import { NitroliteStore, WalletStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { State } from '@erc7824/nitrolite';
 import { createEthersSigner } from '@/websocket';
@@ -47,12 +46,9 @@ export function useChannelClose() {
                 sigs: [],
             };
 
-            // Get state hash for signing
             const stateHash = channelContext.getStateHash(finalState);
 
             const [signature] = await stateSigner.sign(stateHash);
-
-            // TODO:
 
             const guestSigner = createEthersSigner(APP_CONFIG.CHANNEL.GUEST_KEY as Hex);
 

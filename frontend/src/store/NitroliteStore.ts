@@ -1,29 +1,21 @@
 import { WalletSigner } from '@/websocket';
-import { AppLogic, ChannelContext, NitroliteClient, Signature, Channel, State } from '@erc7824/nitrolite';
+import { AppLogic, ChannelContext, NitroliteClient, Channel, State } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
+import { NitroliteState, ChannelStatus } from './types';
+import { WalletStore } from './index';
 
-type NitroliteChannelStatus =
-    | 'none'
-    | 'deposit_pending'
-    | 'funded'
-    | 'open_pending'
-    | 'opened'
-    | 'close_pending'
-    | 'closed'
-    | 'withdraw_pending'
-    | 'withdrawn';
+/**
+ * Nitrolite Store
+ * 
+ * Manages Nitrolite client and payment channel state.
+ * Responsible for:
+ * - Managing Nitrolite client instance
+ * - Handling channel operations (deposit, create, close, withdraw)
+ * - Tracking channel status and context
+ */
 
-export interface IWalletState {
-    client: NitroliteClient;
-
-    channelContext: ChannelContext<bigint> | null;
-    status: NitroliteChannelStatus;
-
-    stateSigner: WalletSigner | null;
-}
-
-const state = proxy<IWalletState>({
+const state = proxy<NitroliteState>({
     client: null,
     channelContext: null,
     status: 'none',
@@ -33,7 +25,10 @@ const state = proxy<IWalletState>({
 const NitroliteStore = {
     state,
 
-    setClient(client: NitroliteClient) {
+    /**
+     * Set Nitrolite client
+     */
+    setClient(client: NitroliteClient | null): boolean {
         if (!client) {
             console.error('Attempted to set null or undefined Nitrolite client');
             return false;
@@ -42,7 +37,10 @@ const NitroliteStore = {
         return true;
     },
 
-    setChannelContext(channel: Channel, nitroState: State, app: AppLogic<bigint>): ChannelContext {
+    /**
+     * Set channel context
+     */
+    setChannelContext(channel: Channel, nitroState: State, app: AppLogic<bigint>): ChannelContext<bigint> {
         try {
             if (!state.client) {
                 throw new Error('Nitrolite client not initialized');
@@ -58,7 +56,10 @@ const NitroliteStore = {
         }
     },
 
-    setStateSigner(signer: WalletSigner) {
+    /**
+     * Set state signer
+     */
+    setStateSigner(signer: WalletSigner | null): void {
         if (!signer) {
             console.error('Attempted to set null or undefined state signer');
             return;
@@ -67,11 +68,24 @@ const NitroliteStore = {
         state.stateSigner = signer;
     },
 
-    getChannelContext(): ChannelContext | null {
+    /**
+     * Get channel context
+     */
+    getChannelContext(): ChannelContext<bigint> | null {
         return state.channelContext;
     },
 
-    async deposit(channelId: string, tokenAddress: Address, amount: string) {
+    /**
+     * Get channel status
+     */
+    getStatus(): ChannelStatus {
+        return state.status;
+    },
+
+    /**
+     * Deposit into channel
+     */
+    async deposit(channelId: string, tokenAddress: Address, amount: string): Promise<boolean> {
         const previousStatus = state.status;
 
         try {
@@ -79,11 +93,12 @@ const NitroliteStore = {
                 throw new Error(`Channel context not found for channel: ${channelId}`);
             }
 
-            console.log('channelContext', state.channelContext);
-
             state.status = 'deposit_pending';
             await state.channelContext.deposit(tokenAddress, BigInt(amount));
             state.status = 'funded';
+
+            // Update wallet store with token and amount
+            WalletStore.openChannel(tokenAddress, amount);
 
             return true;
         } catch (error) {
@@ -93,7 +108,10 @@ const NitroliteStore = {
         }
     },
 
-    async createChannel(channelId: string) {
+    /**
+     * Create channel
+     */
+    async createChannel(channelId: string): Promise<boolean> {
         const previousStatus = state.status;
 
         try {
@@ -105,6 +123,9 @@ const NitroliteStore = {
             await state.channelContext.create();
             state.status = 'opened';
 
+            // Update wallet store
+            WalletStore.setChannelOpen(true);
+
             return true;
         } catch (error) {
             state.status = previousStatus;
@@ -113,7 +134,10 @@ const NitroliteStore = {
         }
     },
 
-    async closeChannel(channelId: string, nitroState: State) {
+    /**
+     * Close channel
+     */
+    async closeChannel(channelId: string, nitroState: State): Promise<boolean> {
         const previousStatus = state.status;
 
         try {
@@ -125,6 +149,9 @@ const NitroliteStore = {
             await state.channelContext.close(nitroState);
             state.status = 'closed';
 
+            // Update wallet store
+            WalletStore.closeChannel();
+
             return true;
         } catch (error) {
             state.status = previousStatus;
@@ -133,7 +160,10 @@ const NitroliteStore = {
         }
     },
 
-    async withdraw(channelId: string, token: Address, amount: bigint) {
+    /**
+     * Withdraw funds
+     */
+    async withdraw(channelId: string, token: Address, amount: bigint): Promise<boolean> {
         const previousStatus = state.status;
 
         try {
@@ -153,6 +183,9 @@ const NitroliteStore = {
         }
     },
 
+    /**
+     * Get latest state
+     */
     getLatestState(): State | null {
         if (!state.channelContext) {
             console.error('Channel context not found');
@@ -162,6 +195,9 @@ const NitroliteStore = {
         return state.channelContext.getCurrentState();
     },
 
+    /**
+     * Append state
+     */
     appendState(tokenAddress: Address, amounts: [bigint, bigint]): State | null {
         if (!state.channelContext) {
             console.error('Channel context not found');
@@ -170,6 +206,16 @@ const NitroliteStore = {
 
         return state.channelContext.appendAppState(BigInt(0), tokenAddress, amounts);
     },
+
+    /**
+     * Reset state (for testing and cleanup)
+     */
+    reset(): void {
+        state.channelContext = null;
+        state.status = 'none';
+        state.stateSigner = null;
+        // We don't reset the client as it's expensive to recreate
+    }
 };
 
 export default NitroliteStore;

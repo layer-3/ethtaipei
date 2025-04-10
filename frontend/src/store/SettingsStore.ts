@@ -1,6 +1,17 @@
 import { Chain } from 'viem';
 import { chains } from '@/config/chains';
 import { proxy } from 'valtio';
+import { SettingsState } from './types';
+
+/**
+ * Settings Store
+ * 
+ * Manages user settings and preferences.
+ * Responsible for:
+ * - Chain selection preferences
+ * - Testnet visibility
+ * - Persisting settings to localStorage
+ */
 
 const defaultChain = () => {
     // Always default to Polygon (137) unless explicitly set in localStorage
@@ -20,18 +31,9 @@ const defaultChain = () => {
 };
 
 /**
- * Types
- */
-export interface ISettingsStore {
-    testnets: boolean;
-    activeChain: Chain | undefined;
-    prevChainId: number;
-}
-
-/**
  * State
  */
-const state = proxy<ISettingsStore>({
+const state = proxy<SettingsState>({
     testnets: typeof localStorage !== 'undefined' ? Boolean(localStorage.getItem('testnets')) : true,
     activeChain: defaultChain(),
     prevChainId: defaultChain()?.id ?? 0,
@@ -43,15 +45,24 @@ const state = proxy<ISettingsStore>({
 const SettingsStore = {
     state,
 
+    /**
+     * Set active blockchain
+     */
     setActiveChain(value: Chain | undefined) {
         state.activeChain = value;
         localStorage.setItem('chainId', value ? value.id.toString() : '');
     },
 
+    /**
+     * Set previous chain ID
+     */
     setPrevChainId(value: number | undefined) {
         state.prevChainId = value ?? 0;
     },
 
+    /**
+     * Toggle testnet visibility
+     */
     toggleTestNets() {
         state.testnets = !state.testnets;
         if (state.testnets) {
@@ -60,6 +71,32 @@ const SettingsStore = {
             localStorage.removeItem('testnets');
         }
     },
+
+    /**
+     * Get supported chains based on testnet setting
+     */
+    getSupportedChains(): Chain[] {
+        if (state.testnets) {
+            return chains;
+        }
+        return chains.filter(chain => !chain.testnet);
+    },
+
+    /**
+     * Get chain by ID
+     */
+    getChainById(chainId: number): Chain | undefined {
+        return chains.find(chain => chain.id === chainId);
+    },
+
+    /**
+     * Get chain display name
+     */
+    getChainName(chainId: number | undefined): string {
+        if (!chainId) return 'Unknown Network';
+        const chain = this.getChainById(chainId);
+        return chain ? chain.name : 'Unknown Network';
+    }
 };
 
 export default SettingsStore;

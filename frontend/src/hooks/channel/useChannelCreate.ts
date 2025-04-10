@@ -2,9 +2,7 @@ import { useCallback } from 'react';
 import { useSnapshot } from 'valtio';
 import { Address, Hex, parseSignature, parseUnits } from 'viem';
 import { AdjudicatorApp } from '@/services/apps/adjudicator_app';
-import NitroliteStore from '@/store/NitroliteStore';
-import WalletStore from '@/store/WalletStore';
-import SettingsStore from '@/store/SettingsStore';
+import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { Channel, State } from '@erc7824/nitrolite';
 

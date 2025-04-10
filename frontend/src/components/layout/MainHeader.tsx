@@ -1,8 +1,8 @@
 import { useSnapshot } from 'valtio';
-import WalletStore from '@/store/WalletStore';
-import { ConnectButton } from '@/components/clearnet/ConnectButton';
-import { MetaMaskConnectButton } from '@/components/clearnet/MetaMaskConnectButton';
-import { ActionButton } from '@/components/ActionButton';
+import { WalletStore } from '@/store';
+import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
+import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
+import { ActionButton } from '@/components/ui/ActionButton';
 
 interface MainHeaderProps {
   onOpenDeposit: () => void;
