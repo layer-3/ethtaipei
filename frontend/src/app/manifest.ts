@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: 'YuzuX',
         theme_color: '#000',
         background_color: '#000',
-        display: 'fullscreen',
+        display: 'minimal-ui',
         orientation: 'any',
         scope: '/',
         start_url: '/',
