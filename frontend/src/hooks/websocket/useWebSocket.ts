@@ -241,7 +241,7 @@ export function useWebSocket(url: string) {
         if (!clientRef.current?.isConnected) return;
 
         try {
-            await clientRef.current.checkBalance(tokenAddress);
+            // await clientRef.current.checkBalance(tokenAddress);
         } catch (error) {
             console.error('Balance check error:', error);
         }
@@ -249,6 +249,7 @@ export function useWebSocket(url: string) {
 
     // Send a generic RPC request
     const sendRequest = useCallback(async (methodName: string, methodParams: string) => {
+        console.log('Sending request:', methodName, methodParams);
         if (!clientRef.current?.isConnected) return;
 
         try {
