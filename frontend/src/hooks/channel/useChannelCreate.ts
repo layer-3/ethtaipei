@@ -77,17 +77,17 @@ export function useChannelCreate() {
         }
 
         // Check for existing channels in the account
-        if (NitroliteStore.state.client && walletSnap.walletAddress) {
-            try {
-                const channels = await NitroliteStore.state.client.getAccountChannels(walletSnap.walletAddress);
+        // if (NitroliteStore.state.client && walletSnap.walletAddress) {
+        //     try {
+        //         const channels = await NitroliteStore.state.client.getAccountChannels(walletSnap.walletAddress);
 
-                if (channels && channels.length > 0) {
-                    return { exists: true, source: 'accountChannels', count: channels.length };
-                }
-            } catch (error) {
-                console.error('Error checking existing channels:', error);
-            }
-        }
+        //         if (channels && channels.length > 0) {
+        //             return { exists: true, source: 'accountChannels', count: channels.length };
+        //         }
+        //     } catch (error) {
+        //         console.error('Error checking existing channels:', error);
+        //     }
+        // }
 
         // No existing channel found
         return { exists: false };
@@ -123,7 +123,7 @@ export function useChannelCreate() {
                 let message = 'Cannot create a new channel because one already exists.';
 
                 if (source === 'accountChannels') {
-                    message += ` You have ${existingChannel.count} active channel(s). Please close existing channels before creating a new one.`;
+                    message += 'You have active channel(s). Please close existing channels before creating a new one.';
                 } else {
                     message += ' Please close the existing channel before creating a new one.';
                 }
