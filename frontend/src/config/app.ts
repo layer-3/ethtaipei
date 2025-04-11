@@ -9,14 +9,14 @@ import { Address } from 'viem';
 export const APP_CONFIG = {
     // WebSocket configuration for real-time communication
     WEBSOCKET: {
-        URL: 'https://ethtaipei-production.up.railway.app/ws',
+        URL: 'wss://057d-176-37-35-155.ngrok-free.app/ws',
     },
 
     // Channel configuration
     CHANNEL: {
         // Default address for the second participant
         DEFAULT_GUEST: '0xD278d56eDe7F43992739C1ee95806D00fDeA5aa0',
-        GUEST_KEY: '0xad1610e1e750ec26ed6a039d9661a965fd21a9e19e54076c84940400c75f6bbf',
+        GUEST_KEY: '0x60e0b9a5715f625f6dbd50b4ccfcb088e16205c2dfd598a40bc1cad71f29193f',
         // Challenge period in seconds (1 day)
         CHALLENGE_PERIOD: 1,
         MAGIC_NUMBER_OPEN: BigInt(7877),
