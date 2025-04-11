@@ -190,6 +190,7 @@ export function useChannelCreate() {
                 const channelId = channelContext.getChannelId();
 
                 // Sign the initial state
+                // TODO SHOULD RETURN STASH HASH
                 const stateHash = channelContext.getStateHash(initialState);
                 const [signature] = await stateSigner.sign(stateHash, true);
                 const parsedSig = parseSignature(signature as Hex);

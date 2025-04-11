@@ -102,6 +102,8 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
 
         const deposit = accountInfo.deposited;
 
+        console.log('Current deposit:', accountInfo);
+
         if (!deposit) return '0';
 
         // Get token address and amount
@@ -414,6 +416,60 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
         }
     };
 
+    const handleDirectChannel = async () => {
+        console.log('Closing direct channel...');
+        setResponseTitle('Close Direct Channel');
+        setWsResponse(null);
+        setIsLoading(true);
+        setShowResponse(true);
+
+        if (!isConnected) {
+            try {
+                await connect();
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+                setWsResponse({ error: 'Failed to connect WebSocket' });
+                setIsLoading(false);
+                return;
+            }
+        }
+
+        try {
+            // Get channel ID from state or localStorage
+            let channelId = '';
+
+            if (!channelId) {
+                channelId = localStorage.getItem('nitrolite_channel_id') || '';
+                if (!channelId) {
+                    throw new Error('No virtual channel ID found. Please create a virtual channel first.');
+                }
+            }
+
+            // Sample data based on the example in the comments
+            const closeVirtualChannelParams = {
+                channelId: channelId,
+                fundsDestination: walletSnap.walletAddress,
+            };
+
+            const response = await sendRequest('CloseDirectChannel', JSON.stringify([closeVirtualChannelParams]));
+
+            console.log('Direct channel closed:', response);
+            setWsResponse(response);
+
+            // Clear channel ID after closing
+            // @ts-ignore
+            if (response && response.success) {
+                setVirtualChannelId('');
+                // localStorage.removeItem('nitrolite_channel_id');
+            }
+        } catch (error) {
+            console.error('Error closing direct channel:', error);
+            setWsResponse({ error: error instanceof Error ? error.message : 'Unknown error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Close response modal
     const handleCloseResponse = () => {
         setShowResponse(false);
@@ -432,7 +488,8 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                             <ActionButton onClick={onCreateChannel}>Create Channel</ActionButton>
                             <ActionButton onClick={handleWithdrawal}>Withdraw</ActionButton>
                             <ActionButton onClick={handleChallenge}>Challenge</ActionButton>
-                            <ActionButton onClick={handleClose}>Close Channel</ActionButton>
+                            <ActionButton onClick={handleDirectChannel}>Close Direct Channel</ActionButton>
+                            <ActionButton onClick={handleClose}>Close Chain Channel</ActionButton>
                             <ActionButton onClick={handleGetListOfParticipants}>Get Participants</ActionButton>
                             <ActionButton onClick={handleOpenVirtualChannel}>Open Virtual Channel</ActionButton>
                             <ActionButton onClick={handleCloseVirtualChannel}>Close Virtual Channel</ActionButton>

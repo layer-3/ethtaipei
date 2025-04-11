@@ -94,41 +94,65 @@ export function useChannelClose() {
 
             const channelId = channelContext.getChannelId();
 
+            console.log('Closing channel with ID:', channelId);
+            console.log('channelContext:', channelContext);
             // Set the channel open flag since we're interacting with it
             WalletStore.setChannelOpen(true);
 
             // Get the existing state to preserve the amounts
             const currentState = storedData?.state || channelContext.getCurrentState();
 
-            // Create final state based on the existing state's allocations
+            const responseState = {
+                channelId: '0x5ae95c54f290b3e33886b2a31f506e9bd277ecbd8b348843dbca67179e4e19ba',
+                stateData: '0x0000000000000000000000000000000000000000000000000000000000001ec7',
+                allocations: [
+                    {
+                        destination: '0x21F7D1F35979B125f6F7918fC16Cb9101e5882d7',
+                        token: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+                        amount: 9600,
+                    },
+                    {
+                        destination: '0xD278d56eDe7F43992739C1ee95806D00fDeA5aa0',
+                        token: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+                        amount: 0,
+                    },
+                ],
+                'server-signature': {
+                    v: '27',
+                    r: '0x925352376dfc4444d4d810a730c7b6f599e4a46ef041ad9dee235439f89ac94a',
+                    s: '0x4688a3b69599585f3abc96f1355d6590c149ec4a3b8011b04803e51e5b4bc812',
+                },
+            };
+
             const finalState: State = {
-                data: app.encode(appState),
+                data: app.encode(appState), // magic number
                 // Use the existing allocations which already have the correct amount
-                allocations: currentState.allocations,
+                // @ts-ignore
+                allocations: responseState.allocations,
                 sigs: [],
             };
 
             const stateHash = channelContext.getStateHash(finalState);
 
-            const [signature] = await stateSigner.sign(stateHash);
-
-            const guestSigner = createEthersSigner(APP_CONFIG.CHANNEL.GUEST_KEY as Hex);
-
-            const [guestSignature] = await guestSigner.sign(stateHash);
-            const pss = [parseSignature(signature as Hex), parseSignature(guestSignature as Hex)];
+            console.log('State hash:', stateHash);
+            console.log('stateSigner', stateSigner);
+            const [signature] = await stateSigner.sign(stateHash, true);
+            const parsedSig = parseSignature(signature as Hex);
 
             finalState.sigs = [
                 {
-                    r: pss[0].r,
-                    s: pss[0].s,
-                    v: +pss[0].v.toString(),
+                    r: parsedSig.r,
+                    s: parsedSig.s,
+                    v: Number(parsedSig.v),
                 },
                 {
-                    r: pss[1].r,
-                    s: pss[1].s,
-                    v: +pss[1].v.toString(),
+                    r: responseState['server-signature'].r as Hex,
+                    s: responseState['server-signature'].s as Hex,
+                    v: +responseState['server-signature'].v.toString(),
                 },
             ];
+
+            console.log('Final state:', finalState);
 
             // Close the channel
             await NitroliteStore.closeChannel(channelId, finalState);
