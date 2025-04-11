@@ -159,6 +159,8 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
 
+	log.Printf("Parsed parameters: %+v\n", params)
+
 	// TODO: verify signatures
 	virtualChannel := params
 
@@ -434,6 +436,7 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	var availableChannels []ChannelAvailabilityResponse
 	for _, channel := range channels {
 		// Get participant's balance in this channel
+		log.Printf("Checking balance for channel: %+v\n", channel)
 		account := ledger.Account(channel.ChannelID, channel.ParticipantA, tokenAddress)
 		balance, err := account.Balance()
 		if err != nil {
