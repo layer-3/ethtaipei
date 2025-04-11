@@ -69,7 +69,7 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 
 // GetOrCreateChannel gets an existing channel or creates a new one
 // For real channels, participantB is always the broker application
-func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddress string, nonce uint64, networkID ...string) (*DBChannel, error) {
+func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddress string, nonce uint64, adjudicator string, networkID ...string) (*DBChannel, error) {
 	var channel DBChannel
 	result := s.db.Where("channel_id = ?", channelID).First(&channel)
 
@@ -89,6 +89,7 @@ func (s *ChannelService) GetOrCreateChannel(channelID, participantA, tokenAddres
 				ParticipantB: BrokerAddress, // Always use broker address for real channels
 				NetworkID:    network,       // Set the network ID for real channels
 				Nonce:        nonce,
+				Adjudicator:  adjudicator,
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
 			}

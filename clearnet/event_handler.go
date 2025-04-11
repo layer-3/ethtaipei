@@ -296,6 +296,7 @@ func (h *EventHandler) handleChannelCreatedEventNodit(networkID string, ethLog t
 		participantA,
 		tokenAddress,
 		channelCreatedEvent.Channel.Nonce,
+		channelCreatedEvent.Channel.Adjudicator.Hex(),
 		networkID,
 	)
 	if err != nil {
