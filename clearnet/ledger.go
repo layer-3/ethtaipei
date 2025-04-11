@@ -91,7 +91,7 @@ func (a *Account) Record(amount int64) error {
 	} else if amount < 0 {
 		entry.Debit = -amount // Convert negative to positive for debit
 	} else {
-		return errors.New("amount cannot be zero")
+		// return errors.New("amount cannot be zero") // Uncomment if you want to disallow zero amounts
 	}
 
 	return a.db.Create(entry).Error

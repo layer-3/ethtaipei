@@ -10,8 +10,11 @@ import (
 	"time"
 
 	"github.com/centrifugal/centrifuge"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/erc7824/go-nitrolite"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 )
@@ -36,10 +39,35 @@ type CreateVirtualChannelParams struct {
 	Nonce        uint64   `json:"nonce,omitempty"`
 }
 
-// CloseChannelParams represents parameters needed for virtual channel closure
-type CloseChannelParams struct {
+// CloseVirtualChannelParams represents parameters needed for virtual channel closure
+type CloseVirtualChannelParams struct {
 	ChannelID   string            `json:"channelId"`
 	Allocations []FinalAllocation `json:"allocations"`
+}
+
+// CloseDirectChannelParams represents parameters needed for virtual channel closure
+type CloseDirectChannelParams struct {
+	ChannelID        string `json:"channelId"`
+	FundsDestination string `json:"fundsDestination"`
+}
+
+type CloseDirectChannelResponse struct {
+	ChannelID   string            `json:"channelId"`
+	StateData   string            `json:"stateData"`
+	Allocations []CloseAllocation `json:"allocations"`
+	Signature   CloseSignature    `json:"server-signature"`
+}
+
+type CloseAllocation struct {
+	Destination string   `json:"destination"`
+	Token       string   `json:"token"`
+	Amount      *big.Int `json:"amount,string"`
+}
+
+type CloseSignature struct {
+	V uint8  `json:"v,string"`
+	R string `json:"r,string"`
+	S string `json:"s,string"`
 }
 
 // FinalAllocation represents the final allocation for a participant when closing a channel
@@ -86,6 +114,7 @@ func HandleCreateChannel(hostAddress string, req *RPCRequest, channelService *Ch
 		hostAddress,
 		params.TokenAddress,
 		0,
+		"",
 		params.NetworkID,
 	)
 	if err != nil {
@@ -130,6 +159,8 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 	if err := json.Unmarshal(paramsJSON, &params); err != nil {
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
+
+	log.Printf("Parsed parameters: %+v\n", params)
 
 	// TODO: verify signatures
 	virtualChannel := params
@@ -193,10 +224,12 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 			return err
 		}
 
+		log.Printf("Participant A channel: %+v\n", participantAChannel)
 		participantBChannel, err := getDirectChannelForParticipant(tx, virtualChannel.ParticipantB)
 		if err != nil {
 			return err
 		}
+		log.Printf("Participant B channel: %+v\n", participantBChannel)
 
 		// Check if participantA has enough funds
 		accountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannel.ParticipantA, virtualChannel.TokenAddress)
@@ -212,6 +245,8 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 			return fmt.Errorf("failed to check participant B balance: %w", err)
 		}
 
+		log.Printf("Participant A balance: %d, Amount A: %d", balanceA, virtualChannel.AmountA.Int64())
+		log.Printf("Participant B balance: %d, Amount B: %d", balanceB, virtualChannel.AmountB.Int64())
 		// Ensure sufficient funds
 		if balanceA < virtualChannel.AmountA.Int64() {
 			return errors.New("insufficient funds for participant A")
@@ -252,17 +287,23 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 
 		// 5. Transfer funds from direct channels to virtual channel
 		// Transfer from participant A
-		fromAccountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannelDB.ParticipantA, virtualChannelDB.TokenAddress)
-		toAccountA := ledgerTx.Account(virtualChannelID.Hex(), virtualChannelDB.ParticipantA, virtualChannelDB.TokenAddress)
-		if err := fromAccountA.Transfer(toAccountA, virtualChannel.AmountA.Int64()); err != nil {
-			return fmt.Errorf("failed to transfer funds from participant A: %w", err)
+		if virtualChannel.AmountA.Int64() > 0 {
+			fromAccountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannelDB.ParticipantA, virtualChannelDB.TokenAddress)
+			toAccountA := ledgerTx.Account(virtualChannelID.Hex(), virtualChannelDB.ParticipantA, virtualChannelDB.TokenAddress)
+			if err := fromAccountA.Transfer(toAccountA, virtualChannel.AmountA.Int64()); err != nil {
+				return fmt.Errorf("failed to transfer funds from participant A: %w", err)
+			}
 		}
 
 		// Transfer from participant B
-		fromAccountB := ledgerTx.Account(participantBChannel.ChannelID, virtualChannel.ParticipantB, virtualChannel.TokenAddress)
-		toAccountB := ledgerTx.Account(virtualChannelID.Hex(), virtualChannel.ParticipantB, virtualChannel.TokenAddress)
-		if err := fromAccountB.Transfer(toAccountB, virtualChannel.AmountB.Int64()); err != nil {
-			return fmt.Errorf("failed to transfer funds from participant B: %w", err)
+		if virtualChannel.AmountB.Int64() > 0 {
+			// Transfer from participant B
+			fromAccountB := ledgerTx.Account(participantBChannel.ChannelID, virtualChannel.ParticipantB, virtualChannel.TokenAddress)
+			toAccountB := ledgerTx.Account(virtualChannelID.Hex(), virtualChannel.ParticipantB, virtualChannel.TokenAddress)
+			if err := fromAccountB.Transfer(toAccountB, virtualChannel.AmountB.Int64()); err != nil {
+				return fmt.Errorf("failed to transfer funds from participant B: %w", err)
+			}
+
 		}
 
 		return nil
@@ -396,6 +437,7 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	var availableChannels []ChannelAvailabilityResponse
 	for _, channel := range channels {
 		// Get participant's balance in this channel
+		log.Printf("Checking balance for channel: %+v\n", channel)
 		account := ledger.Account(channel.ChannelID, channel.ParticipantA, tokenAddress)
 		balance, err := account.Balance()
 		if err != nil {
@@ -421,6 +463,94 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	return rpcResponse, nil
 }
 
+func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *CustodyClientWrapper) (*RPCResponse, error) {
+	// Extract the channel parameters from the request
+	if len(req.Req.Params) < 1 {
+		return nil, errors.New("missing parameters")
+	}
+
+	// Parse the parameters
+	var params CloseDirectChannelParams
+	paramsJSON, err := json.Marshal(req.Req.Params[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
+	if err := json.Unmarshal(paramsJSON, &params); err != nil {
+		return nil, fmt.Errorf("invalid parameters format: %w", err)
+	}
+
+	// Grab channel
+
+	channel, err := channelService.GetChannelByID(params.ChannelID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find channel: %w", err)
+	}
+
+	// Grab user balance
+	tokenAddress := "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
+	account := ledger.Account(channel.ChannelID, channel.ParticipantA, tokenAddress)
+	balance, err := account.Balance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
+	}
+
+	if balance < 0 {
+		return nil, fmt.Errorf("insufficient funds for participant A")
+	}
+
+	stateDataStr := "0x0000000000000000000000000000000000000000000000000000000000001ec7"
+	stateData, err := hexutil.Decode(stateDataStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode state data: %w", err)
+	}
+
+	allocations := []Allocation{
+		{
+			Destination: common.HexToAddress(params.FundsDestination),
+			Token:       common.HexToAddress(tokenAddress),
+			Amount:      big.NewInt(balance),
+		},
+		{
+			Destination: common.HexToAddress(channel.ParticipantB),
+			Token:       common.HexToAddress(tokenAddress),
+			Amount:      big.NewInt(0),
+		},
+	}
+	spew.Dump(allocations)
+	channelID := common.HexToHash(channel.ChannelID)
+
+	encodedState, err := encodeState(channelID, stateData, allocations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode state hash: %w", err)
+	}
+
+	fmt.Printf("State hash: %s\n", crypto.Keccak256Hash(encodedState).Hex())
+	sig, err := custodyWrapper.SignEncodedState(encodedState)
+
+	response := CloseDirectChannelResponse{
+		ChannelID:   channel.ChannelID,
+		StateData:   stateDataStr, // Placeholder for state data
+		Allocations: []CloseAllocation{},
+		Signature: CloseSignature{
+			V: sig.V,
+			R: hexutil.Encode(sig.R[:]),
+			S: hexutil.Encode(sig.S[:]),
+		},
+	}
+
+	for _, alloc := range allocations {
+		response.Allocations = append(response.Allocations, CloseAllocation{
+			Destination: alloc.Destination.Hex(),
+			Token:       alloc.Token.Hex(),
+			Amount:      alloc.Amount,
+		})
+	}
+	// Create the RPC response
+	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
+	return rpcResponse, nil
+}
+
 // HandleCloseVirtualChannel closes a virtual channel and redistributes funds to participants
 // TODO: this will be triggered automatically when we receive an event from Blockchain.
 func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInterface) (*RPCResponse, error) {
@@ -441,7 +571,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 	}
 
 	// Extract parameters
-	var params CloseChannelParams
+	var params CloseVirtualChannelParams
 	params.ChannelID, _ = rawParams["channelId"].(string)
 
 	// Handle allocations

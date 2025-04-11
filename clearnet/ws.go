@@ -26,10 +26,11 @@ type UnifiedWSHandler struct {
 	upgrader       websocket.Upgrader
 	connections    map[string]*websocket.Conn
 	connectionsMu  sync.RWMutex
+	custodyWrapper *CustodyClientWrapper
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
-func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, ledger *Ledger, messageRouter RouterInterface) *UnifiedWSHandler {
+func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, ledger *Ledger, messageRouter RouterInterface, custodyWrapper *CustodyClientWrapper) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
 		node:           node,
 		channelService: channelService,
@@ -42,7 +43,8 @@ func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, 
 				return true // Allow all origins for testing; should be restricted in production
 			},
 		},
-		connections: make(map[string]*websocket.Conn),
+		connections:    make(map[string]*websocket.Conn),
+		custodyWrapper: custodyWrapper,
 	}
 }
 
@@ -220,6 +222,14 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			if handlerErr != nil {
 				log.Printf("Error handling CloseVirtualChannel: %v", handlerErr)
 				sendErrorResponse(uint64(requestID), method, conn, "Failed to close virtual channel: "+handlerErr.Error())
+				continue
+			}
+
+		case "CloseDirectChannel":
+			rpcResponse, handlerErr = HandleCloseDirectChannel(&rpcRequest, h.ledger, h.custodyWrapper)
+			if handlerErr != nil {
+				log.Printf("Error handling CloseDirectChannel: %v", handlerErr)
+				sendErrorResponse(uint64(requestID), method, conn, "Failed to close direct channel: "+handlerErr.Error())
 				continue
 			}
 
