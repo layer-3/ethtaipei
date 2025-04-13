@@ -513,7 +513,8 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                                     className="h-6 w-6"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    stroke="currentColor">
+                                    stroke="currentColor"
+                                >
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -545,7 +546,8 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                         <div className="mt-4 flex justify-end">
                             <button
                                 onClick={handleCloseResponse}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
                                 Close
                             </button>
                         </div>
