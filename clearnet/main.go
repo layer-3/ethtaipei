@@ -119,7 +119,12 @@ func startHTTPServer() {
 
 func main() {
 	// Initialize the database.
-	dsn := "file:broker.db?mode=memory&cache=shared"
+	dsn := os.Getenv("BROKER_DB_DSN")
+	if dsn == "" {
+		dsn = "file:broker.db?mode=memory&cache=shared"
+	}
+
+	log.Printf("Using database DSN: %s", dsn)
 	db, err := setupDatabase(dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -145,7 +150,7 @@ func main() {
 	log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 
 	// Initialize blockchain clients.
-	initBlockchainClients(privateKeyHex)
+	custodyPOLYGON, _, _ := initBlockchainClients(privateKeyHex)
 	// custodyPOLYGON, custodyCELO, custodyBASE := initBlockchainClients(privateKeyHex)
 
 	// Start the Centrifuge node.
@@ -156,7 +161,7 @@ func main() {
 	// webhookHandler := NewEventHandler(ledger, channelService, BrokerAddress, custodyPOLYGON, custodyCELO, custodyBASE)
 	// http.Handle("/webhook", webhookHandler)
 
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter)
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, custodyPOLYGON)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Start the HTTP server.

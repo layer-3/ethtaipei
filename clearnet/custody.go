@@ -52,6 +52,18 @@ func NewCustodyClientWrapper(
 	}, nil
 }
 
+func (c *CustodyClientWrapper) SignEncodedState(encodedState []byte) (Signature, error) {
+	sig, err := nitrolite.Sign(encodedState, c.privateKey)
+	if err != nil {
+		return Signature{}, fmt.Errorf("failed to sign encoded state: %w", err)
+	}
+	return Signature{
+		V: sig.V,
+		R: sig.R,
+		S: sig.S,
+	}, nil
+}
+
 // Join calls the join method on the custody contract
 func (c *CustodyClientWrapper) Join(channelID string, lastStateData []byte) error {
 	// Convert string channelID to bytes32
@@ -60,7 +72,7 @@ func (c *CustodyClientWrapper) Join(channelID string, lastStateData []byte) erro
 	// The broker will always join as participant with index 1 (second participant)
 	index := big.NewInt(1)
 
-	sig, err := nitrolite.Sign(lastStateData, c.privateKey)
+	sig, err := c.SignEncodedState(lastStateData)
 	if err != nil {
 		return fmt.Errorf("failed to sign data: %w", err)
 	}
@@ -72,11 +84,7 @@ func (c *CustodyClientWrapper) Join(channelID string, lastStateData []byte) erro
 
 	c.transactOpts.GasPrice = gasPrice.Add(gasPrice, gasPrice)
 	// Call the join method on the custody contract
-	tx, err := c.custody.Join(c.transactOpts, channelIDBytes, index, Signature{
-		V: sig.V,
-		R: sig.R,
-		S: sig.S,
-	})
+	tx, err := c.custody.Join(c.transactOpts, channelIDBytes, index, sig)
 	if err != nil {
 		return fmt.Errorf("failed to join channel: %w", err)
 	}
@@ -123,6 +131,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			participantA,
 			tokenAddress,
 			nonce,
+			ev.Channel.Adjudicator.Hex(),
 			c.networkID,
 		)
 		if err != nil {
@@ -130,12 +139,12 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		stateHash, err := encodeStateHash(ev.ChannelId, ev.Initial.Data, ev.Initial.Allocations)
+		encodedState, err := encodeState(ev.ChannelId, ev.Initial.Data, ev.Initial.Allocations)
 		if err != nil {
 			log.Printf("[ChannelCreated] Error encoding state hash: %v", err)
 			return
 		}
-		if err := c.Join(channelID.Hex(), stateHash); err != nil {
+		if err := c.Join(channelID.Hex(), encodedState); err != nil {
 			log.Printf("[ChannelCreated] Error joining channel: %v", err)
 			return
 		}
@@ -159,7 +168,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 	}
 }
 
-func encodeStateHash(channelID [32]byte, stateData []byte, allocations []Allocation) ([]byte, error) {
+func encodeState(channelID [32]byte, stateData []byte, allocations []Allocation) ([]byte, error) {
 	// Define Allocation[] as tuple[]
 	allocationType, err := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
 		{
