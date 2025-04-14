@@ -119,7 +119,12 @@ func startHTTPServer() {
 
 func main() {
 	// Initialize the database.
-	dsn := "file:broker.db?mode=memory&cache=shared"
+	dsn := os.Getenv("BROKER_DB_DSN")
+	if dsn == "" {
+		dsn = "file:data/broker.db?mode=memory&cache=shared"
+	}
+
+	log.Printf("Using database DSN: %s", dsn)
 	db, err := setupDatabase(dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
