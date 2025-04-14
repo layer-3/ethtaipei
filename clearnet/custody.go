@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -54,7 +53,6 @@ func NewCustodyClientWrapper(
 }
 
 func (c *CustodyClientWrapper) SignEncodedState(encodedState []byte) (Signature, error) {
-	fmt.Println("Signing encoded state:", hexutil.Encode(encodedState))
 	sig, err := nitrolite.Sign(encodedState, c.privateKey)
 	if err != nil {
 		return Signature{}, fmt.Errorf("failed to sign encoded state: %w", err)

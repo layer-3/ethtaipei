@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/centrifugal/centrifuge"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/erc7824/go-nitrolite"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -159,8 +158,6 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 	if err := json.Unmarshal(paramsJSON, &params); err != nil {
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
-
-	log.Printf("Parsed parameters: %+v\n", params)
 
 	// TODO: verify signatures
 	virtualChannel := params
@@ -437,7 +434,6 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	var availableChannels []ChannelAvailabilityResponse
 	for _, channel := range channels {
 		// Get participant's balance in this channel
-		log.Printf("Checking balance for channel: %+v\n", channel)
 		account := ledger.Account(channel.ChannelID, channel.ParticipantA, tokenAddress)
 		balance, err := account.Balance()
 		if err != nil {
@@ -517,7 +513,6 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 			Amount:      big.NewInt(0),
 		},
 	}
-	spew.Dump(allocations)
 	channelID := common.HexToHash(channel.ChannelID)
 
 	encodedState, err := encodeState(channelID, stateData, allocations)

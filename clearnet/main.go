@@ -121,7 +121,7 @@ func main() {
 	// Initialize the database.
 	dsn := os.Getenv("BROKER_DB_DSN")
 	if dsn == "" {
-		dsn = "file:data/broker.db?mode=memory&cache=shared"
+		dsn = "file:broker.db?mode=memory&cache=shared"
 	}
 
 	log.Printf("Using database DSN: %s", dsn)
