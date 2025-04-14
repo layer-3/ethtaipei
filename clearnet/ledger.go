@@ -72,6 +72,33 @@ func (a *Account) Balance(tokenAddress string) (int64, error) {
 	return creditSum - debitSum, nil
 }
 
+// Balances returns the balances for all token addresses for this account
+func (a *Account) Balances() (map[string]int64, error) {
+	type BalanceResult struct {
+		TokenAddress string
+		CreditSum    int64
+		DebitSum     int64
+	}
+
+	var results []BalanceResult
+	err := a.db.Model(&Entry{}).
+		Where("channel_id = ? AND participant = ?", a.ChannelID, a.Participant).
+		Select("token_address, COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
+		Group("token_address").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	balances := make(map[string]int64)
+	for _, result := range results {
+		balances[result.TokenAddress] = result.CreditSum - result.DebitSum
+	}
+
+	return balances, nil
+}
+
 // Record creates a new ledger entry for this account
 // If amount > 0, it records a credit; if amount < 0, it records a debit
 func (a *Account) Record(tokenAddress string, amount int64) error {

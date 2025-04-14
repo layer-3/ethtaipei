@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"gorm.io/gorm"
 )
 
 var (
@@ -177,26 +178,34 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			log.Println("error parsing ChannelJoined event:", err)
 			return
 		}
+		log.Printf("ChannelClosed event data: %+v\n", ev)
 
 		// Assumption: User have only one direct channel with the broker.
+		// Assumption: We expect that participants agreed and closed virual channels.
 
-		//	channelID := common.BytesToHash(ev.ChannelId[:])
-		// Create or update the channel with network ID
-		// openDirectChannel, err := channelService.GetChannelByID(channelID.Hex())
-		// if err != nil {
-		// 	log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
-		// 	return
-		// }
-		// account := ledger.Account(channelID.Hex(), openDirectChannel.ParticipantA, "")
-		// if err := account.Record(tokenAmount.Int64()); err != nil {
-		// 	log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
-		// 	return
-		// }
-		// When channel is closed, we need do remove direct channel from the database.
-		// In a happy scenario participants call close channel when they have already closed their virtual channels.
-		// In case a virutal channel still exists, we have to force close it.
+		channelID := common.BytesToHash(ev.ChannelId[:])
+		openDirectChannel, err := channelService.GetChannelByID(channelID.Hex())
+		if err != nil {
+			log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
+			return
+		}
+		account := ledger.Account(channelID.Hex(), openDirectChannel.ParticipantA)
 
-		log.Printf("ChannelClosed event data: %+v\n", ev)
+		err = ledger.db.Transaction(func(tx *gorm.DB) error {
+			account.db = tx
+			balances, err := account.Balances()
+			if err != nil {
+				log.Printf("[ChannelCreated] Error getting balances for participant: %v", err)
+				return err
+			}
+			for tokenAddress, balance := range balances {
+				if err := account.Record(tokenAddress, -balance); err != nil {
+					log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
+					return err
+				}
+			}
+			return nil
+		})
 	default:
 		fmt.Println("Unknown event ID:", eventID.Hex())
 	}
