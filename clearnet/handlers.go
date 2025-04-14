@@ -111,7 +111,6 @@ func HandleCreateChannel(hostAddress string, req *RPCRequest, channelService *Ch
 	channel, err := channelService.GetOrCreateChannel(
 		params.ChannelID,
 		hostAddress,
-		params.TokenAddress,
 		0,
 		"",
 		params.NetworkID,
@@ -122,8 +121,8 @@ func HandleCreateChannel(hostAddress string, req *RPCRequest, channelService *Ch
 
 	// If initial funds are provided, add them to the ledger
 	if params.Amount != nil && params.Amount.Sign() > 0 {
-		account := ledger.Account(params.ChannelID, hostAddress, params.TokenAddress)
-		if err := account.Record(params.Amount.Int64()); err != nil {
+		account := ledger.Account(params.ChannelID, hostAddress)
+		if err := account.Record(params.TokenAddress, params.Amount.Int64()); err != nil {
 			return nil, fmt.Errorf("failed to add initial funds: %w", err)
 		}
 	}
@@ -231,15 +230,15 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 		log.Printf("Participant B channel: %+v\n", participantBChannel)
 
 		// Check if participantA has enough funds
-		accountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannel.ParticipantA, virtualChannel.TokenAddress)
-		balanceA, err := accountA.Balance()
+		accountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannel.ParticipantA)
+		balanceA, err := accountA.Balance(virtualChannel.TokenAddress)
 		if err != nil {
 			return fmt.Errorf("failed to check participant A balance: %w", err)
 		}
 
 		// Check if participantB has enough funds
-		accountB := ledgerTx.Account(participantBChannel.ChannelID, virtualChannel.ParticipantB, virtualChannel.TokenAddress)
-		balanceB, err := accountB.Balance()
+		accountB := ledgerTx.Account(participantBChannel.ChannelID, virtualChannel.ParticipantB)
+		balanceB, err := accountB.Balance(virtualChannel.TokenAddress)
 		if err != nil {
 			return fmt.Errorf("failed to check participant B balance: %w", err)
 		}
@@ -287,9 +286,9 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 		// 5. Transfer funds from direct channels to virtual channel
 		// Transfer from participant A
 		if virtualChannel.AmountA.Int64() > 0 {
-			fromAccountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannelDB.ParticipantA, virtualChannelDB.TokenAddress)
-			toAccountA := ledgerTx.Account(virtualChannelID.Hex(), virtualChannelDB.ParticipantA, virtualChannelDB.TokenAddress)
-			if err := fromAccountA.Transfer(toAccountA, virtualChannel.AmountA.Int64()); err != nil {
+			fromAccountA := ledgerTx.Account(participantAChannel.ChannelID, virtualChannelDB.ParticipantA)
+			toAccountA := ledgerTx.Account(virtualChannelID.Hex(), virtualChannelDB.ParticipantA)
+			if err := fromAccountA.Transfer(toAccountA, virtualChannel.TokenAddress, virtualChannel.AmountA.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds from participant A: %w", err)
 			}
 		}
@@ -297,9 +296,9 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 		// Transfer from participant B
 		if virtualChannel.AmountB.Int64() > 0 {
 			// Transfer from participant B
-			fromAccountB := ledgerTx.Account(participantBChannel.ChannelID, virtualChannel.ParticipantB, virtualChannel.TokenAddress)
-			toAccountB := ledgerTx.Account(virtualChannelID.Hex(), virtualChannel.ParticipantB, virtualChannel.TokenAddress)
-			if err := fromAccountB.Transfer(toAccountB, virtualChannel.AmountB.Int64()); err != nil {
+			fromAccountB := ledgerTx.Account(participantBChannel.ChannelID, virtualChannel.ParticipantB)
+			toAccountB := ledgerTx.Account(virtualChannelID.Hex(), virtualChannel.ParticipantB)
+			if err := fromAccountB.Transfer(toAccountB, virtualChannel.TokenAddress, virtualChannel.AmountB.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds from participant B: %w", err)
 			}
 
@@ -437,8 +436,8 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	for _, channel := range channels {
 		// Get participant's balance in this channel
 		log.Printf("Checking balance for channel: %+v\n", channel)
-		account := ledger.Account(channel.ChannelID, channel.ParticipantA, tokenAddress)
-		balance, err := account.Balance()
+		account := ledger.Account(channel.ChannelID, channel.ParticipantA)
+		balance, err := account.Balance(tokenAddress)
 		if err != nil {
 			// Skip this channel if there's an error getting balance
 			continue
@@ -488,8 +487,8 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 
 	// Grab user balance
 	tokenAddress := "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
-	account := ledger.Account(channel.ChannelID, channel.ParticipantA, tokenAddress)
-	balance, err := account.Balance()
+	account := ledger.Account(channel.ChannelID, channel.ParticipantA)
+	balance, err := account.Balance(tokenAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
@@ -662,14 +661,14 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 		}
 
 		// 4. Get current balances in the virtual channel
-		accountA := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantA, virtualChannel.TokenAddress)
-		balanceA, err := accountA.Balance()
+		accountA := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantA)
+		balanceA, err := accountA.Balance(virtualChannel.TokenAddress)
 		if err != nil {
 			return fmt.Errorf("failed to check participant A balance: %w", err)
 		}
 
-		accountB := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantB, virtualChannel.TokenAddress)
-		balanceB, err := accountB.Balance()
+		accountB := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantB)
+		balanceB, err := accountB.Balance(virtualChannel.TokenAddress)
 		if err != nil {
 			return fmt.Errorf("failed to check participant B balance: %w", err)
 		}
@@ -727,11 +726,11 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 			}
 
 			// Get source and destination accounts
-			fromAccount := ledgerTx.Account(virtualChannel.ChannelID, allocation.Participant, virtualChannel.TokenAddress)
-			toAccount := ledgerTx.Account(directChannel.ChannelID, allocation.Participant, virtualChannel.TokenAddress)
+			fromAccount := ledgerTx.Account(virtualChannel.ChannelID, allocation.Participant)
+			toAccount := ledgerTx.Account(directChannel.ChannelID, allocation.Participant)
 
 			// Check if participant has enough funds in the virtual channel
-			participantBalance, err := fromAccount.Balance()
+			participantBalance, err := fromAccount.Balance(virtualChannel.TokenAddress)
 			if err != nil {
 				return fmt.Errorf("failed to check balance for %s: %w", allocation.Participant, err)
 			}
@@ -749,18 +748,18 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 
 				// Record a transfer from other participant to this participant within the virtual channel
 				// This simulates the final settlement agreed upon by the participants
-				transferAccount := ledgerTx.Account(virtualChannel.ChannelID, otherParticipant, virtualChannel.TokenAddress)
-				if err := transferAccount.Record(-diff); err != nil {
+				transferAccount := ledgerTx.Account(virtualChannel.ChannelID, otherParticipant)
+				if err := transferAccount.Record(virtualChannel.TokenAddress, -diff); err != nil {
 					return fmt.Errorf("failed to adjust balance for %s: %w", otherParticipant, err)
 				}
 
-				if err := fromAccount.Record(diff); err != nil {
+				if err := fromAccount.Record(virtualChannel.TokenAddress, diff); err != nil {
 					return fmt.Errorf("failed to adjust balance for %s: %w", allocation.Participant, err)
 				}
 			}
 
 			// Now transfer funds from virtual channel to direct channel
-			if err := fromAccount.Transfer(toAccount, allocation.Amount.Int64()); err != nil {
+			if err := fromAccount.Transfer(toAccount, virtualChannel.TokenAddress, allocation.Amount.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds for %s: %w", allocation.Participant, err)
 			}
 		}
@@ -831,18 +830,11 @@ func HandleSendPublicMessage(address string, req *RPCRequest, ledger *Ledger, ws
 	}
 
 	// Get the sender's available balance for creating virtual channels
-	var senderBalance int64 = 0
 	var channel DBChannel
 
 	// Find the direct channel for the sender
 	if err := ledger.db.Where("participant_a = ? AND participant_b = ?",
 		address, BrokerAddress).First(&channel).Error; err == nil {
-		// If channel exists, get the balance
-		account := ledger.Account(channel.ChannelID, address, "")
-		balance, err := account.Balance()
-		if err == nil {
-			senderBalance = balance
-		}
 	}
 
 	// Create the broadcast message in a format similar to direct messages
@@ -850,7 +842,6 @@ func HandleSendPublicMessage(address string, req *RPCRequest, ledger *Ledger, ws
 	broadcastMsg := map[string]interface{}{
 		"type":          "public_message",
 		"senderAddress": address,
-		"senderBalance": senderBalance,
 		"content":       params.Message, // Match the "content" field used in SendMessage
 		"timestamp":     time.Now().Unix(),
 	}

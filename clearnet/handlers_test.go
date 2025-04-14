@@ -146,11 +146,11 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 	require.NoError(t, db.Create(virtualChannel).Error)
 
 	// Add funds to the virtual channel
-	accountA := ledger.Account(virtualChannelID, participantA, tokenAddress)
-	require.NoError(t, accountA.Record(200))
+	accountA := ledger.Account(virtualChannelID, participantA)
+	require.NoError(t, accountA.Record(tokenAddress, 200))
 
-	accountB := ledger.Account(virtualChannelID, participantB, tokenAddress)
-	require.NoError(t, accountB.Record(300))
+	accountB := ledger.Account(virtualChannelID, participantB)
+	require.NoError(t, accountB.Record(tokenAddress, 300))
 
 	// Create allocation parameters for closing
 	allocations := []FinalAllocation{
@@ -164,7 +164,7 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 		},
 	}
 
-	closeParams := CloseChannelParams{
+	closeParams := CloseVirtualChannelParams{
 		ChannelID:   virtualChannelID,
 		Allocations: allocations,
 	}
@@ -198,24 +198,24 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 	assert.Equal(t, uint64(1), updatedChannel.Version)
 
 	// Check that funds were transferred back to direct channels according to allocations
-	directAccountA := ledger.Account(channelA.ChannelID, participantA, tokenAddress)
-	balanceA, err := directAccountA.Balance()
+	directAccountA := ledger.Account(channelA.ChannelID, participantA)
+	balanceA, err := directAccountA.Balance(tokenAddress)
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceA)
 
-	directAccountB := ledger.Account(channelB.ChannelID, participantB, tokenAddress)
-	balanceB, err := directAccountB.Balance()
+	directAccountB := ledger.Account(channelB.ChannelID, participantB)
+	balanceB, err := directAccountB.Balance(tokenAddress)
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceB)
 
 	// Check that virtual channel accounts are empty
-	virtualAccountA := ledger.Account(virtualChannelID, participantA, tokenAddress)
-	virtualBalanceA, err := virtualAccountA.Balance()
+	virtualAccountA := ledger.Account(virtualChannelID, participantA)
+	virtualBalanceA, err := virtualAccountA.Balance(tokenAddress)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceA)
 
-	virtualAccountB := ledger.Account(virtualChannelID, participantB, tokenAddress)
-	virtualBalanceB, err := virtualAccountB.Balance()
+	virtualAccountB := ledger.Account(virtualChannelID, participantB)
+	virtualBalanceB, err := virtualAccountB.Balance(tokenAddress)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceB)
 }
@@ -259,8 +259,8 @@ func TestHandleListOpenParticipantsFunction(t *testing.T) {
 
 		// Add funds if needed
 		if p.initialBalance > 0 {
-			account := ledger.Account(p.channelID, p.address, tokenAddress)
-			err = account.Record(p.initialBalance)
+			account := ledger.Account(p.channelID, p.address)
+			err = account.Record(tokenAddress, p.initialBalance)
 			require.NoError(t, err)
 		}
 	}
