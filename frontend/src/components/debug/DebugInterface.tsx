@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSnapshot } from 'valtio';
-import { Address } from 'viem';
+import { Address, Hex } from 'viem';
 import { WalletStore, SettingsStore, NitroliteStore } from '@/store';
 import AppStore from '@/store/AppStore';
 import { AccountInfo } from '@/store/types';
 import APP_CONFIG from '@/config/app';
+import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
 
 // UI sections
 import { WalletConnectionSection } from './sections/WalletConnectionSection';
@@ -31,7 +32,6 @@ import { useChannelCreate } from '@/hooks/channel/useChannelCreate';
 // Our new handlers
 import { useDebugAccount } from './handlers/useDebugAccount';
 import { useDebugParticipants } from './handlers/useDebugParticipants';
-import { useDebugChannels } from './handlers/useDebugChannels';
 import { useDebugVirtualChannels } from './handlers/useDebugVirtualChannels';
 
 export function DebugInterface() {
@@ -44,8 +44,8 @@ export function DebugInterface() {
     const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
 
     // Basic hooks for responses & history
-    const { responses, loadingStates } = useResponseTracking();
-    const { transactionHistory } = useTransactionHistory();
+    const { responses, setResponse, loadingStates } = useResponseTracking();
+    const { addToHistory, transactionHistory } = useTransactionHistory();
 
     // WebSocket
     const wsUrl = APP_CONFIG.WEBSOCKET.URL;
@@ -59,9 +59,9 @@ export function DebugInterface() {
     });
     const [participants, setParticipants] = useState<any[]>([]);
     const [selectedParticipant, setSelectedParticipant] = useState('');
-    const [virtualChannelAmount, setVirtualChannelAmount] = useState('100');
+    const [virtualChannelAmount, setVirtualChannelAmount] = useState('0');
     const [virtualChannelId, setVirtualChannelId] = useState('');
-    const [allocations, setAllocations] = useState({ participantA: '0', participantB: '200' });
+    const [allocations, setAllocations] = useState({ participantA: '0', participantB: '0' });
 
     // Handlers from custom hooks
     const { fetchAccountInfo } = useDebugAccount({
@@ -72,28 +72,20 @@ export function DebugInterface() {
     const { getParticipants } = useDebugParticipants({
         wsProps: { isConnected, connect, sendRequest },
         activeChainId: settingsSnap.activeChain?.id,
-    });
-
-    const {
-        createChannel,
-        closeChannel,
-        challengeChannel,
-        withdraw,
-        fetchAccountInfo: fetchAccountInfo2, // optional if we want the same method
-    } = useDebugChannels({
-        accountInfo,
-        setAccountInfo,
-        activeChainId: settingsSnap.activeChain?.id,
+        setResponse,
+        addToHistory,
     });
 
     const { openVirtualChannel, closeVirtualChannel } = useDebugVirtualChannels({
         isConnected,
-        connect,
+        setResponse,
+        addToHistory,
     });
 
     // Original channel hooks
     const { handleCloseChannel } = useChannelClose();
-    const { handleCreateChannel } = useChannelCreate();
+
+    const { handleCreateChannel } = useChannelCreate(setResponse, addToHistory);
 
     // Modal handlers
     const handleOpenDeposit = () => AppStore.openDeposit();
@@ -140,6 +132,64 @@ export function DebugInterface() {
         await handleCreateChannel(tokenAddress, currentDeposit);
     };
 
+    // TODO: move to hooks
+    const handleChallenge = async () => {
+        if (!walletSnap.connected || !nitroSnap.client) return;
+
+        try {
+            // Define localStorage keys - must match those in useChannelCreate and useChannelClose
+            const STORAGE_KEYS = {
+                CHANNEL: 'nitrolite_channel',
+                CHANNEL_STATE: 'nitrolite_channel_state',
+                CHANNEL_ID: 'nitrolite_channel_id',
+            };
+
+            // Get channel ID from localStorage
+            const channelId = localStorage.getItem(STORAGE_KEYS.CHANNEL_ID) as Hex;
+
+            if (!channelId) {
+                console.error('No channel ID found in localStorage');
+                return;
+            }
+
+            // Get and parse channel state from localStorage
+            const savedChannelState = localStorage.getItem(STORAGE_KEYS.CHANNEL_STATE);
+
+            if (!savedChannelState) {
+                console.error('No channel state found in localStorage');
+                return;
+            }
+
+            // Parse the state with BigInt handling
+            const state = JSON.parse(savedChannelState, (key, value) => {
+                // Convert strings that look like BigInts back to BigInt
+                if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                    return BigInt(value.substring(0, value.length - 1));
+                }
+                return value;
+            });
+
+            // Call the challenge function with the channel ID and state from localStorage
+            await nitroSnap.client.challengeChannel(channelId, state);
+
+            // Refresh account info after challenging
+            await fetchAccountInfo();
+        } catch (error) {
+            console.error('Error challenging channel:', error);
+
+            // Show user friendly message
+            if (error instanceof Error) {
+                alert(`Challenge failed: ${error.message}`);
+            } else {
+                alert('Challenge failed with an unknown error');
+            }
+        }
+    };
+
+    useEffect(() => {
+        fetchAssets();
+    }, []);
+
     // useEffect to connect WS and fetch info
     useEffect(() => {
         if (walletSnap.connected && walletSnap.walletAddress && settingsSnap.activeChain && nitroSnap.client) {
@@ -182,7 +232,11 @@ export function DebugInterface() {
                         wsStatus={{ isConnected, status }}
                     />
 
-                    <DepositSection currentDeposit={currentDeposit} onOpenDeposit={handleOpenDeposit} />
+                    <DepositSection
+                        currentDeposit={currentDeposit}
+                        onOpenDeposit={handleOpenDeposit}
+                        fetchAccountInfo={fetchAccountInfo}
+                    />
 
                     <ChannelCreateSection
                         currentDeposit={currentDeposit}
@@ -201,6 +255,7 @@ export function DebugInterface() {
                         isLoading={loadingStates.participants || false}
                         response={responses.participants}
                         isCurrentUser={isCurrentUser}
+                        token={APP_CONFIG.TOKENS[settingsSnap.activeChain?.id] as Address}
                     />
 
                     <VirtualChannelSection
@@ -228,29 +283,30 @@ export function DebugInterface() {
                     <CloseVirtualChannelSection
                         allocations={allocations}
                         setAllocations={setAllocations}
-                        virtualChannelId={virtualChannelId}
+                        virtualChannelId={localStorage.getItem('virtual_channel_id') ?? ''}
                         onCloseVirtualChannel={async () => {
                             const chainId = settingsSnap.activeChain?.id;
 
-                            if (!chainId) return;
                             const participantA = nitroSnap.stateSigner?.address || '';
 
                             await closeVirtualChannel(
                                 sendRequest,
-                                virtualChannelId || localStorage.getItem('virtual_channel_id') || '',
+                                localStorage.getItem('virtual_channel_id') || '',
                                 participantA,
                                 selectedParticipant,
                                 allocations.participantA,
                                 allocations.participantB,
                                 chainId,
                             );
+
+                            fetchAccountInfo();
                         }}
                         isLoading={loadingStates.closeVirtualChannel || false}
                         response={responses.closeVirtualChannel}
                     />
 
                     <ChallengeChannelSection
-                        onChallenge={challengeChannel}
+                        onChallenge={handleChallenge}
                         isLoading={loadingStates.challenge || false}
                         response={responses.challenge}
                     />
@@ -258,8 +314,65 @@ export function DebugInterface() {
                     <CloseChannelSection
                         accountInfo={accountInfo}
                         onClose={async () => {
-                            // Or call closeChannel from our custom hook
-                            await handleCloseChannel();
+                            let channelId = '';
+
+                            if (!channelId) {
+                                channelId = localStorage.getItem('nitrolite_channel_id') || '';
+                                if (!channelId) {
+                                    throw new Error(
+                                        'No virtual channel ID found. Please create a virtual channel first.',
+                                    );
+                                }
+                            }
+
+                            // Sample data based on the example in the comments
+                            const closeVirtualChannelParams = {
+                                channelId: channelId,
+                                fundsDestination: walletSnap.walletAddress,
+                            };
+
+                            setResponse('closeBrokerChannel', null);
+                            addToHistory('closeBrokerChannel', 'pending', 'Closing channel...');
+
+                            const response = await sendRequest(
+                                'CloseDirectChannel',
+                                JSON.stringify([closeVirtualChannelParams]),
+                            );
+
+                            setResponse('closeBrokerChannel', response);
+                            addToHistory(
+                                'closeBrokerChannel',
+                                response && response.success ? 'success' : 'error',
+                                response && response.success
+                                    ? 'Channel closed successfully'
+                                    : 'Failed to close channel',
+                            );
+
+                            // Clear channel ID after closing
+                            // // @ts-ignore
+                            // if (response && response.success) {
+                            //     setVirtualChannelId('');
+                            // }
+
+                            setResponse('closeChannel', response);
+                            addToHistory(
+                                'closeChannel',
+                                response && response.success ? 'success' : 'error',
+                                response && response.success
+                                    ? 'Channel closed successfully'
+                                    : 'Failed to close channel',
+                            );
+                            await handleCloseChannel(response);
+
+                            setResponse('closeChannel', response);
+                            addToHistory(
+                                'closeChannel',
+                                response && response.success ? 'success' : 'error',
+                                response && response.success
+                                    ? 'Channel closed successfully'
+                                    : 'Failed to close channel',
+                            );
+                            fetchAccountInfo();
                         }}
                         isLoading={loadingStates.closeChannel || false}
                         response={responses.closeChannel}
@@ -268,7 +381,15 @@ export function DebugInterface() {
                     <WithdrawSection
                         currentDeposit={currentDeposit}
                         onWithdraw={async () => {
-                            await withdraw(currentDeposit);
+                            const chainId = settingsSnap.activeChain?.id;
+
+                            if (!chainId) {
+                                console.error('No active chain ID found');
+                                return;
+                            }
+
+                            await nitroSnap.client.withdraw(APP_CONFIG.TOKENS[chainId], accountInfo.deposited);
+                            fetchAccountInfo();
                         }}
                         isLoading={loadingStates.withdrawal || false}
                         response={responses.withdrawal}
@@ -278,7 +399,12 @@ export function DebugInterface() {
                 </>
             )}
 
-            <Deposit isOpen={appSnap.isDepositOpen} onClose={handleCloseDeposit} />
+            <Deposit
+                isOpen={appSnap.isDepositOpen}
+                onClose={handleCloseDeposit}
+                setResponse={setResponse}
+                addToHistory={addToHistory}
+            />
         </div>
     );
 }

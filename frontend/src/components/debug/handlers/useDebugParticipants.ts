@@ -1,26 +1,27 @@
 import { useCallback } from 'react';
-import { useTransactionHistory } from '@/hooks/debug/useTransactionHistory';
-import { useResponseTracking } from '@/hooks/debug/useResponseTracking';
-import { WebSocketProps } from '@/hooks/websocket/useWebSocket';
 import APP_CONFIG from '@/config/app';
 
 /**
  * This hook encapsulates logic to fetch a list of participants via a WebSocket request.
  */
 interface UseDebugParticipantsParams {
-    wsProps: Pick<WebSocketProps, 'isConnected' | 'connect' | 'sendRequest'>;
+    wsProps: any;
     activeChainId?: number;
+    setResponse: (key: string, value: any) => void;
+    addToHistory: (type: string, status: string, message: string) => void;
 }
 
-export function useDebugParticipants({ wsProps, activeChainId }: UseDebugParticipantsParams) {
-    const { addToHistory } = useTransactionHistory();
-    const { setResponse, setLoading } = useResponseTracking();
+export function useDebugParticipants({
+    wsProps,
+    activeChainId,
+    setResponse,
+    addToHistory,
+}: UseDebugParticipantsParams) {
     const { isConnected, connect, sendRequest } = wsProps;
 
     const getParticipants = useCallback(
         async (setParticipants: (p: any[]) => void, setSelectedParticipant: (p: string) => void) => {
             console.log('Fetching participants...');
-            setLoading('participants', true);
             setResponse('participants', null);
             addToHistory('participants', 'pending', 'Fetching available participants...');
 
@@ -30,16 +31,22 @@ export function useDebugParticipants({ wsProps, activeChainId }: UseDebugPartici
                 } catch (error) {
                     console.error('Failed to connect WebSocket:', error);
                     setResponse('participants', { error: 'Failed to connect WebSocket' });
-                    setLoading('participants', false);
                     addToHistory('participants', 'error', 'Failed to connect to WebSocket server');
                     return;
                 }
             }
 
-            const tokenAddress = (activeChainId && APP_CONFIG.TOKENS[activeChainId]) || '0x3c499c5...';
+            const tokenAddress = activeChainId && APP_CONFIG.TOKENS[activeChainId];
             const message = {
                 token_address: tokenAddress,
             };
+
+            if (!tokenAddress) {
+                console.error('Token address not found for active chain ID:', activeChainId);
+                setResponse('participants', { error: 'Token address not found for active chain ID' });
+                addToHistory('participants', 'error', 'Token address not found for active chain ID');
+                return;
+            }
 
             try {
                 const response = await sendRequest('ListOpenParticipants', JSON.stringify([message]));
@@ -82,11 +89,9 @@ export function useDebugParticipants({ wsProps, activeChainId }: UseDebugPartici
                     'error',
                     `Failed to get participants: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 );
-            } finally {
-                setLoading('participants', false);
             }
         },
-        [isConnected, connect, sendRequest, setLoading, setResponse, addToHistory, activeChainId],
+        [isConnected, connect, sendRequest, setResponse, addToHistory, activeChainId],
     );
 
     return {

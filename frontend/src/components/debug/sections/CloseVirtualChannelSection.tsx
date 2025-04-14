@@ -110,9 +110,7 @@ export const CloseVirtualChannelSection: React.FC<CloseVirtualChannelSectionProp
                             ? `Channel ID: ${virtualChannelId.substring(0, 10)}...`
                             : 'No active virtual channel'}
                     </p>
-                    <ActionButton onClick={onCloseVirtualChannel} disabled={isLoading || !virtualChannelId}>
-                        Close Virtual Channel
-                    </ActionButton>
+                    <ActionButton onClick={onCloseVirtualChannel}>Close Virtual Channel</ActionButton>
                 </div>
             </div>
 
