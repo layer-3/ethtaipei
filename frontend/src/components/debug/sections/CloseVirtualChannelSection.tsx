@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
 
 interface CloseVirtualChannelSectionProps {
     allocations: {
@@ -113,9 +114,9 @@ export const CloseVirtualChannelSection: React.FC<CloseVirtualChannelSectionProp
                     <ActionButton onClick={onCloseVirtualChannel}>Close Virtual Channel</ActionButton>
                 </div>
             </div>
-
             {renderResponse()}
             {renderRawResponse()}
+            <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
         </section>
     );
 };

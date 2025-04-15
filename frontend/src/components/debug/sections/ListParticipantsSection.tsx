@@ -1,6 +1,9 @@
 import React from 'react';
-import { ActionButton } from '@/components/ui/ActionButton';
+import { Address } from 'viem';
+import { ResponseDisplay } from '../common/ResponseDisplay';
+import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { ActionButton } from '@/components/ui/ActionButton';
 
 interface ListParticipantsSectionProps {
     participants: any[];
@@ -8,9 +11,9 @@ interface ListParticipantsSectionProps {
     onSelectParticipant: (address: string) => void;
     onGetParticipants: () => void;
     isLoading: boolean;
-    response: any;
+    response: any; // Add response prop
     isCurrentUser: (address: string) => boolean;
-    token: Hex;
+    token: Address;
 }
 
 export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = ({
@@ -19,29 +22,13 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
     onSelectParticipant,
     onGetParticipants,
     isLoading,
-    response,
+    response, // Destructure response
     isCurrentUser,
     token,
 }) => {
-    // Helper to display raw responses
-    const renderRawResponse = () => {
-        if (!response) return null;
-
-        return (
-            <div className="mt-4">
-                <details className="cursor-pointer">
-                    <summary className="text-sm text-gray-500">Raw Response</summary>
-                    <div className="bg-gray-50 p-3 mt-2 rounded-md overflow-x-auto text-xs">
-                        <pre className="whitespace-pre-wrap break-words">{JSON.stringify(response, null, 2)}</pre>
-                    </div>
-                </details>
-            </div>
-        );
-    };
-
     return (
         <section className="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 className="text-xl font-semibold mb-4 pb-2 border-b">4. List Participants</h2>
+            <h2 className="text-xl font-semibold mb-4 pb-2 border-b">4. List Participants & Select Peer</h2>
             <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-gray-600">Fetch available participants for virtual channels.</p>
                 <div className="flex items-center space-x-2">
@@ -56,11 +43,10 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                         </span>
                     )}
                     <ActionButton onClick={onGetParticipants} disabled={isLoading}>
-                        Get Participants
+                        {isLoading ? 'Fetching...' : 'Get Participants'}
                     </ActionButton>
                 </div>
             </div>
-
             {isLoading ? (
                 <div className="flex justify-center p-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900" />
@@ -74,20 +60,17 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                 <tr>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                    >
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Address
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                    >
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Balance
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                    >
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Select
                                     </th>
                                 </tr>
@@ -108,15 +91,13 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                                     : selectedParticipant === participant.address
                                                       ? 'bg-green-50'
                                                       : ''
-                                            }
-                                        >
+                                            }>
                                             <td className="px-6 py-2 whitespace-nowrap text-sm">
                                                 <div className="flex items-center">
                                                     <span
                                                         className={
                                                             isCurrentUser(participant.address) ? 'font-semibold' : ''
-                                                        }
-                                                    >
+                                                        }>
                                                         {participant.address}
                                                         {isCurrentUser(participant.address) && (
                                                             <span className="ml-1 text-blue-600">(You)</span>
@@ -152,8 +133,8 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
             ) : response && !response.error ? (
                 <div className="p-4 bg-yellow-50 rounded-md text-yellow-700 text-center">No participants found</div>
             ) : null}
-
-            {renderRawResponse()}
+            <ResponseDisplay response={response} isLoading={isLoading} />
+            <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
         </section>
     );
 };

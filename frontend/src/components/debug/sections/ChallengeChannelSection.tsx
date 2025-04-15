@@ -1,16 +1,17 @@
 import React from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
 
 interface ChallengeChannelSectionProps {
     onChallenge: () => void;
     isLoading: boolean;
-    response: any;
+    response: any; // Add response prop
 }
 
 export const ChallengeChannelSection: React.FC<ChallengeChannelSectionProps> = ({
     onChallenge,
     isLoading,
-    response,
+    response, // Destructure response
 }) => {
     // Helper to display responses
     const renderResponse = () => {
@@ -41,22 +42,6 @@ export const ChallengeChannelSection: React.FC<ChallengeChannelSectionProps> = (
         );
     };
 
-    // Helper to display raw responses
-    const renderRawResponse = () => {
-        if (!response) return null;
-
-        return (
-            <div className="mt-4">
-                <details className="cursor-pointer">
-                    <summary className="text-sm text-gray-500">Raw Response</summary>
-                    <div className="bg-gray-50 p-3 mt-2 rounded-md overflow-x-auto text-xs">
-                        <pre className="whitespace-pre-wrap break-words">{JSON.stringify(response, null, 2)}</pre>
-                    </div>
-                </details>
-            </div>
-        );
-    };
-
     return (
         <section className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-xl font-semibold mb-4 pb-2 border-b">7. Challenge Channel</h2>
@@ -72,9 +57,8 @@ export const ChallengeChannelSection: React.FC<ChallengeChannelSectionProps> = (
                     </ActionButton>
                 </div>
             </div>
-
             {renderResponse()}
-            {renderRawResponse()}
+            <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
         </section>
     );
 };

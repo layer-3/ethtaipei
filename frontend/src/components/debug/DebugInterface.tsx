@@ -232,6 +232,8 @@ export function DebugInterface() {
                         currentDeposit={currentDeposit}
                         onOpenDeposit={handleOpenDeposit}
                         fetchAccountInfo={fetchAccountInfo}
+                        response={responses.deposit} // Assuming 'deposit' key exists in responses
+                        isLoading={loadingStates.deposit}
                     />
 
                     <ChannelCreateSection
@@ -240,7 +242,7 @@ export function DebugInterface() {
                         accountInfo={accountInfo}
                         onCreateChannel={onCreateChannel}
                         isLoading={loadingStates.createChannel || false}
-                        response={responses.createChannel}
+                        response={responses.createChannel} // Pass response
                     />
 
                     <ListParticipantsSection
@@ -249,7 +251,7 @@ export function DebugInterface() {
                         onSelectParticipant={setSelectedParticipant}
                         onGetParticipants={handleGetListOfParticipants}
                         isLoading={loadingStates.participants || false}
-                        response={responses.participants}
+                        response={responses.participants} // Pass response
                         isCurrentUser={isCurrentUser}
                         token={APP_CONFIG.TOKENS[settingsSnap.activeChain?.id] as Address}
                     />
@@ -273,7 +275,7 @@ export function DebugInterface() {
                             );
                         }}
                         isLoading={loadingStates.virtualChannel || false}
-                        response={responses.virtualChannel}
+                        response={responses.virtualChannel} // Pass response
                     />
 
                     <CloseVirtualChannelSection
@@ -298,13 +300,13 @@ export function DebugInterface() {
                             fetchAccountInfo();
                         }}
                         isLoading={loadingStates.closeVirtualChannel || false}
-                        response={responses.closeVirtualChannel}
+                        response={responses.closeVirtualChannel} // Pass response
                     />
 
                     <ChallengeChannelSection
                         onChallenge={handleChallenge}
                         isLoading={loadingStates.challenge || false}
-                        response={responses.challenge}
+                        response={responses.challenge} // Pass response
                     />
 
                     <CloseChannelSection
@@ -365,7 +367,7 @@ export function DebugInterface() {
                             fetchAccountInfo();
                         }}
                         isLoading={loadingStates.closeChannel || false}
-                        response={responses.closeChannel}
+                        response={responses.closeChannel} // Pass response (ensure key matches)
                     />
 
                     <WithdrawSection
@@ -382,7 +384,7 @@ export function DebugInterface() {
                             fetchAccountInfo();
                         }}
                         isLoading={loadingStates.withdrawal || false}
-                        response={responses.withdrawal}
+                        response={responses.withdrawal} // Pass response
                     />
 
                     <TransactionHistorySection transactions={transactionHistory} responses={responses} />
