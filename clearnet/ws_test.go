@@ -37,10 +37,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 		ChannelID:    channelID,
 		ParticipantA: sender,
 		ParticipantB: recipient,
-		TokenAddress: "0xToken",
 		Status:       "open",
-		Version:      1,
-		ExpiresAt:    time.Now().Add(24 * time.Hour),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

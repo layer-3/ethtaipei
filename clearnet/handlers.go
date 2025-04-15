@@ -33,9 +33,6 @@ type CreateVirtualChannelParams struct {
 	TokenAddress string   `json:"token_address"`
 	AmountA      *big.Int `json:"amountA,string"`
 	AmountB      *big.Int `json:"amountB,string"`
-	Adjudicator  string   `json:"adjudicator,omitempty"`
-	Challenge    uint64   `json:"challenge,omitempty"`
-	Nonce        uint64   `json:"nonce,omitempty"`
 }
 
 // CloseVirtualChannelParams represents parameters needed for virtual channel closure
@@ -71,8 +68,9 @@ type CloseSignature struct {
 
 // FinalAllocation represents the final allocation for a participant when closing a channel
 type FinalAllocation struct {
-	Participant string   `json:"participant"`
-	Amount      *big.Int `json:"amount,string"`
+	Participant  string   `json:"participant"`
+	TokenAddress string   `json:"token_address"`
+	Amount       *big.Int `json:"amount,string"`
 }
 
 // ChannelResponse represents response data for channel operations
@@ -172,35 +170,19 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 		return nil, errors.New("missing required parameters: amountA or amountB")
 	}
 
-	// Set default values if not provided
-	if virtualChannel.Adjudicator == "" {
-		virtualChannel.Adjudicator = "0x0000000000000000000000000000000000000000"
-	}
-
-	if virtualChannel.Challenge == 0 {
-		virtualChannel.Challenge = 86400 // Default 24 hours in seconds
-	}
-
-	if virtualChannel.Nonce == 0 {
-		virtualChannel.Nonce = uint64(time.Now().UnixNano())
-	}
-
 	// Convert to common.Address
 	participantA := common.HexToAddress(virtualChannel.ParticipantA)
 	participantB := common.HexToAddress(virtualChannel.ParticipantB)
-	adjudicator := common.HexToAddress(virtualChannel.Adjudicator)
+	adjudicator := common.HexToAddress("0x0000000000000000000000000000000000000000")
 
 	// Generate a unique channel ID for the virtual channel
 	nitroliteChannel := nitrolite.Channel{
 		Participants: []common.Address{participantA, participantB},
 		Adjudicator:  adjudicator,
-		Challenge:    virtualChannel.Challenge,
-		Nonce:        virtualChannel.Nonce,
+		Challenge:    60,
+		Nonce:        uint64(time.Now().UnixNano()),
 	}
 	virtualChannelID := nitrolite.GetChannelID(nitroliteChannel)
-
-	// Set channel expiration time (default 24 hours from now)
-	expiresAt := time.Now().Add(24 * time.Hour)
 
 	// Use a transaction to ensure atomicity for the entire operation
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
@@ -259,10 +241,7 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 			ChannelID:    virtualChannelID.Hex(),
 			ParticipantA: virtualChannel.ParticipantA,
 			ParticipantB: virtualChannel.ParticipantB,
-			TokenAddress: virtualChannel.TokenAddress,
 			Status:       "open",
-			Version:      0,
-			ExpiresAt:    expiresAt,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -577,6 +556,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 		return nil, errors.New("invalid allocations format")
 	}
 
+	// TODO: do a proper parsing
 	params.Allocations = make([]FinalAllocation, 0, len(allocationsRaw))
 	for _, alloc := range allocationsRaw {
 		allocMap, ok := alloc.(map[string]interface{})
@@ -613,9 +593,12 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 			return nil, fmt.Errorf("unsupported amount type: %T", allocMap["amount"])
 		}
 
+		tokenAddress, _ := allocMap["token_address"].(string)
+
 		params.Allocations = append(params.Allocations, FinalAllocation{
-			Participant: participant,
-			Amount:      amount,
+			Participant:  participant,
+			Amount:       amount,
+			TokenAddress: tokenAddress,
 		})
 	}
 
@@ -660,22 +643,6 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 			return fmt.Errorf("failed to find direct channel for participant B: %w", err)
 		}
 
-		// 4. Get current balances in the virtual channel
-		accountA := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantA)
-		balanceA, err := accountA.Balance(virtualChannel.TokenAddress)
-		if err != nil {
-			return fmt.Errorf("failed to check participant A balance: %w", err)
-		}
-
-		accountB := ledgerTx.Account(virtualChannel.ChannelID, virtualChannel.ParticipantB)
-		balanceB, err := accountB.Balance(virtualChannel.TokenAddress)
-		if err != nil {
-			return fmt.Errorf("failed to check participant B balance: %w", err)
-		}
-
-		// 5. Total funds in the virtual channel
-		totalVirtualChannelFunds := balanceA + balanceB
-
 		// 6. Validate and calculate total allocated amounts
 		totalAllocatedAmount := big.NewInt(0)
 		allocatedParticipants := make(map[string]bool)
@@ -691,12 +658,6 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 
 			totalAllocatedAmount = totalAllocatedAmount.Add(totalAllocatedAmount, allocation.Amount)
 			allocatedParticipants[allocation.Participant] = true
-		}
-
-		// 7. Check that total allocated amount matches total funds in the channel
-		if totalAllocatedAmount.Cmp(big.NewInt(totalVirtualChannelFunds)) != 0 {
-			return fmt.Errorf("total allocated amount (%s) does not match total funds in channel (%d)",
-				totalAllocatedAmount.String(), totalVirtualChannelFunds)
 		}
 
 		// 8. Check that we're only allocating to the virtual channel participants
@@ -730,7 +691,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 			toAccount := ledgerTx.Account(directChannel.ChannelID, allocation.Participant)
 
 			// Check if participant has enough funds in the virtual channel
-			participantBalance, err := fromAccount.Balance(virtualChannel.TokenAddress)
+			participantBalance, err := fromAccount.Balance(allocation.TokenAddress)
 			if err != nil {
 				return fmt.Errorf("failed to check balance for %s: %w", allocation.Participant, err)
 			}
@@ -749,17 +710,17 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 				// Record a transfer from other participant to this participant within the virtual channel
 				// This simulates the final settlement agreed upon by the participants
 				transferAccount := ledgerTx.Account(virtualChannel.ChannelID, otherParticipant)
-				if err := transferAccount.Record(virtualChannel.TokenAddress, -diff); err != nil {
+				if err := transferAccount.Record(allocation.TokenAddress, -diff); err != nil {
 					return fmt.Errorf("failed to adjust balance for %s: %w", otherParticipant, err)
 				}
 
-				if err := fromAccount.Record(virtualChannel.TokenAddress, diff); err != nil {
+				if err := fromAccount.Record(allocation.TokenAddress, diff); err != nil {
 					return fmt.Errorf("failed to adjust balance for %s: %w", allocation.Participant, err)
 				}
 			}
 
 			// Now transfer funds from virtual channel to direct channel
-			if err := fromAccount.Transfer(toAccount, virtualChannel.TokenAddress, allocation.Amount.Int64()); err != nil {
+			if err := fromAccount.Transfer(toAccount, allocation.TokenAddress, allocation.Amount.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds for %s: %w", allocation.Participant, err)
 			}
 		}
@@ -767,7 +728,6 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 		// 10. Mark the virtual channel as closed
 		if err := tx.Model(&virtualChannel).Updates(map[string]interface{}{
 			"status":     "closed",
-			"version":    virtualChannel.Version + 1,
 			"updated_at": time.Now(),
 		}).Error; err != nil {
 			return fmt.Errorf("failed to update virtual channel status: %w", err)
