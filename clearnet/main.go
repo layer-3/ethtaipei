@@ -158,9 +158,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// webhookHandler := NewEventHandler(ledger, channelService, BrokerAddress, custodyPOLYGON, custodyCELO, custodyBASE)
-	// http.Handle("/webhook", webhookHandler)
-
 	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, custodyPOLYGON)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
