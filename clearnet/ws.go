@@ -193,14 +193,6 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
-		case "CreateChannel":
-			rpcResponse, handlerErr = HandleCreateChannel(address, &rpcRequest, h.channelService, h.ledger)
-			if handlerErr != nil {
-				log.Printf("Error handling CreateChannel: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to create direct channel: "+handlerErr.Error())
-				continue
-			}
-
 		case "CreateVirtualChannel":
 			rpcResponse, handlerErr = HandleCreateVirtualChannel(nil, &rpcRequest, h.ledger, h.messageRouter)
 			if handlerErr != nil {
@@ -233,10 +225,10 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
-		case "SendPublicMessage":
-			rpcResponse, handlerErr = HandleSendPublicMessage(address, &rpcRequest, h.ledger, h)
+		case "BroadcastMessage":
+			rpcResponse, handlerErr = HandleBroadcastMessage(address, &rpcRequest, h.ledger, h)
 			if handlerErr != nil {
-				log.Printf("Error handling SendPublicMessage: %v", handlerErr)
+				log.Printf("Error handling BroadcastMessage: %v", handlerErr)
 				sendErrorResponse(uint64(requestID), method, conn, "Failed to send public message: "+handlerErr.Error())
 				continue
 			}

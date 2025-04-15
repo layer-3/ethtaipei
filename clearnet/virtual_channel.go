@@ -35,5 +35,3 @@ func (vc *DBVirtualChannel) MarshalJSON() ([]byte, error) {
 		UpdatedAt: vc.UpdatedAt.Format(time.RFC3339),
 	})
 }
-
-// NOTE: in the next PR I'll refine db structures and methods

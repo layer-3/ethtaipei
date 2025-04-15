@@ -226,7 +226,7 @@ func TestHandleCloseChannel(t *testing.T) {
 	require.NoError(t, accountB.Record(tokenAddress, 300))
 
 	// Create allocation parameters for closing
-	allocations := []FinalAllocation{
+	allocations := []Allocation{
 		{
 			Participant:  participantA,
 			Amount:       big.NewInt(250), // Participant A gets more than initial deposit
@@ -240,8 +240,8 @@ func TestHandleCloseChannel(t *testing.T) {
 	}
 
 	closeParams := CloseVirtualChannelParams{
-		ChannelID:   virtualChannelID,
-		Allocations: allocations,
+		ChannelID:        virtualChannelID,
+		FinalAllocations: allocations,
 	}
 
 	// Create RPC request
