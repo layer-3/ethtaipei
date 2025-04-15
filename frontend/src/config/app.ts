@@ -15,7 +15,7 @@ export const APP_CONFIG = {
     // Channel configuration
     CHANNEL: {
         // Default address for the second participant
-        DEFAULT_GUEST: '0xD278d56eDe7F43992739C1ee95806D00fDeA5aa0',
+        DEFAULT_GUEST: '0x3c93C321634a80FB3657CFAC707718A11cA57cBf',
         GUEST_KEY: '0xad1610e1e750ec26ed6a039d9661a965fd21a9e19e54076c84940400c75f6bbf',
         // Challenge period in seconds (1 day)
         CHALLENGE_PERIOD: 1,

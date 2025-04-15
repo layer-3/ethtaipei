@@ -14,10 +14,12 @@ const STORAGE_KEYS = {
     CHANNEL_ID: 'nitrolite_channel_id',
 };
 
-export function useChannelCreate() {
+export function useChannelCreate(
+    setResponse: (key: string, value: any) => void,
+    addToHistory: (type: string, status: string, message: string) => void,
+) {
     const { activeChain } = useSnapshot(SettingsStore.state);
     const walletSnap = useSnapshot(WalletStore.state);
-    const nitroliteSnap = useSnapshot(NitroliteStore.state);
 
     useEffect(() => {
         if (walletSnap.walletAddress && !NitroliteStore.getChannelContext()) {
@@ -115,154 +117,249 @@ export function useChannelCreate() {
 
     const handleCreateChannel = useCallback(
         async (tokenAddress: Address, amount: string) => {
-            // Check if a channel already exists
-            const existingChannel = await checkForExistingChannel();
+            try {
+                // Check if a channel already exists
+                const existingChannel = await checkForExistingChannel();
 
-            if (existingChannel.exists) {
-                const source = existingChannel.source;
-                let message = 'Cannot create a new channel because one already exists.';
+                if (existingChannel.exists) {
+                    const source = existingChannel.source;
+                    let message = 'Cannot create a new channel because one already exists.';
 
-                if (source === 'accountChannels') {
-                    message += 'You have active channel(s). Please close existing channels before creating a new one.';
-                } else {
-                    message += ' Please close the existing channel before creating a new one.';
+                    if (source === 'accountChannels') {
+                        message +=
+                            'You have active channel(s). Please close existing channels before creating a new one.';
+                    } else {
+                        message += ' Please close the existing channel before creating a new one.';
+                    }
+
+                    setResponse('channelCreation', { error: message, success: false });
+                    alert(message);
+                    throw new Error(message);
                 }
 
-                alert(message);
-                throw new Error(message);
-            }
+                // Continue with channel creation if no existing channel
+                if (!NitroliteStore.state.stateSigner) {
+                    const error = 'Nitrolite stateSigner not initialized';
 
-            // Continue with channel creation if no existing channel
-            if (!NitroliteStore.state.stateSigner) {
-                throw new Error('Nitrolite stateSigner not initialized');
-            }
+                    setResponse('channelCreation', { error, success: false });
+                    throw new Error(error);
+                }
 
-            const chainId = activeChain?.id;
+                const chainId = activeChain?.id;
 
-            if (!chainId) {
-                throw new Error('No active chain selected');
-            }
+                if (!chainId) {
+                    const error = 'No active chain selected';
 
-            const app = new AdjudicatorApp();
-            const adjudicator = APP_CONFIG.ADJUDICATORS[APP_CONFIG.DEFAULT_ADJUDICATOR][chainId] as Address;
+                    setResponse('channelCreation', { error, success: false });
+                    throw new Error(error);
+                }
 
-            if (!adjudicator) {
-                throw new Error('Adjudicator address not found');
-            }
+                const app = new AdjudicatorApp();
+                const adjudicator = APP_CONFIG.ADJUDICATORS[APP_CONFIG.DEFAULT_ADJUDICATOR][chainId] as Address;
 
-            const stateSigner = NitroliteStore.state.stateSigner;
+                if (!adjudicator) {
+                    const error = 'Adjudicator address not found';
 
-            WalletStore.setChannelOpen(true);
+                    setResponse('channelCreation', { error, success: false });
+                    throw new Error(error);
+                }
 
-            try {
-                const channel: Channel = {
-                    participants: [stateSigner.address as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
-                    adjudicator,
-                    challenge: BigInt(APP_CONFIG.CHANNEL.CHALLENGE_PERIOD),
-                    nonce: BigInt(Date.now()),
-                };
+                const stateSigner = NitroliteStore.state.stateSigner;
 
-                const amountBigInt = parseTokenUnits(tokenAddress, amount);
+                WalletStore.setChannelOpen(true);
 
-                // Create initial app state
-                const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;
+                try {
+                    const channel: Channel = {
+                        participants: [stateSigner.address as Address, APP_CONFIG.CHANNEL.DEFAULT_GUEST as Address],
+                        adjudicator,
+                        challenge: BigInt(APP_CONFIG.CHANNEL.CHALLENGE_PERIOD),
+                        nonce: BigInt(Date.now()),
+                    };
 
-                // Create initial channel state
-                const initialState: State = {
-                    data: app.encode(appState),
-                    allocations: [
+                    const amountBigInt = parseTokenUnits(tokenAddress, amount);
+
+                    // Create initial app state
+                    const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_OPEN;
+
+                    // Create initial channel state
+                    const initialState: State = {
+                        data: app.encode(appState),
+                        allocations: [
+                            {
+                                destination: WalletStore.state.walletAddress as Address,
+                                token: tokenAddress,
+                                amount: amountBigInt,
+                            },
+                            {
+                                destination: channel.participants[1],
+                                token: tokenAddress,
+                                amount: BigInt(0),
+                            },
+                        ],
+                        sigs: [],
+                    };
+
+                    // Create channel context with initial state
+                    const channelContext = NitroliteStore.setChannelContext(channel, initialState, app);
+                    const channelId = channelContext.getChannelId();
+
+                    // Sign the initial state
+                    setResponse('channelCreation', { status: 'Signing initial state...', success: false });
+                    const stateHash = channelContext.getStateHash(initialState);
+                    const [signature] = await stateSigner.sign(stateHash, true);
+                    const parsedSig = parseSignature(signature as Hex);
+
+                    initialState.sigs = [
                         {
-                            destination: WalletStore.state.walletAddress as Address,
-                            token: tokenAddress,
-                            amount: amountBigInt,
+                            r: parsedSig.r,
+                            s: parsedSig.s,
+                            v: Number(parsedSig.v),
                         },
-                        {
-                            destination: channel.participants[1],
-                            token: tokenAddress,
-                            amount: BigInt(0),
-                        },
-                    ],
-                    sigs: [],
-                };
+                    ];
 
-                // Create channel context with initial state
-                const channelContext = NitroliteStore.setChannelContext(channel, initialState, app);
-                const channelId = channelContext.getChannelId();
+                    // Update the channel context with the signed initial state
+                    NitroliteStore.setChannelContext(channel, initialState, app);
 
-                // Sign the initial state
-                // TODO SHOULD RETURN STASH HASH
-                const stateHash = channelContext.getStateHash(initialState);
-                const [signature] = await stateSigner.sign(stateHash, true);
-                const parsedSig = parseSignature(signature as Hex);
+                    // Save channel data to localStorage
+                    saveChannelToStorage(channel, initialState, channelId);
+                    setResponse('channelCreation', {
+                        status: 'Channel context created, creating on-chain...',
+                        success: false,
+                    });
 
-                initialState.sigs = [
-                    {
-                        r: parsedSig.r,
-                        s: parsedSig.s,
-                        v: Number(parsedSig.v),
-                    },
-                ];
+                    // Create the channel on-chain
+                    await NitroliteStore.createChannel(channelId);
 
-                // Update the channel context with the signed initial state
-                NitroliteStore.setChannelContext(channel, initialState, app);
+                    const result = { channelId, tokenAddress, amount: amountBigInt.toString() };
 
-                // Save channel data to localStorage
-                saveChannelToStorage(channel, initialState, channelId);
+                    // Add successful creation to history
+                    addToHistory(
+                        'CHANNEL_CREATE',
+                        'success',
+                        JSON.stringify({
+                            channelId,
+                            tokenAddress,
+                            amount: amountBigInt.toString(),
+                            participants: channel.participants,
+                            timestamp: Date.now(),
+                        }),
+                    );
 
-                // Create the channel on-chain
-                await NitroliteStore.createChannel(channelId);
+                    setResponse('channelCreation', {
+                        status: 'Channel created successfully',
+                        data: result,
+                        success: true,
+                    });
 
-                return { channelId, tokenAddress, amount: amountBigInt.toString() };
+                    return result;
+                } catch (error) {
+                    // If anything fails, mark channel as closed
+                    WalletStore.setChannelOpen(false);
+
+                    // Add failed creation to history
+                    addToHistory('CHANNEL_CREATE', 'error', String(error));
+
+                    setResponse('channelCreation', {
+                        error: `Channel creation failed: ${error}`,
+                        success: false,
+                    });
+
+                    throw error;
+                }
             } catch (error) {
-                // If anything fails, mark channel as closed
-                WalletStore.setChannelOpen(false);
-                throw error;
+                console.log('Error creating channel:', error);
             }
         },
-        [activeChain, saveChannelToStorage, checkForExistingChannel],
+        [activeChain, saveChannelToStorage, checkForExistingChannel, setResponse, addToHistory],
     );
 
     // Function to deposit to a channel
-    const handleDepositToChannel = useCallback(async (tokenAddress: Address, amount: string) => {
-        try {
-            // Convert to BigInt if it's not already
-            const amountBigInt =
-                typeof amount === 'string' && !amount.startsWith('0x')
-                    ? parseTokenUnits(tokenAddress, amount)
-                    : BigInt(amount);
+    const handleDepositToChannel = useCallback(
+        async (tokenAddress: Address, amount: string) => {
+            try {
+                console.log('setResponse', setResponse);
+                setResponse('channelDeposit', { status: 'Preparing deposit...', success: false });
 
-            await NitroliteStore.state.client.deposit(tokenAddress, amountBigInt);
+                // Convert to BigInt if it's not already
+                const amountBigInt =
+                    typeof amount === 'string' && !amount.startsWith('0x')
+                        ? parseTokenUnits(tokenAddress, amount)
+                        : BigInt(amount);
 
-            // Update your wallet store that channel is open
-            WalletStore.openChannel(tokenAddress, amountBigInt.toString());
+                setResponse('channelDeposit', { status: 'Processing deposit transaction...', success: false });
+                await NitroliteStore.state.client.deposit(tokenAddress, amountBigInt);
 
-            return true;
-        } catch (depositError) {
-            console.error('Deposit error:', depositError);
+                // Update your wallet store that channel is open
+                WalletStore.openChannel(tokenAddress, amountBigInt.toString());
 
-            // Provide specific error for deposit failure
-            if (String(depositError).includes('approve') && String(depositError).includes('not been authorized')) {
-                throw new Error(
-                    'Token approval was rejected. Please approve the USDC spend in your wallet to proceed.',
+                // Record successful deposit
+                addToHistory(
+                    'CHANNEL_DEPOSIT',
+                    'success',
+                    JSON.stringify({
+                        tokenAddress,
+                        amount: amountBigInt.toString(),
+                        timestamp: Date.now(),
+                    }),
                 );
-            }
 
-            // Provide specific error for other common issues
-            if (String(depositError).includes('user rejected transaction')) {
-                throw new Error('Transaction was rejected. Please confirm the transaction in your wallet.');
-            }
+                setResponse('channelDeposit', {
+                    status: 'Deposit completed successfully',
+                    data: { tokenAddress, amount: amountBigInt.toString() },
+                    success: true,
+                });
 
-            throw depositError;
-        }
-    }, []);
+                return true;
+            } catch (depositError) {
+                console.error('Deposit error:', depositError);
+
+                let errorMessage = 'Deposit failed';
+
+                // Provide specific error for deposit failure
+                if (String(depositError).includes('approve') && String(depositError).includes('not been authorized')) {
+                    errorMessage =
+                        'Token approval was rejected. Please approve the USDC spend in your wallet to proceed.';
+                }
+                // Provide specific error for other common issues
+                else if (String(depositError).includes('user rejected transaction')) {
+                    errorMessage = 'Transaction was rejected. Please confirm the transaction in your wallet.';
+                } else {
+                    errorMessage = `Deposit error: ${depositError}`;
+                }
+
+                // Record failed deposit
+                addToHistory('CHANNEL_DEPOSIT', 'error', errorMessage);
+
+                setResponse('channelDeposit', { error: errorMessage, success: false });
+
+                throw new Error(errorMessage);
+            }
+        },
+        [setResponse, addToHistory],
+    );
 
     // Function to clear stored channel data
     const clearStoredChannel = useCallback(() => {
-        localStorage.removeItem(STORAGE_KEYS.CHANNEL);
-        localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
-        localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
-        console.log('Cleared channel data from localStorage');
-    }, []);
+        try {
+            localStorage.removeItem(STORAGE_KEYS.CHANNEL);
+            localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
+            localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
+
+            addToHistory('CHANNEL_CLEAR', 'success', 'Channel data cleared from localStorage');
+
+            setResponse('clearChannel', {
+                status: 'Channel data cleared from localStorage',
+                success: true,
+            });
+
+            console.log('Cleared channel data from localStorage');
+        } catch (error) {
+            setResponse('clearChannel', {
+                error: `Failed to clear channel data: ${error}`,
+                success: false,
+            });
+        }
+    }, [setResponse, addToHistory]);
 
     return {
         handleCreateChannel,

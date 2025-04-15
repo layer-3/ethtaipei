@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 
 type TransactionStatus = 'success' | 'error' | 'pending';
 
-interface Transaction {
+export interface Transaction {
     id: string;
     type: string;
     timestamp: number;
@@ -14,7 +14,10 @@ interface Transaction {
 export const useTransactionHistory = () => {
     const [transactionHistory, setTransactionHistory] = useState<Transaction[]>([]);
 
+    console.log('test');
+
     const addToHistory = useCallback((type: string, status: TransactionStatus, message: string, details?: any) => {
+        console.log('Add to history', type, status, message, details);
         setTransactionHistory((prev) => [
             {
                 id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,

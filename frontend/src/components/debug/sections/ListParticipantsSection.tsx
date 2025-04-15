@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 interface ListParticipantsSectionProps {
     participants: any[];
@@ -9,6 +10,7 @@ interface ListParticipantsSectionProps {
     isLoading: boolean;
     response: any;
     isCurrentUser: (address: string) => boolean;
+    token: Hex;
 }
 
 export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = ({
@@ -19,6 +21,7 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
     isLoading,
     response,
     isCurrentUser,
+    token,
 }) => {
     // Helper to display raw responses
     const renderRawResponse = () => {
@@ -71,20 +74,17 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                 <tr>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                    >
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Address
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                    >
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Balance
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                    >
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Select
                                     </th>
                                 </tr>
@@ -105,15 +105,13 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                                     : selectedParticipant === participant.address
                                                       ? 'bg-green-50'
                                                       : ''
-                                            }
-                                        >
+                                            }>
                                             <td className="px-6 py-2 whitespace-nowrap text-sm">
                                                 <div className="flex items-center">
                                                     <span
                                                         className={
                                                             isCurrentUser(participant.address) ? 'font-semibold' : ''
-                                                        }
-                                                    >
+                                                        }>
                                                         {participant.address}
                                                         {isCurrentUser(participant.address) && (
                                                             <span className="ml-1 text-blue-600">(You)</span>
@@ -122,7 +120,7 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                                 </div>
                                             </td>
                                             <td className="px-6 py-2 whitespace-nowrap text-sm">
-                                                {participant.amount ? (participant.amount / 1000).toFixed(2) : 'N/A'}
+                                                {formatTokenUnits(token, participant.amount)}
                                             </td>
                                             <td className="px-6 py-2 whitespace-nowrap text-sm">
                                                 <input

@@ -150,28 +150,28 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
         }
     };
 
-    const handleClose = async () => {
-        if (!walletSnap.connected) return;
+    // const handleClose = async () => {
+    //     if (!walletSnap.connected) return;
 
-        try {
-            try {
-                // The hook will handle all the state creation and signing
-                await handleCloseChannel();
+    //     try {
+    //         try {
+    //             // The hook will handle all the state creation and signing
+    //             await handleCloseChannel(state);
 
-                console.log('Channel closed successfully');
-            } catch (channelError) {
-                alert('Failed to close channel: ' + channelError.message);
-                console.error('Failed to close channel:', channelError);
-            }
+    //             console.log('Channel closed successfully');
+    //         } catch (channelError) {
+    //             alert('Failed to close channel: ' + channelError.message);
+    //             console.error('Failed to close channel:', channelError);
+    //         }
 
-            console.log('All channels processed');
+    //         console.log('All channels processed');
 
-            // Refetch account info after closing channels
-            await fetchAccountInfo();
-        } catch (error) {
-            console.error('Error closing channels:', error);
-        }
-    };
+    //         // Refetch account info after closing channels
+    //         await fetchAccountInfo();
+    //     } catch (error) {
+    //         console.error('Error closing channels:', error);
+    //     }
+    // };
 
     const onCreateChannel = async () => {
         if (!walletSnap.connected) return;
@@ -489,7 +489,7 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                             <ActionButton onClick={handleWithdrawal}>Withdraw</ActionButton>
                             <ActionButton onClick={handleChallenge}>Challenge</ActionButton>
                             <ActionButton onClick={handleDirectChannel}>Close Direct Channel</ActionButton>
-                            <ActionButton onClick={handleClose}>Close Chain Channel</ActionButton>
+                            {/* <ActionButton onClick={handleClose}>Close Chain Channel</ActionButton> */}
                             <ActionButton onClick={handleGetListOfParticipants}>Get Participants</ActionButton>
                             <ActionButton onClick={handleOpenVirtualChannel}>Open Virtual Channel</ActionButton>
                             <ActionButton onClick={handleCloseVirtualChannel}>Close Virtual Channel</ActionButton>
@@ -513,8 +513,7 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                                     className="h-6 w-6"
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
+                                    stroke="currentColor">
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -546,8 +545,7 @@ export function MainHeader({ onOpenDeposit, onOpenCloseChannel }: MainHeaderProp
                         <div className="mt-4 flex justify-end">
                             <button
                                 onClick={handleCloseResponse}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            >
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                                 Close
                             </button>
                         </div>
