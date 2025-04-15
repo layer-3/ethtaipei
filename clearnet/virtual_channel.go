@@ -8,13 +8,13 @@ import (
 // DBVirtualChannel represents a virtual payment channel between participants
 type DBVirtualChannel struct {
 	ID           uint          `gorm:"primaryKey"`
-	ChannelID    string        `gorm:"column:channel_id;type:char(64);not null;uniqueIndex"`
-	ParticipantA string        `gorm:"column:participant_a;type:char(42);not null"`
-	ParticipantB string        `gorm:"column:participant_b;type:char(42);not null"`
-	Nonce        uint64        `gorm:"column:nonce;default:0"`
-	Status       ChannelStatus `gorm:"column:status;type:varchar(20);not null;default:'open'"`
-	CreatedAt    time.Time     `gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    time.Time     `gorm:"column:updated_at;default:CURRENT_TIMESTAMP"`
+	ChannelID    string        `gorm:"column:channel_id;not null;uniqueIndex"`
+	ParticipantA string        `gorm:"column:participant_a;not null"`
+	ParticipantB string        `gorm:"column:participant_b;not null"`
+	Nonce        uint64        `gorm:"column:nonce;not null"`
+	Status       ChannelStatus `gorm:"column:status;not null"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // TableName specifies the table name for the VirtualChannel model

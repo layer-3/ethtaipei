@@ -21,16 +21,16 @@ var (
 // DBChannel represents a state channel between participants
 type DBChannel struct {
 	ID           uint          `gorm:"primaryKey"`
-	ChannelID    string        `gorm:"column:channel_id;type:char(64);uniqueIndex;not null"`
-	ParticipantA string        `gorm:"column:participant_a;type:char(42);not null"`
-	ParticipantB string        `gorm:"column:participant_b;type:char(42);not null"`
-	Status       ChannelStatus `gorm:"column:status;type:varchar(20);not null;default:'open'"`
+	ChannelID    string        `gorm:"column:channel_id;uniqueIndex;"`
+	ParticipantA string        `gorm:"column:participant_a;not null"`
+	ParticipantB string        `gorm:"column:participant_b;not null"`
+	Status       ChannelStatus `gorm:"column:status;not null;"`
 	Challenge    uint64        `gorm:"column:challenge;default:0"`
 	Nonce        uint64        `gorm:"column:nonce;default:0"`
-	Adjudicator  string        `gorm:"column:adjudicator;type:char(42);default:''"`
-	NetworkID    string        `gorm:"column:network_id;type:varchar(32);default:''"`
-	CreatedAt    time.Time     `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    time.Time     `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP"`
+	Adjudicator  string        `gorm:"column:adjudicator;not null"`
+	NetworkID    string        `gorm:"column:network_id;not null"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // ToNitroChannel converts the channel to a nitrolite.Channel
