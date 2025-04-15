@@ -2,6 +2,7 @@ import React from 'react';
 import { useSnapshot } from 'valtio';
 import { WalletStore, SettingsStore } from '@/store';
 import { AccountInfo } from '@/store/types';
+import { CodeBlock } from '../common/CodeBlock'; // Import CodeBlock
 
 interface StatusCardProps {
     title: string;
@@ -42,12 +43,12 @@ interface StatusDashboardProps {
 }
 
 export const StatusDashboardSection: React.FC<StatusDashboardProps> = ({
-    accountInfo,
-    currentDeposit,
-    currentLocked,
-    virtualChannelId,
-    allocations,
-    wsStatus,
+    accountInfo, // From useDebugAccount state
+    currentDeposit, // Derived memoized value
+    currentLocked, // Derived memoized value
+    virtualChannelId, // From DebugInterface state (useState + localStorage)
+    allocations, // From DebugInterface state (useState)
+    wsStatus, // From useWebSocket state
 }) => {
     const walletSnap = useSnapshot(WalletStore.state);
     const activeChain = useSnapshot(SettingsStore.state).activeChain;
@@ -143,6 +144,58 @@ export const StatusDashboardSection: React.FC<StatusDashboardProps> = ({
                     </div>
                 </div>
             </div>
+            {/* Add CodeBlock here */}
+            <CodeBlock
+                text={`
+// --- Logic in DebugInterface.tsx ---
+
+// This component displays data derived from various sources within DebugInterface:
+
+// 1. State Hooks:
+//    - useState<AccountInfo> for 'accountInfo' (managed by useDebugAccount hook)
+const [accountInfo, setAccountInfo] = useState<AccountInfo>(/* ... */);
+const { fetchAccountInfo } = useDebugAccount({ setAccountInfo, /* ... */ });
+
+//    - useState<string> for 'virtualChannelId' (potentially synced with localStorage)
+const [virtualChannelId, setVirtualChannelId] = useState('');
+//    (useEffect might read from localStorage on mount)
+
+//    - useState<{ participantA: string, participantB: string }> for 'allocations'
+const [allocations, setAllocations] = useState({ participantA: '0', participantB: '0' });
+
+//    - useWebSocket hook for WebSocket status
+const { isConnected, status } = useWebSocket(wsUrl);
+const wsStatus = { isConnected, status };
+
+// 2. Store Snapshots:
+//    - useSnapshot(WalletStore.state) for wallet connection status and address
+//    - useSnapshot(SettingsStore.state) for the active chain details
+//    - useSnapshot(NitroliteStore.state) for stateSigner address
+
+// 3. Memoized Values:
+//    - useMemo to calculate 'currentDeposit' (formatted string)
+const currentDeposit = useMemo(() => {
+    // ... logic using accountInfo.deposited, settingsSnap.activeChain, formatTokenUnits ...
+}, [/* dependencies */]);
+//    - useMemo to calculate 'currentLocked' (formatted string)
+const currentLocked = useMemo(() => {
+    // ... logic using accountInfo.locked, settingsSnap.activeChain, formatTokenUnits ...
+}, [/* dependencies */]);
+
+// 4. Props Passing:
+//    - All the necessary data pieces are gathered and passed down as props
+//      from DebugInterface.tsx to StatusDashboardSection.
+
+<StatusDashboardSection
+  accountInfo={accountInfo} // Raw account info object
+  currentDeposit={currentDeposit} // Formatted string
+  currentLocked={currentLocked} // Formatted string
+  virtualChannelId={virtualChannelId} // String from state/localStorage
+  allocations={allocations} // Object from state
+  wsStatus={wsStatus} // Object { isConnected, status }
+/>
+        `}
+            />
         </section>
     );
 };

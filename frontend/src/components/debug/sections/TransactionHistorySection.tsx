@@ -1,12 +1,16 @@
 import React from 'react';
-import { Transaction } from '@/hooks/debug/useTransactionHistory';
+import { CodeBlock } from '../common/CodeBlock'; // Import CodeBlock
+import { Transaction } from '@/store';
 
 interface TransactionHistorySectionProps {
     transactions: Transaction[];
     responses: Record<string, any>;
 }
 
-export const TransactionHistorySection: React.FC<TransactionHistorySectionProps> = ({ transactions, responses }) => {
+export const TransactionHistorySection: React.FC<TransactionHistorySectionProps> = ({
+    transactions, // From useTransactionHistory hook state
+    responses, // From useResponseTracking hook state
+}) => {
     return (
         <section className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-xl font-semibold mb-4 pb-2 border-b">Transaction History</h2>
@@ -68,6 +72,39 @@ export const TransactionHistorySection: React.FC<TransactionHistorySectionProps>
                     </details>
                 </div>
             )}
+
+            {/* Add CodeBlock here */}
+            <CodeBlock
+                text={`
+// --- Logic in DebugInterface.tsx ---
+
+// This component displays data managed by specific hooks in DebugInterface:
+
+// 1. useTransactionHistory Hook:
+import { useTransactionHistory } from '@/hooks/debug/useTransactionHistory';
+const { transactionHistory, addToHistory } = useTransactionHistory();
+// - 'transactionHistory' (renamed from hook's return value) holds the array of log entries.
+// - 'addToHistory' function is passed to and called by various action handlers
+//   (e.g., handleDeposit, handleWithdraw, handleCreateChannel) to log steps.
+
+// 2. useResponseTracking Hook:
+import { useResponseTracking } from '@/hooks/debug/useResponseTracking';
+const { responses, setResponse, loadingStates } = useResponseTracking();
+// - 'responses' object stores raw JSON responses/errors from actions, keyed by action type.
+// - 'setResponse' is passed to and called by action handlers to store results.
+// - 'loadingStates' tracks loading status (used by other sections).
+
+// 3. Passing Data as Props:
+//    - The 'transactionHistory' array and the 'responses' object are retrieved
+//      from their respective hooks in DebugInterface and passed directly
+//      as props to this component.
+
+<TransactionHistorySection
+  transactions={transactionHistory} // The array from useTransactionHistory state
+  responses={responses} // The object from useResponseTracking state
+/>
+        `}
+            />
         </section>
     );
 };

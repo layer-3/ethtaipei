@@ -2,6 +2,7 @@ import React from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { AccountInfo } from '@/store/types';
 import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
+import { CodeBlock } from '../common/CodeBlock';
 
 interface CloseChannelSectionProps {
     accountInfo: AccountInfo;
@@ -61,6 +62,29 @@ export const CloseChannelSection: React.FC<CloseChannelSectionProps> = ({
             </div>
             {renderResponse()}
             <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
+            <CodeBlock
+                text={`
+// 1. Import the hook (assuming a hook like useChannel exists)
+import { useChannel } from '@/hooks/debug/useChannel'; // Adjust path
+
+// 2. Use the hook in your component
+const { closeChannel, isLoading, response, accountInfo } = useChannel(); // Assuming hook provides accountInfo or channelId
+
+// 3. Call the closeChannel function
+const handleClose = async () => {
+  // May need channelId from accountInfo or hook state
+  if (accountInfo.channelCount === 0) return;
+  await closeChannel(/* potentially pass channelId if needed */);
+  // Hook manages isLoading and response
+};
+
+// 4. Render UI elements
+<ActionButton onClick={handleClose} disabled={isLoading || accountInfo.channelCount === 0}>
+  Close Channel
+</ActionButton>
+{/* Display response/loading state */}
+        `}
+            />
         </section>
     );
 };

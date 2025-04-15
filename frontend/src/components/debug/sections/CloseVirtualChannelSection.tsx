@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
+import { CodeBlock } from '../common/CodeBlock';
 
 interface CloseVirtualChannelSectionProps {
     allocations: {
@@ -117,6 +118,76 @@ export const CloseVirtualChannelSection: React.FC<CloseVirtualChannelSectionProp
             {renderResponse()}
             {renderRawResponse()}
             <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
+            <CodeBlock
+                text={`
+// --- Logic in DebugInterface.tsx ---
+
+// 1. Import and use the hook
+import { useDebugVirtualChannels } from './handlers/useDebugVirtualChannels';
+const { closeVirtualChannel } = useDebugVirtualChannels({ isConnected }); // Assuming isConnected from useWebSocket
+
+// 2. Get necessary state
+const nitroSnap = useSnapshot(NitroliteStore.state);
+const settingsSnap = useSnapshot(SettingsStore.state);
+const { sendRequest } = useWebSocket(wsUrl); // Assuming sendRequest is needed
+const { fetchAccountInfo } = useDebugAccount(/* ... */);
+
+// 3. Manage local state for allocations and selected participant
+const [allocations, setAllocations] = useState({ participantA: '0', participantB: '0' });
+const [selectedParticipant, setSelectedParticipant] = useState(''); // Needed for close params
+
+// 4. Define the handler passed as 'onCloseVirtualChannel' prop
+const handleCloseVC = async () => {
+  const chainId = settingsSnap.activeChain?.id;
+  const storedVcId = localStorage.getItem('virtual_channel_id') || ''; // Get VC ID
+  const participantA = nitroSnap.stateSigner?.address || '';
+
+  if (!chainId || !storedVcId || !participantA || !selectedParticipant) return;
+
+  // Set loading/response state
+  setResponse('closeVirtualChannel', null);
+  addToHistory('closeVirtualChannel', 'pending', 'Closing virtual channel...');
+
+  try {
+    // Call the function from the hook
+    const closeResponse = await closeVirtualChannel(
+      sendRequest,
+      storedVcId,
+      participantA,
+      selectedParticipant,
+      allocations.participantA, // Final allocation for user
+      allocations.participantB, // Final allocation for peer
+      chainId
+    );
+
+    // Update loading/response state
+    setResponse('closeVirtualChannel', closeResponse);
+    addToHistory('closeVirtualChannel', closeResponse ? 'success' : 'error', closeResponse ? 'Virtual channel closed' : 'Failed to close virtual channel');
+
+    // Refresh account info after closing
+    await fetchAccountInfo();
+
+    // Optionally clear stored VC ID on success
+    // if (closeResponse?.success) { localStorage.removeItem('virtual_channel_id'); setVirtualChannelId(''); }
+
+  } catch (error) {
+    console.error('Close virtual channel failed:', error);
+    setResponse('closeVirtualChannel', { error: error.message });
+    addToHistory('closeVirtualChannel', 'error', \`Close VC failed: \${error.message}\`);
+  }
+};
+
+// 5. Pass the handler and state to the CloseVirtualChannelSection component
+<CloseVirtualChannelSection
+  allocations={allocations}
+  setAllocations={setAllocations} // Pass the setter
+  virtualChannelId={localStorage.getItem('virtual_channel_id') ?? ''} // Read from storage
+  onCloseVirtualChannel={handleCloseVC}
+  isLoading={loadingStates.closeVirtualChannel || false}
+  response={responses.closeVirtualChannel}
+/>
+        `}
+            />
         </section>
     );
 };

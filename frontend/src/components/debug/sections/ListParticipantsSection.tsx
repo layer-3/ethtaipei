@@ -4,6 +4,7 @@ import { ResponseDisplay } from '../common/ResponseDisplay';
 import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { CodeBlock } from '../common/CodeBlock'; // Import CodeBlock
 
 interface ListParticipantsSectionProps {
     participants: any[];
@@ -60,17 +61,20 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                 <tr>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
                                         Address
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
                                         Balance
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
                                         Select
                                     </th>
                                 </tr>
@@ -91,13 +95,15 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                                     : selectedParticipant === participant.address
                                                       ? 'bg-green-50'
                                                       : ''
-                                            }>
+                                            }
+                                        >
                                             <td className="px-6 py-2 whitespace-nowrap text-sm">
                                                 <div className="flex items-center">
                                                     <span
                                                         className={
                                                             isCurrentUser(participant.address) ? 'font-semibold' : ''
-                                                        }>
+                                                        }
+                                                    >
                                                         {participant.address}
                                                         {isCurrentUser(participant.address) && (
                                                             <span className="ml-1 text-blue-600">(You)</span>
@@ -135,6 +141,59 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
             ) : null}
             <ResponseDisplay response={response} isLoading={isLoading} />
             <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
+            {/* Add CodeBlock here */}
+            <CodeBlock
+                text={`
+// --- Logic in DebugInterface.tsx ---
+
+// 1. Import and use the hook
+import { useDebugParticipants } from './handlers/useDebugParticipants';
+const { getParticipants } = useDebugParticipants({ wsProps: { isConnected, connect, sendRequest }, activeChainId });
+
+// 2. Get necessary state/functions from other hooks
+const { isConnected, connect, sendRequest } = useWebSocket(wsUrl);
+const settingsSnap = useSnapshot(SettingsStore.state);
+const { setResponse, addToHistory } = useResponseTracking();
+
+// 3. Manage local state for participants list and selection
+const [participants, setParticipants] = useState<any[]>([]);
+const [selectedParticipant, setSelectedParticipant] = useState('');
+
+// 4. Define the handler passed as 'onGetParticipants' prop
+const handleGetListOfParticipants = async () => {
+  // Set loading/response state
+  setResponse('participants', null);
+  addToHistory('participants', 'pending', 'Fetching participants...');
+
+  try {
+    // Call the hook function, passing state setters
+    // The hook internally handles WebSocket connection and request logic
+    const fetchedParticipants = await getParticipants(setParticipants, setSelectedParticipant);
+
+    // Update loading/response state (assuming hook returns data or updates state directly)
+    // If getParticipants updates state directly via setters, response might just be success/error
+    setResponse('participants', { success: true, count: fetchedParticipants?.length ?? 0 }); // Example response
+    addToHistory('participants', 'success', \`Fetched \${fetchedParticipants?.length ?? 0} participants\`);
+
+  } catch (error) {
+    console.error('Failed to get participants:', error);
+    setResponse('participants', { error: error.message });
+    addToHistory('participants', 'error', \`Failed to get participants: \${error.message}\`);
+  }
+};
+
+// 5. Pass the handler and state setters to the ListParticipantsSection component
+<ListParticipantsSection
+  participants={participants}
+  selectedParticipant={selectedParticipant}
+  onSelectParticipant={setSelectedParticipant} // Pass the setter
+  onGetParticipants={handleGetListOfParticipants}
+  isLoading={loadingStates.participants || false}
+  response={responses.participants}
+  // ... other props like isCurrentUser, token
+/>
+        `}
+            />
         </section>
     );
 };

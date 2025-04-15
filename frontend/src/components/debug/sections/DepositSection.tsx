@@ -2,6 +2,7 @@ import React from 'react';
 import { ResponseDisplay } from '../common/ResponseDisplay'; // Assuming potential future use
 import { RawResponseDisplay } from '../common/RawResponseDisplay'; // Import RawResponseDisplay
 import { ActionButton } from '@/components/ui/ActionButton';
+import { CodeBlock } from '../common/CodeBlock';
 
 interface DepositSectionProps {
     currentDeposit: string;
@@ -14,10 +15,10 @@ interface DepositSectionProps {
 
 export const DepositSection: React.FC<DepositSectionProps> = ({
     currentDeposit,
-    onOpenDeposit,
-    // fetchAccountInfo, // Can be removed if only used by modal
-    response, // Destructure response
-    isLoading, // Destructure isLoading
+    onOpenDeposit, // This prop is connected to the logic below
+    fetchAccountInfo, // Prop passed from DebugInterface
+    response,
+    isLoading,
 }) => {
     return (
         <section className="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -30,6 +31,40 @@ export const DepositSection: React.FC<DepositSectionProps> = ({
             {/* Optional: Display response related to deposit actions if needed here */}
             {/* <ResponseDisplay response={response} isLoading={isLoading || false} /> */}
             <RawResponseDisplay response={response} /> {/* Add RawResponseDisplay */}
+            <CodeBlock
+                text={`
+// --- Logic in DebugInterface.tsx ---
+
+// 1. Import AppStore and necessary hooks
+import AppStore from '@/store/AppStore';
+import Deposit from '@/components/wallet/clearnet/Deposit';
+const { setResponse, addToHistory } = useResponseTracking();
+const appSnap = useSnapshot(AppStore.state);
+
+// 2. Define handlers for opening and closing the modal
+const handleOpenDeposit = () => AppStore.openDeposit();
+const handleCloseDeposit = () => AppStore.closeDeposit();
+
+// 3. Pass the open handler to the DepositSection component
+<DepositSection
+  onOpenDeposit={handleOpenDeposit}
+  currentDeposit={currentDeposit} // Formatted value for display
+  fetchAccountInfo={fetchAccountInfo} // Pass function to refresh account info
+  response={responses.deposit} // Pass response state for deposit actions
+  isLoading={loadingStates.deposit} // Pass loading state for deposit actions
+/>
+
+// 4. Render the Deposit Modal component elsewhere in DebugInterface
+<Deposit
+  isOpen={appSnap.isDepositOpen} // Control visibility via AppStore state
+  onClose={handleCloseDeposit} // Pass the close handler
+  setResponse={setResponse} // Pass response setter from useResponseTracking
+  addToHistory={addToHistory} // Pass history adder from useTransactionHistory
+  // The Deposit component internally handles the actual deposit logic
+  // using nitroClient.deposit and updates state via setResponse/addToHistory.
+/>
+        `}
+            />
         </section>
     );
 };
