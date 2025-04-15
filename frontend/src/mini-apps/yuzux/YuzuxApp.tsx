@@ -12,9 +12,8 @@ import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { useWebSocket } from '@/hooks';
 
 export function YuzuxApp() {
-    // WebSocket
-    const wsUrl = APP_CONFIG.WEBSOCKET.URL;
-    const { sendRequest, connect, isConnected } = useWebSocket(wsUrl);
+    // WebSocket - Use the hook without the URL parameter
+    const { sendRequest, connect, isConnected, generateKeys, hasKeys } = useWebSocket(); // Removed wsUrl
 
     const [isExiting, setIsExiting] = useState(false);
     const appSnap = useSnapshot(AppStore.state);
@@ -26,10 +25,28 @@ export function YuzuxApp() {
     }, [settingsSnap.activeChain]);
 
     const { getAccountInfo } = useGetAccountInfo({ activeChainId: chainId });
+    // Pass the necessary functions/state from the hook to useGetParticipants
     const { getParticipants } = useGetParticipants({
         wsProps: { isConnected, connect, sendRequest },
         activeChainId: chainId,
     });
+
+    // Ensure keys exist and connect WebSocket when the app mounts or becomes visible
+    useEffect(() => {
+        const initialize = async () => {
+            if (!hasKeys) {
+                console.log('YuzuxApp: No keys found, generating...');
+                await generateKeys(); // Generate keys if they don't exist
+            }
+            // Attempt to connect if keys are present (or just generated) and not already connected
+            if (hasKeys && !isConnected) {
+                console.log('YuzuxApp: Keys present, attempting WebSocket connect...');
+                await connect();
+            }
+        };
+
+        initialize();
+    }, [hasKeys, isConnected, generateKeys, connect]);
 
     const handleMinimize = () => {
         setIsExiting(true);
@@ -64,18 +81,22 @@ export function YuzuxApp() {
     }, []);
 
     useEffect(() => {
-        if (chainId) {
+        // Fetch data only if connected and chainId is available
+        if (isConnected && chainId) {
             getAccountInfo();
             getParticipants();
         }
-    }, [chainId]);
+    }, [isConnected, chainId, getAccountInfo, getParticipants]); // Added isConnected dependency
 
     const currentBalance = useMemo(() => {
-        if (!nitroSnap.accountInfo.locked) return '0';
-        const displayValue = formatTokenUnits(APP_CONFIG.TOKENS[chainId], nitroSnap.accountInfo.locked);
+        if (!nitroSnap.userAccountFromParticipants || !chainId) return '0'; // Check chainId too
+        const tokenConfig = APP_CONFIG.TOKENS[chainId];
+
+        if (!tokenConfig) return '0'; // Handle case where token config might not be ready
+        const displayValue = formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount);
 
         return displayValue;
-    }, [appSnap.isSendOpen, chainId, nitroSnap.accountInfo.locked]);
+    }, [chainId, nitroSnap.accountInfo.locked]); // Removed appSnap.isSendOpen dependency
 
     return (
         <div
@@ -97,9 +118,8 @@ export function YuzuxApp() {
                     </svg>
                 </button>
             </div>
-            <div>{JSON.stringify(nitroSnap.participants)}</div>
-            test
-            <div>{JSON.stringify(nitroSnap.userAccountFromParticipants)}</div>
+            <div className="text-white">{JSON.stringify(nitroSnap.participants)}</div>
+            <div className="text-white">{JSON.stringify(nitroSnap.userAccountFromParticipants)}</div>
             <div className="flex-grow flex items-center justify-center">
                 <div
                     className={`text-white text-center transform transition-transform duration-300 ${

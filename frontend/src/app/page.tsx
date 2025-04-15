@@ -7,6 +7,7 @@ import Privy from '@/providers/privy';
 import { NitroliteClientWrapper } from '@/providers/NitroliteClientWrapper';
 import { MinimizedApps, MainHeader, AppCatalog, YuzuxSection, YuzuxAppContainer } from '@/components';
 import { Deposit } from '@/components/wallet/clearnet';
+import { WebSocketProvider } from '@/context/WebSocketContext';
 
 export default function HomePage() {
     const appSnap = useSnapshot(AppStore.state);
@@ -33,25 +34,27 @@ export default function HomePage() {
 
     return (
         <Privy>
-            <div className="min-h-screen flex flex-col">
-                <NitroliteClientWrapper>
-                    <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
-                        <MainHeader onOpenDeposit={handleOpenDeposit} onOpenCloseChannel={handleOpenCloseChannel} />
+            <WebSocketProvider>
+                <div className="min-h-screen flex flex-col">
+                    <NitroliteClientWrapper>
+                        <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
+                            <MainHeader onOpenDeposit={handleOpenDeposit} onOpenCloseChannel={handleOpenCloseChannel} />
 
-                        <YuzuxSection onOpenYuzux={handleOpenYuzux} />
+                            <YuzuxSection onOpenYuzux={handleOpenYuzux} />
 
-                        <hr className="border-gray-300 mt-8" />
+                            <hr className="border-gray-300 mt-8" />
 
-                        <AppCatalog />
-                    </main>
+                            <AppCatalog />
+                        </main>
 
-                    <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
+                        <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
 
-                    <YuzuxAppContainer />
+                        <YuzuxAppContainer />
 
-                    <MinimizedApps />
-                </NitroliteClientWrapper>
-            </div>
+                        <MinimizedApps />
+                    </NitroliteClientWrapper>
+                </div>
+            </WebSocketProvider>
         </Privy>
     );
 }

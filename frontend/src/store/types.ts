@@ -40,7 +40,7 @@ export interface AccountInfo {
 
 export interface Participant {
     address: Address;
-    amount: number;
+    amount: bigint;
 }
 
 export type ParticipantsResponse = [[Participant]];

@@ -111,7 +111,9 @@ const NitroliteStore = {
         const userAddress = WalletStore.state.walletAddress;
 
         if (userAddress) {
-            const userAccount = participants.find((p) => p.address.toLowerCase() === userAddress.toLowerCase());
+            const userAccount = participants.find(
+                (p) => p.address.toLowerCase() === state.stateSigner.address.toLowerCase(),
+            );
 
             state.userAccountFromParticipants = userAccount || null;
         } else {

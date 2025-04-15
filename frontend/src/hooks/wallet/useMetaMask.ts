@@ -3,9 +3,6 @@ import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
 import SettingsStore from '@/store/SettingsStore';
 import { Address } from 'viem';
-import { generateKeyPair, createEthersSigner, createWebSocketClient } from '@/websocket';
-import APP_CONFIG from '@/config/app';
-import { NitroliteStore } from '@/store';
 
 // Storage key for wallet connection
 const WALLET_CONNECTION_KEY = 'wallet_connection';
@@ -29,9 +26,6 @@ export const disconnectWallet = async () => {
     }
 };
 
-// Constants for WebSocket
-const CRYPTO_KEYPAIR_KEY = 'crypto_keypair';
-
 export function useMetaMask() {
     const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState<boolean>(false);
     const walletSnap = useSnapshot(WalletStore.state);
@@ -43,68 +37,6 @@ export function useMetaMask() {
             setIsMetaMaskInstalled(!!window.ethereum?.isMetaMask);
         }
     }, []);
-
-    // Helper function to initialize keys and WebSocket
-    const initializeKeysAndWebSocket = async () => {
-        try {
-            console.log('Initializing crypto keys and WebSocket connection');
-
-            // Check if we already have keys
-            let keyPair = null;
-            const savedKeys = localStorage.getItem(CRYPTO_KEYPAIR_KEY);
-
-            if (savedKeys) {
-                try {
-                    keyPair = JSON.parse(savedKeys);
-                    console.log('Using existing crypto keys');
-                } catch (error) {
-                    console.error('Failed to parse saved keys:', error);
-                    keyPair = null;
-                }
-            }
-
-            // Generate new keys if none exist
-            if (!keyPair) {
-                console.log('Generating new crypto keys');
-                keyPair = await generateKeyPair();
-
-                // Store the keys in localStorage
-                if (typeof window !== 'undefined') {
-                    localStorage.setItem(CRYPTO_KEYPAIR_KEY, JSON.stringify(keyPair));
-                }
-            }
-
-            // Create a signer with the private key
-            const signer = createEthersSigner(keyPair.privateKey);
-
-            NitroliteStore.setStateSigner(signer);
-
-            // Create and connect WebSocket client
-            const wsUrl = APP_CONFIG.WEBSOCKET.URL;
-            const client = createWebSocketClient(wsUrl, signer, {
-                autoReconnect: true,
-                reconnectDelay: 1000,
-                maxReconnectAttempts: 5,
-                requestTimeout: 10000,
-            });
-
-            // Connect to WebSocket and authenticate
-            try {
-                await client.connect();
-                console.log('WebSocket connection established and authenticated');
-            } catch (wsError) {
-                console.error('WebSocket connection failed:', wsError);
-                // Continue execution even if WebSocket fails - we still have the keys
-            }
-
-            return { keyPair, client };
-        } catch (error) {
-            console.error('Error initializing keys and WebSocket:', error);
-            // We don't throw here to avoid breaking the wallet connection
-            // Just log the error and return null
-            return null;
-        }
-    };
 
     // Auto-reconnect to MetaMask if previously connected
     useEffect(() => {
@@ -126,15 +58,12 @@ export function useMetaMask() {
                             const chainId = parseInt(chainIdHex, 16);
 
                             // Update store
-                            WalletStore.connect(accounts[0] as Address, chainId, 'metamask');
+                            WalletStore.connect(accounts[0] as Address, 'metamask');
 
                             // Check if we need to switch networks
                             if (settingsSnap.activeChain && settingsSnap.activeChain.id !== chainId) {
                                 await switchNetwork(settingsSnap.activeChain.id);
                             }
-
-                            // Initialize crypto keys and WebSocket connection
-                            await initializeKeysAndWebSocket();
                         }
                     }
                 } catch (error) {
@@ -144,7 +73,7 @@ export function useMetaMask() {
         };
 
         reconnectWallet();
-    }, [settingsSnap.activeChain]);
+    }, [settingsSnap.activeChain, walletSnap.connected]);
 
     // Connect to MetaMask
     const connect = async () => {
@@ -161,7 +90,7 @@ export function useMetaMask() {
             const chainId = parseInt(chainIdHex, 16);
 
             // Update store with provider type
-            WalletStore.connect(accounts[0] as Address, chainId, 'metamask');
+            WalletStore.connect(accounts[0] as Address, 'metamask');
 
             // Save connection state to localStorage
             localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
@@ -170,9 +99,6 @@ export function useMetaMask() {
             if (settingsSnap.activeChain && settingsSnap.activeChain.id !== chainId) {
                 await switchNetwork(settingsSnap.activeChain.id);
             }
-
-            // Initialize crypto keys and WebSocket connection
-            await initializeKeysAndWebSocket();
         } catch (error) {
             console.error('Error connecting to MetaMask:', error);
             WalletStore.setError('Failed to connect to MetaMask');
@@ -221,7 +147,7 @@ export function useMetaMask() {
                     localStorage.removeItem(WALLET_CONNECTION_KEY);
                 } else if (accounts[0] !== walletSnap.walletAddress) {
                     // Account changed
-                    WalletStore.connect(accounts[0] as Address, walletSnap.chainId || 1, 'metamask');
+                    WalletStore.connect(accounts[0] as Address, 'metamask');
                     localStorage.setItem(WALLET_CONNECTION_KEY, 'true');
                 }
             };

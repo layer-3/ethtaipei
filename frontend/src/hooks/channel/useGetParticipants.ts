@@ -34,7 +34,7 @@ export function useGetParticipants({ wsProps, activeChainId }: useGetParticipant
         }
 
         try {
-            const response = await sendRequest('ListOpenParticipants', JSON.stringify([message]));
+            const response = await sendRequest('ListOpenParticipants', [message]);
 
             console.log('Participants response:', response);
 
