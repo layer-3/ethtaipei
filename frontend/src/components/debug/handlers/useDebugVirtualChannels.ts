@@ -51,7 +51,8 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
                     nonce: Date.now(),
                 };
 
-                const response = await sendRequest('CreateVirtualChannel', JSON.stringify([params]));
+                // @ts-ignore
+                const response = await sendRequest('CreateVirtualChannel', [params]);
 
                 setResponse('virtualChannel', JSON.stringify(response));
 
@@ -109,7 +110,8 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
                     token_address: tokenAddress,
                 };
 
-                const response = await sendRequest('CloseVirtualChannel', JSON.stringify([params]));
+                // @ts-ignore
+                const response = await sendRequest('CloseVirtualChannel', [params]);
 
                 setResponse('closeVirtualChannel', response);
 

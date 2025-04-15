@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSnapshot } from 'valtio';
 import { Modal } from './common/Modal';
 import { QrScanner } from './QrScanner';
-// import { TokenSelector } from './TokenSelector'; // Removed TokenSelector import
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
-import { NitroliteStore, WalletStore } from '@/store';
+import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
 import APP_CONFIG from '@/config/app';
+import { useWebSocket } from '@/hooks';
+import { useDebugVirtualChannels } from '@/components/debug/handlers/useDebugVirtualChannels';
+import { Address } from 'viem';
 
 interface SendProps {
     isOpen: boolean;
@@ -15,49 +18,43 @@ interface SendProps {
 
 type SendStep = 'scan' | 'manual' | 'amount' | 'processing' | 'success';
 
-// Define USDC details (assuming these are the correct details)
-const USDC_TOKEN = {
-    id: 'usdc',
-    name: 'USD Coin',
-    symbol: 'USDC',
-};
-
 export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
+    const nitroSnap = useSnapshot(NitroliteStore.state);
+    const settingsSnap = useSnapshot(SettingsStore.state);
+
+    const { sendRequest, isConnected } = useWebSocket();
+
+    const { openVirtualChannel, closeVirtualChannel } = useDebugVirtualChannels({
+        isConnected,
+    });
+
     const [step, setStep] = useState<SendStep>('scan');
     const [recipientAddress, setRecipientAddress] = useState('');
     const [amount, setAmount] = useState('0');
     const [isMobile, setIsMobile] = useState(false);
-    // Removed selectedToken state
+    const [processingError, setProcessingError] = useState<string | null>(null);
 
-    // Example chain ID from your global store
     const chainId = useMemo(() => WalletStore.state.chainId, []);
 
-    // Example balance from your global store (Nitrolite)
     const currentBalance = useMemo(() => {
         const nitroState = NitroliteStore.getLatestState();
 
         if (!nitroState) return BigInt(0);
-        // Assuming the first allocation is USDC or relevant balance
         const creatorAllocation = nitroState.allocations[0];
 
         return creatorAllocation.amount;
     }, []);
 
-    // Detect if device is mobile
     useEffect(() => {
         const checkIfMobile = () => {
-            // Check for mobile user agent
             const userAgent = navigator.userAgent.toLowerCase();
             const isMobileUserAgent =
                 /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i.test(userAgent);
 
-            // Check for small screen
             const isSmallScreen = window.innerWidth <= 768;
 
-            // Check for touch capability
             const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-            // Device is mobile if it meets at least two conditions
             const mobileDevice =
                 (isMobileUserAgent && isSmallScreen) || (isMobileUserAgent && hasTouch) || (isSmallScreen && hasTouch);
 
@@ -66,77 +63,61 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
 
         checkIfMobile();
 
-        // Update on resize
         window.addEventListener('resize', checkIfMobile);
         return () => window.removeEventListener('resize', checkIfMobile);
     }, []);
 
-    // Reset state whenever the modal is opened
     useEffect(() => {
         if (isOpen) {
-            // Set initial step based on device type
             setStep(isMobile ? 'scan' : 'manual');
             setRecipientAddress('');
             setAmount('0');
         }
     }, [isOpen, isMobile]);
 
-    // ----- Handlers -----
-
-    // 1. When we successfully scan a QR code
     const handleScan = useCallback((data: string) => {
         setRecipientAddress(data);
-        setStep('amount'); // Move to the amount entry step
+        setStep('amount');
     }, []);
 
-    // 2. Switch to manual entry of address
     const handleManualEntry = useCallback(() => {
         setStep('manual');
     }, []);
 
-    // 3. Manual address input change
     const handleAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setRecipientAddress(e.target.value);
     }, []);
 
-    // 4. Manual address submit
     const handleAddressSubmit = useCallback(() => {
         if (recipientAddress) {
             setStep('amount');
         }
     }, [recipientAddress]);
 
-    // 5. Amount change (via NumberPad)
     const handleAmountChange = useCallback((newValue: string) => {
         if (newValue === '') {
             setAmount('0');
             return;
         }
 
-        // Check for decimal point
         if (newValue.includes('.')) {
             const parts = newValue.split('.');
             const integerPart = parts[0];
-            const decimalPart = parts[1] || ''; // Handle case where user just typed '.'
+            const decimalPart = parts[1] || '';
 
-            // Limit decimal places to 2
-            if (decimalPart.length > 2) {
-                return; // Ignore input if more than 2 decimal places
+            if (decimalPart.length > 7) {
+                return;
             }
 
-            // Limit total digits (integer + decimal) to 9
-            // Note: The decimal point itself doesn't count towards the 9 digits
             if (integerPart.length + decimalPart.length > 9) {
-                return; // Ignore input if total digits exceed 9
+                return;
             }
         } else {
-            // Limit integer part to 9 digits if no decimal point
             if (newValue.length > 9) {
-                return; // Ignore input if integer length exceeds 9
+                return;
             }
         }
 
-        // Remove leading zeros unless it's the only digit or followed by a decimal
         if (newValue.length > 1 && newValue.startsWith('0') && !newValue.startsWith('0.')) {
             setAmount(newValue.substring(1));
         } else {
@@ -144,33 +125,83 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         }
     }, []);
 
-    // 6. Send transaction
-    const handleSend = useCallback(() => {
-        console.log('Sending', amount, USDC_TOKEN.symbol, 'to', recipientAddress); // Use USDC_TOKEN
+    const handleSend = useCallback(async () => {
         setStep('processing');
+        setProcessingError(null);
 
-        // Example usage with your global store - ensure this uses the correct USDC token info
-        const token = APP_CONFIG.TOKENS[chainId]; // Make sure this resolves to USDC or update logic
+        const chainId = settingsSnap.activeChain?.id;
+        const participantA = nitroSnap.stateSigner?.address;
+        const participantB = recipientAddress as Address;
+        const tokenConfig = chainId ? APP_CONFIG.TOKENS[chainId] : undefined;
 
-        console.warn('Ensure APP_CONFIG.TOKENS[chainId] correctly identifies USDC or update handleSend logic.');
+        if (!isConnected) {
+            setProcessingError('WebSocket not connected.');
+            setStep('manual');
+            return;
+        }
 
-        // Very rough example of updating store:
-        // Ensure this logic correctly handles the USDC balance update
-        NitroliteStore.appendState(token, [BigInt(+currentBalance.toString() - +amount), BigInt(0)]);
+        if (!chainId || !participantA || !participantB || !tokenConfig) {
+            setProcessingError('Missing required information (Chain ID, Sender, Recipient, Token Config).');
+            console.error('Missing info:', { chainId, participantA, participantB, tokenConfig });
+            setStep('manual');
+            return;
+        }
 
-        // Simulate an async transaction
-        setTimeout(() => {
+        try {
+            console.log('Opening virtual channel with:', { participantA, participantB, amount, chainId });
+
+            await openVirtualChannel(sendRequest, participantA, participantB, amount, chainId);
+
+            const virtualChannelId = localStorage.getItem('virtual_channel_id');
+
+            if (!virtualChannelId) {
+                throw new Error('Failed to open virtual channel.');
+            }
+            console.log('Virtual channel opened, ID:', virtualChannelId);
+
+            const allocations = {
+                participantA: '0',
+                participantB: amount,
+            };
+
+            console.log('Closing virtual channel with allocations:', allocations);
+            await closeVirtualChannel(
+                sendRequest,
+                virtualChannelId,
+                participantA,
+                participantB,
+                allocations.participantA,
+                allocations.participantB,
+                chainId,
+            );
+
+            console.log('Virtual channel closed successfully.');
+
             setStep('success');
-            // Optionally close the modal after success
             setTimeout(() => {
                 onClose();
+                setStep(isMobile ? 'scan' : 'manual');
+                setRecipientAddress('');
+                setAmount('0');
             }, 2000);
-        }, 2000);
-    }, [amount, recipientAddress, onClose, chainId, currentBalance]); // Removed selectedToken dependency
+        } catch (error) {
+            console.error('Send failed:', error);
+            setProcessingError(error instanceof Error ? error.message : 'An unknown error occurred.');
+            setStep('manual');
+        }
+    }, [
+        amount,
+        recipientAddress,
+        onClose,
+        settingsSnap.activeChain,
+        nitroSnap.stateSigner,
+        isConnected,
+        sendRequest,
+        openVirtualChannel,
+        closeVirtualChannel,
+        isMobile,
+    ]);
 
-    // ----- Step Components -----
-
-    // Scan step: shows the QrScanner + a button to enter address manually
     const scanComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
@@ -180,8 +211,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 <div className="p-4">
                     <button
                         onClick={handleManualEntry}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
                         Enter Manually
                     </button>
                 </div>
@@ -190,7 +220,6 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [handleScan, handleManualEntry],
     );
 
-    // Manual address entry
     const manualEntryComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
@@ -203,7 +232,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                             value={recipientAddress}
                             onChange={handleAddressChange}
                             className="block w-full px-3 py-3 bg-black border border-white rounded-md text-white shadow-sm focus:outline-none focus:ring-white focus:border-white"
-                            autoFocus={!isMobile} // Auto focus on desktop
+                            autoFocus={!isMobile}
                         />
                     </div>
                 </div>
@@ -211,17 +240,14 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     <button
                         onClick={handleAddressSubmit}
                         disabled={!recipientAddress}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed">
                         Continue
                     </button>
 
-                    {/* Only show "Scan QR" option on mobile devices */}
                     {isMobile && (
                         <button
                             onClick={() => setStep('scan')}
-                            className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-800 transition-colors text-lg font-normal border border-white mt-4"
-                        >
+                            className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-800 transition-colors text-lg font-normal border border-white mt-4">
                             Scan QR Code
                         </button>
                     )}
@@ -231,18 +257,14 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [recipientAddress, handleAddressChange, handleAddressSubmit, isMobile],
     );
 
-    // Amount entry (number pad only)
     const amountComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
-                {/* Removed TokenSelector section */}
                 <div className="flex-1 flex flex-col pt-8">
                     {' '}
-                    {/* Added padding top */}
                     <div className="flex-1 flex flex-col items-center justify-center mb-4">
                         <div className="flex gap-1 text-white items-start">
                             {' '}
-                            {/* Adjusted gap */}
                             <span className="text-5xl font-bold">$</span>
                             <span className="text-5xl font-bold">{amount}</span>
                         </div>
@@ -250,10 +272,9 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     </div>
                     <div className="p-4">
                         <button
-                            disabled={!+amount} // disable if amount is zero
+                            disabled={!+amount}
                             onClick={handleSend}
-                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4"
-                        >
+                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                             Pay
                         </button>
                     </div>
@@ -263,30 +284,41 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 </div>
             </div>
         ),
-        [amount, recipientAddress, handleAmountChange, handleSend], // Removed selectedToken dependency
+        [amount, recipientAddress, handleAmountChange, handleSend],
     );
 
-    // Processing step
     const processingComponent = useMemo(
         () => (
             <div className="flex flex-col items-center justify-center h-full">
-                <div className="mb-6 relative">
-                    <div className="w-16 h-16 border-4 border-white rounded-full animate-spin" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                        <div className="w-8 h-8 bg-black rounded-full" />
+                {processingError ? (
+                    <div className="text-center text-red-500">
+                        <h2 className="text-2xl font-semibold mb-2 text-white">Error</h2>
+                        <p className="text-gray-400 break-words px-4">{processingError}</p>
+                        <button
+                            onClick={() => setStep('manual')}
+                            className="mt-4 bg-white text-black py-2 px-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
+                            Try Again
+                        </button>
                     </div>
-                </div>
-
-                <div className="text-center">
-                    <h2 className="text-2xl font-semibold mb-2 text-white">Processing</h2>
-                    <p className="text-gray-400">Sending payment</p>
-                </div>
+                ) : (
+                    <>
+                        <div className="mb-6 relative">
+                            <div className="w-16 h-16 border-4 border-white rounded-full animate-spin" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                <div className="w-8 h-8 bg-black rounded-full" />
+                            </div>
+                        </div>
+                        <div className="text-center">
+                            <h2 className="text-2xl font-semibold mb-2 text-white">Processing</h2>
+                            <p className="text-gray-400">Sending payment via virtual channel...</p>
+                        </div>
+                    </>
+                )}
             </div>
         ),
-        [],
+        [processingError],
     );
 
-    // Success step
     const successComponent = useMemo(
         () => (
             <div className="flex flex-col items-center justify-center h-full">
@@ -307,7 +339,6 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [],
     );
 
-    // ----- Which step to show -----
     const componentToShow = useMemo(() => {
         switch (step) {
             case 'scan':
