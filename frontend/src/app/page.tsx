@@ -46,7 +46,6 @@ export default function HomePage() {
                     </main>
 
                     <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
-                    {/* <CloseChannel isOpen={appSnap.isCloseChannelOpen || false} onClose={handleCloseCloseChannel} /> */}
 
                     <YuzuxAppContainer />
 

@@ -19,7 +19,6 @@ export interface WalletState {
     selectedAmount: string | null;
 }
 
-// Channel and Nitrolite related types
 export type ChannelStatus =
     | 'none'
     | 'deposit_pending'
@@ -39,6 +38,13 @@ export interface AccountInfo {
     channelCount: number;
 }
 
+export interface Participant {
+    address: Address;
+    amount: number;
+}
+
+export type ParticipantsResponse = [[Participant]];
+
 export interface NitroliteState {
     client: NitroliteClient | null;
     channelContext: ChannelContext<bigint> | null;
@@ -46,6 +52,8 @@ export interface NitroliteState {
     stateSigner: WalletSigner | null;
     accountInfo: AccountInfo;
     openChannelIds: ChannelId[];
+    participants: Participant[];
+    userAccountFromParticipants: Participant | null;
 }
 
 // Settings related types

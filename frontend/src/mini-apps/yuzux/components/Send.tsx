@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal } from './common/Modal';
 import { QrScanner } from './QrScanner';
-import { TokenSelector } from './TokenSelector';
+// import { TokenSelector } from './TokenSelector'; // Removed TokenSelector import
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
 import { NitroliteStore, WalletStore } from '@/store';
 import APP_CONFIG from '@/config/app';
@@ -15,16 +15,19 @@ interface SendProps {
 
 type SendStep = 'scan' | 'manual' | 'amount' | 'processing' | 'success';
 
+// Define USDC details (assuming these are the correct details)
+const USDC_TOKEN = {
+    id: 'usdc',
+    name: 'USD Coin',
+    symbol: 'USDC',
+};
+
 export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
     const [step, setStep] = useState<SendStep>('scan');
     const [recipientAddress, setRecipientAddress] = useState('');
     const [amount, setAmount] = useState('0');
     const [isMobile, setIsMobile] = useState(false);
-    const [selectedToken, setSelectedToken] = useState({
-        id: '1',
-        name: 'Yuzu Token',
-        symbol: 'YUZU',
-    });
+    // Removed selectedToken state
 
     // Example chain ID from your global store
     const chainId = useMemo(() => WalletStore.state.chainId, []);
@@ -34,6 +37,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         const nitroState = NitroliteStore.getLatestState();
 
         if (!nitroState) return BigInt(0);
+        // Assuming the first allocation is USDC or relevant balance
         const creatorAllocation = nitroState.allocations[0];
 
         return creatorAllocation.amount;
@@ -106,21 +110,52 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
     const handleAmountChange = useCallback((newValue: string) => {
         if (newValue === '') {
             setAmount('0');
+            return;
+        }
+
+        // Check for decimal point
+        if (newValue.includes('.')) {
+            const parts = newValue.split('.');
+            const integerPart = parts[0];
+            const decimalPart = parts[1] || ''; // Handle case where user just typed '.'
+
+            // Limit decimal places to 2
+            if (decimalPart.length > 2) {
+                return; // Ignore input if more than 2 decimal places
+            }
+
+            // Limit total digits (integer + decimal) to 9
+            // Note: The decimal point itself doesn't count towards the 9 digits
+            if (integerPart.length + decimalPart.length > 9) {
+                return; // Ignore input if total digits exceed 9
+            }
         } else {
-            // Remove leading zeros
-            setAmount(newValue.replace(/^0+/, ''));
+            // Limit integer part to 9 digits if no decimal point
+            if (newValue.length > 9) {
+                return; // Ignore input if integer length exceeds 9
+            }
+        }
+
+        // Remove leading zeros unless it's the only digit or followed by a decimal
+        if (newValue.length > 1 && newValue.startsWith('0') && !newValue.startsWith('0.')) {
+            setAmount(newValue.substring(1));
+        } else {
+            setAmount(newValue);
         }
     }, []);
 
     // 6. Send transaction
     const handleSend = useCallback(() => {
-        console.log('Sending', amount, selectedToken.symbol, 'to', recipientAddress);
+        console.log('Sending', amount, USDC_TOKEN.symbol, 'to', recipientAddress); // Use USDC_TOKEN
         setStep('processing');
 
-        // Example usage with your global store
-        const token = APP_CONFIG.TOKENS[chainId];
+        // Example usage with your global store - ensure this uses the correct USDC token info
+        const token = APP_CONFIG.TOKENS[chainId]; // Make sure this resolves to USDC or update logic
+
+        console.warn('Ensure APP_CONFIG.TOKENS[chainId] correctly identifies USDC or update handleSend logic.');
 
         // Very rough example of updating store:
+        // Ensure this logic correctly handles the USDC balance update
         NitroliteStore.appendState(token, [BigInt(+currentBalance.toString() - +amount), BigInt(0)]);
 
         // Simulate an async transaction
@@ -131,7 +166,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 onClose();
             }, 2000);
         }, 2000);
-    }, [amount, selectedToken, recipientAddress, onClose, chainId, currentBalance]);
+    }, [amount, recipientAddress, onClose, chainId, currentBalance]); // Removed selectedToken dependency
 
     // ----- Step Components -----
 
@@ -145,8 +180,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 <div className="p-4">
                     <button
                         onClick={handleManualEntry}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
                         Enter Manually
                     </button>
                 </div>
@@ -176,8 +210,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     <button
                         onClick={handleAddressSubmit}
                         disabled={!recipientAddress}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed">
                         Continue
                     </button>
 
@@ -185,8 +218,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                     {isMobile && (
                         <button
                             onClick={() => setStep('scan')}
-                            className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-800 transition-colors text-lg font-normal border border-white mt-4"
-                        >
+                            className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-800 transition-colors text-lg font-normal border border-white mt-4">
                             Scan QR Code
                         </button>
                     )}
@@ -196,42 +228,38 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         [recipientAddress, handleAddressChange, handleAddressSubmit, isMobile],
     );
 
-    // Amount entry (token selector + number pad)
+    // Amount entry (number pad only)
     const amountComponent = useMemo(
         () => (
             <div className="flex flex-col h-full">
-                <div className="p-4 border-b border-white">
-                    <TokenSelector onSelect={setSelectedToken} selectedTokenId={selectedToken.id} />
-                </div>
-                <div className="flex-1 flex flex-col">
+                {/* Removed TokenSelector section */}
+                <div className="flex-1 flex flex-col pt-8">
+                    {' '}
+                    {/* Added padding top */}
                     <div className="flex-1 flex flex-col items-center justify-center mb-4">
-                        <div className="flex gap-2 text-white items-start">
-                            <span className="text-lg font-bold">{selectedToken.symbol}</span>
+                        <div className="flex gap-1 text-white items-start">
+                            {' '}
+                            {/* Adjusted gap */}
+                            <span className="text-5xl font-bold">$</span>
                             <span className="text-5xl font-bold">{amount}</span>
                         </div>
-                        <div className="mt-2 text-sm text-gray-400">
-                            to: {recipientAddress.substring(0, 6)}...
-                            {recipientAddress.substring(recipientAddress.length - 4)}
-                        </div>
+                        <div className="mt-2 text-sm text-gray-400">to: {recipientAddress}</div>
                     </div>
-
                     <div className="p-4">
                         <button
                             disabled={!+amount} // disable if amount is zero
                             onClick={handleSend}
-                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4"
-                        >
+                            className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                             Pay
                         </button>
                     </div>
-
-                    <div className="bg-white py-3">
+                    <div className="py-3 text-white">
                         <NumberPad value={amount} onChange={handleAmountChange} />
                     </div>
                 </div>
             </div>
         ),
-        [amount, selectedToken, recipientAddress, handleAmountChange, handleSend],
+        [amount, recipientAddress, handleAmountChange, handleSend], // Removed selectedToken dependency
     );
 
     // Processing step

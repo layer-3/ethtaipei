@@ -44,7 +44,7 @@ export default function CloseChannel({ isOpen, onClose }: DepositProps) {
         }
 
         // TODO: ask broker here about signature
-        handleCloseChannel(tokenAddress, String(value));
+        // handleCloseChannel(tokenAddress, String(value));
     }, [handleCloseChannel, chainId, value]);
 
     const defaultComponent = useMemo(() => {
@@ -59,8 +59,7 @@ export default function CloseChannel({ isOpen, onClose }: DepositProps) {
 
                 <button
                     onClick={onCloseChannel}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8"
-                >
+                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
                     Confirm Close
                 </button>
             </div>
@@ -116,8 +115,7 @@ export default function CloseChannel({ isOpen, onClose }: DepositProps) {
         <div
             className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-        >
+            }`}>
             <div className="p-4 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={onClose} className="p-2">
@@ -127,8 +125,7 @@ export default function CloseChannel({ isOpen, onClose }: DepositProps) {
                             viewBox="0 0 24 24"
                             strokeWidth={1.5}
                             stroke="currentColor"
-                            className="w-6 h-6"
-                        >
+                            className="w-6 h-6">
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"

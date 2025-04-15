@@ -5,7 +5,7 @@ import { WalletStore, SettingsStore, NitroliteStore } from '@/store';
 import AppStore from '@/store/AppStore';
 import { AccountInfo } from '@/store/types';
 import APP_CONFIG from '@/config/app';
-import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
+import { fetchAssets } from '@/store/AssetsStore';
 
 // UI sections
 import { WalletConnectionSection } from './sections/WalletConnectionSection';
@@ -391,12 +391,7 @@ export function DebugInterface() {
                 </>
             )}
 
-            <Deposit
-                isOpen={appSnap.isDepositOpen}
-                onClose={handleCloseDeposit}
-                setResponse={setResponse}
-                addToHistory={addToHistory}
-            />
+            <Deposit isOpen={appSnap.isDepositOpen} onClose={handleCloseDeposit} />
         </div>
     );
 }

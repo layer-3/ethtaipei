@@ -2,7 +2,7 @@ import { WalletSigner } from '@/websocket';
 import { AppLogic, ChannelContext, NitroliteClient, Channel, State } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { Address } from 'viem';
-import { NitroliteState, ChannelId, AccountInfo } from './types';
+import { NitroliteState, ChannelId, AccountInfo, Participant } from './types'; // Added Participant
 import { WalletStore } from './index';
 
 /**
@@ -14,6 +14,7 @@ import { WalletStore } from './index';
  * - Handling channel operations (deposit, create, close, withdraw)
  * - Tracking channel status and context
  * - Storing account information and open channels
+ * - Storing participant information
  */
 
 const state = proxy<NitroliteState>({
@@ -27,6 +28,8 @@ const state = proxy<NitroliteState>({
         channelCount: 0,
     },
     openChannelIds: [],
+    participants: [],
+    userAccountFromParticipants: null, // Initialized user account
 });
 
 const NitroliteStore = {
@@ -98,6 +101,22 @@ const NitroliteStore = {
 
     setOpenChannelIds(channelIds: ChannelId[]): void {
         state.openChannelIds = channelIds;
+    },
+
+    /**
+     * Set participants list and find the user's account within it.
+     */
+    setParticipants(participants: Participant[]): void {
+        state.participants = participants;
+        const userAddress = WalletStore.state.walletAddress;
+
+        if (userAddress) {
+            const userAccount = participants.find((p) => p.address.toLowerCase() === userAddress.toLowerCase());
+
+            state.userAccountFromParticipants = userAccount || null;
+        } else {
+            state.userAccountFromParticipants = null;
+        }
     },
 
     async deposit(channelId: string, tokenAddress: Address, amount: string): Promise<boolean> {
@@ -262,6 +281,7 @@ const NitroliteStore = {
     },
 
     reset(): void {
+        state.client = null;
         state.channelContext = null;
         state.status = 'none';
         state.stateSigner = null;
@@ -271,6 +291,8 @@ const NitroliteStore = {
             channelCount: 0,
         };
         state.openChannelIds = [];
+        state.participants = [];
+        state.userAccountFromParticipants = null; // Reset user account
     },
 };
 
