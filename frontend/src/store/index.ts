@@ -20,3 +20,7 @@ export { default as SettingsStore } from './SettingsStore';
 // Services
 export { default as NitroliteStore } from './NitroliteStore';
 export { default as AssetsStore } from './AssetsStore';
+
+// Debugging
+export { DebugStore } from './DebugStore';
+export type { Transaction, TransactionStatus } from './DebugStore';

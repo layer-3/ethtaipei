@@ -1,18 +1,20 @@
 import { useCallback } from 'react';
 import APP_CONFIG from '@/config/app';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { useTransactionHistory } from '@/hooks/debug/useTransactionHistory';
+import { useResponseTracking } from '@/hooks/debug/useResponseTracking';
 
 /**
  * Encapsulate opening and closing of a virtual channel logic.
  */
 interface UseDebugVirtualChannelsParams {
     isConnected: boolean;
-    setResponse: (key: string, value: any) => void;
-    addToHistory: (type: string, status: string, message: string) => void;
 }
 
-export function useDebugVirtualChannels({ isConnected, setResponse, addToHistory }: UseDebugVirtualChannelsParams) {
-    // Example: open virtual channel
+export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannelsParams) {
+    const { setResponse } = useResponseTracking();
+    const { addToHistory } = useTransactionHistory();
+
     const openVirtualChannel = useCallback(
         async (
             sendRequest: (method: string, payload: string) => Promise<any>,
@@ -71,7 +73,6 @@ export function useDebugVirtualChannels({ isConnected, setResponse, addToHistory
         [addToHistory, isConnected, setResponse],
     );
 
-    // Example: close virtual channel
     const closeVirtualChannel = useCallback(
         async (
             sendRequest: (method: string, payload: string) => Promise<any>,

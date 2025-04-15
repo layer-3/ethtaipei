@@ -6,6 +6,8 @@ import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { Channel, State } from '@erc7824/nitrolite';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { useResponseTracking } from '../debug/useResponseTracking';
+import { useTransactionHistory } from '../debug/useTransactionHistory';
 
 // Define localStorage keys
 const STORAGE_KEYS = {
@@ -14,10 +16,9 @@ const STORAGE_KEYS = {
     CHANNEL_ID: 'nitrolite_channel_id',
 };
 
-export function useChannelCreate(
-    setResponse: (key: string, value: any) => void,
-    addToHistory: (type: string, status: string, message: string) => void,
-) {
+export function useChannelCreate() {
+    const { setResponse } = useResponseTracking();
+    const { addToHistory } = useTransactionHistory();
     const { activeChain } = useSnapshot(SettingsStore.state);
     const walletSnap = useSnapshot(WalletStore.state);
 

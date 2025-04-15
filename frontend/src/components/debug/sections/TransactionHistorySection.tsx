@@ -59,7 +59,7 @@ export const TransactionHistorySection: React.FC<TransactionHistorySectionProps>
                                     <div key={index} className="mb-2 p-2 bg-gray-50 rounded">
                                         <div className="font-medium mb-1 capitalize">{key}:</div>
                                         <pre className="whitespace-pre-wrap break-words">
-                                            {JSON.stringify(value, null, 2)}
+                                            {JSON.stringify(Number(value), null, 2)}
                                         </pre>
                                     </div>
                                 ) : null,

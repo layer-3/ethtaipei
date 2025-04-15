@@ -3,6 +3,8 @@ import { Address } from 'viem';
 import { NitroliteStore, WalletStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { AccountInfo } from '@/store/types';
+import { useResponseTracking } from '@/hooks/debug/useResponseTracking';
+import { useTransactionHistory } from '@/hooks/debug/useTransactionHistory';
 
 /**
  * useDebugAccount
@@ -16,6 +18,8 @@ interface UseDebugAccountParams {
 
 export function useDebugAccount({ activeChainId, setAccountInfo }: UseDebugAccountParams) {
     const walletSnap = WalletStore.state;
+    const { setResponse } = useResponseTracking();
+    const { addToHistory } = useTransactionHistory();
 
     // Fetch account info from Nitrolite
     const fetchAccountInfo = useCallback(async () => {
@@ -26,6 +30,9 @@ export function useDebugAccount({ activeChainId, setAccountInfo }: UseDebugAccou
                 walletSnap.walletAddress,
                 APP_CONFIG.TOKENS[activeChainId] as Address,
             );
+
+            setResponse('accountInfo', response);
+            addToHistory('accountInfo', 'success', 'Fetched account info successfully');
 
             setAccountInfo(response);
         } catch (error) {

@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import APP_CONFIG from '@/config/app';
+import { useResponseTracking } from '../../../hooks/debug/useResponseTracking'; // Import directly from file
+import { useTransactionHistory } from '../../../hooks/debug/useTransactionHistory'; // Import directly from file
 
 /**
  * This hook encapsulates logic to fetch a list of participants via a WebSocket request.
@@ -7,17 +9,12 @@ import APP_CONFIG from '@/config/app';
 interface UseDebugParticipantsParams {
     wsProps: any;
     activeChainId?: number;
-    setResponse: (key: string, value: any) => void;
-    addToHistory: (type: string, status: string, message: string) => void;
 }
 
-export function useDebugParticipants({
-    wsProps,
-    activeChainId,
-    setResponse,
-    addToHistory,
-}: UseDebugParticipantsParams) {
+export function useDebugParticipants({ wsProps, activeChainId }: UseDebugParticipantsParams) {
     const { isConnected, connect, sendRequest } = wsProps;
+    const { setResponse } = useResponseTracking();
+    const { addToHistory } = useTransactionHistory();
 
     const getParticipants = useCallback(
         async (setParticipants: (p: any[]) => void, setSelectedParticipant: (p: string) => void) => {
@@ -54,25 +51,59 @@ export function useDebugParticipants({
                 console.log('Participants response:', response);
                 setResponse('participants', response);
 
-                // Process response
+                // Process response - Added more robust type checking for 'res'
                 if (response && Array.isArray(response)) {
-                    // Check nested structure
-                    if (response.res && Array.isArray(response.res[2]) && response.res[2][0]) {
-                        setParticipants(response.res[2][0]);
-                        if (response.res[2][0].length > 0) {
-                            setSelectedParticipant(response.res[2][0][0].address);
+                    // Check nested structure specifically
+                    // Assuming response structure might be like: { res: [any, any, [[{ address: string, ... }]]] }
+                    // Or simpler like: [[{ address: string, ... }]]
+                    // Or even simpler: [{ address: string, ... }]
+                    const potentialRes = response as any; // Cast to any to check for 'res'
+
+                    if (
+                        potentialRes.res &&
+                        Array.isArray(potentialRes.res) &&
+                        potentialRes.res.length > 2 &&
+                        Array.isArray(potentialRes.res[2]) &&
+                        potentialRes.res[2][0] &&
+                        Array.isArray(potentialRes.res[2][0])
+                    ) {
+                        const participantsList = potentialRes.res[2][0];
+
+                        setParticipants(participantsList);
+                        if (participantsList.length > 0 && participantsList[0].address) {
+                            setSelectedParticipant(participantsList[0].address);
                         }
-                        addToHistory('participants', 'success', `Found ${response.res[2][0].length} participants`);
+                        addToHistory(
+                            'participants',
+                            'success',
+                            `Found ${participantsList.length} participants (nested)`,
+                        );
                     } else if (response[0] && Array.isArray(response[0])) {
-                        setParticipants(response[0]);
-                        if (response[0].length > 0) {
-                            setSelectedParticipant(response[0][0].address);
+                        // Check if response is like [[{...}]]
+                        const participantsList = response[0];
+
+                        setParticipants(participantsList);
+
+                        if (participantsList.length > 0 && participantsList[0].address) {
+                            setSelectedParticipant(participantsList[0].address);
                         }
-                        addToHistory('participants', 'success', `Found ${response[0].length} participants`);
+
+                        addToHistory(
+                            'participants',
+                            'success',
+                            `Found ${participantsList.length} participants (array in array)`,
+                        );
                     } else if (response.length > 0 && response[0].address) {
-                        setParticipants(response);
-                        setSelectedParticipant(response[0].address);
-                        addToHistory('participants', 'success', `Found ${response.length} participants`);
+                        // Check if response is like [{...}]
+                        const participantsList = response;
+
+                        setParticipants(participantsList);
+                        setSelectedParticipant(participantsList[0].address);
+                        addToHistory(
+                            'participants',
+                            'success',
+                            `Found ${participantsList.length} participants (direct array)`,
+                        );
                     } else {
                         addToHistory('participants', 'success', 'No participants found');
                     }
@@ -91,7 +122,7 @@ export function useDebugParticipants({
                 );
             }
         },
-        [isConnected, connect, sendRequest, setResponse, addToHistory, activeChainId],
+        [isConnected, connect, sendRequest, activeChainId, setResponse, addToHistory], // Keep setResponse and addToHistory in deps as they come from hooks now
     );
 
     return {

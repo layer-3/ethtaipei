@@ -4,6 +4,8 @@ import { AdjudicatorApp } from '@/services/apps/adjudicator_app';
 import { NitroliteStore, WalletStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { State } from '@erc7824/nitrolite';
+import { useResponseTracking } from '../debug/useResponseTracking';
+import { useTransactionHistory } from '../debug/useTransactionHistory';
 
 // Define localStorage keys - must match those in useChannelCreate
 const STORAGE_KEYS = {
@@ -13,13 +15,35 @@ const STORAGE_KEYS = {
 };
 
 export function useChannelClose() {
+    const { setResponse, setLoading } = useResponseTracking();
+    const { addToHistory } = useTransactionHistory();
+
     // Function to clear stored channel data
     const clearStoredChannel = useCallback(() => {
-        localStorage.removeItem(STORAGE_KEYS.CHANNEL);
-        localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
-        localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
-        console.log('Cleared channel data from localStorage after closing');
-    }, []);
+        try {
+            localStorage.removeItem(STORAGE_KEYS.CHANNEL);
+            localStorage.removeItem(STORAGE_KEYS.CHANNEL_STATE);
+            localStorage.removeItem(STORAGE_KEYS.CHANNEL_ID);
+
+            setResponse('channelStorage', {
+                status: 'Channel data cleared from localStorage',
+                success: true,
+            });
+
+            addToHistory('CHANNEL_STORAGE_CLEAR', 'success', 'Cleared channel data from localStorage', {
+                timestamp: Date.now(),
+            });
+
+            console.log('Cleared channel data from localStorage after closing');
+        } catch (error) {
+            setResponse('channelStorage', {
+                error: `Failed to clear channel data: ${error}`,
+                success: false,
+            });
+
+            addToHistory('CHANNEL_STORAGE_CLEAR', 'error', `Failed to clear channel data: ${error}`);
+        }
+    }, [setResponse, addToHistory]);
 
     function removeQuotesFromRS(input: { r?: string; s?: string; [key: string]: any }): { [key: string]: any } {
         const output = { ...input };
@@ -70,22 +94,35 @@ export function useChannelClose() {
 
     const handleCloseChannel = useCallback(
         async (finalState: any) => {
-            if (!NitroliteStore.state.client || !NitroliteStore.state.client.walletClient) {
-                const errorMsg = 'Nitrolite client not initialized - please connect your wallet first';
-
-                throw new Error(errorMsg);
-            }
-
-            // Create Counter application instance
-            const app = new AdjudicatorApp();
-
-            const stateSigner = NitroliteStore.state.stateSigner;
-
-            if (!stateSigner) {
-                throw new Error('State signer not initialized');
-            }
+            setLoading('channelClose', true);
 
             try {
+                setResponse('channelClose', { status: 'Initializing channel close...', success: false });
+
+                if (!NitroliteStore.state.client || !NitroliteStore.state.client.walletClient) {
+                    const errorMsg = 'Nitrolite client not initialized - please connect your wallet first';
+
+                    setResponse('channelClose', { error: errorMsg, success: false });
+
+                    addToHistory('CHANNEL_CLOSE', 'error', errorMsg);
+
+                    throw new Error(errorMsg);
+                }
+
+                // Create Counter application instance
+                const app = new AdjudicatorApp();
+                const stateSigner = NitroliteStore.state.stateSigner;
+
+                if (!stateSigner) {
+                    const errorMsg = 'State signer not initialized';
+
+                    setResponse('channelClose', { error: errorMsg, success: false });
+
+                    addToHistory('CHANNEL_CLOSE', 'error', errorMsg);
+
+                    throw new Error(errorMsg);
+                }
+
                 // Create initial app state
                 const appState = APP_CONFIG.CHANNEL.MAGIC_NUMBER_CLOSE;
 
@@ -95,24 +132,41 @@ export function useChannelClose() {
 
                 // If no channel context in store, try to restore from localStorage
                 if (!channelContext) {
+                    setResponse('channelClose', {
+                        status: 'No channel context found, attempting to restore from localStorage...',
+                        success: false,
+                    });
+
                     storedData = getChannelFromStorage();
 
                     if (storedData) {
                         // Restore channel context
                         channelContext = NitroliteStore.setChannelContext(storedData.channel, storedData.state, app);
+                        setResponse('channelClose', {
+                            status: 'Restored channel from localStorage for closing',
+                            success: false,
+                        });
                         console.log('Restored channel from localStorage for closing');
                     } else {
-                        throw new Error('No channel found to close - check if channel exists');
+                        const errorMsg = 'No channel found to close - check if channel exists';
+
+                        setResponse('channelClose', { error: errorMsg, success: false });
+
+                        addToHistory('CHANNEL_CLOSE', 'error', errorMsg);
+
+                        throw new Error(errorMsg);
                     }
                 }
 
                 const channelId = channelContext.getChannelId();
 
-                console.log('Closing channel with ID:', channelId);
-                console.log('channelContext:', channelContext);
+                setResponse('channelClose', {
+                    status: `Preparing to close channel with ID: ${channelId}`,
+                    success: false,
+                });
+
                 // Set the channel open flag since we're interacting with it
                 WalletStore.setChannelOpen(true);
-                console.log('finalState', finalState[0]);
                 const brokerState = finalState[0] || storedData;
 
                 const responseState = {
@@ -130,10 +184,18 @@ export function useChannelClose() {
                     sigs: [],
                 };
 
+                setResponse('channelClose', {
+                    status: 'Creating state hash for signing...',
+                    success: false,
+                });
+
                 const stateHash = channelContext.getStateHash(state);
 
-                console.log('State hash:', stateHash);
-                console.log('stateSigner', stateSigner);
+                setResponse('channelClose', {
+                    status: 'Signing state hash...',
+                    success: false,
+                });
+
                 const [signature] = await stateSigner.sign(stateHash, true);
                 const parsedSig = parseSignature(signature as Hex);
 
@@ -150,7 +212,10 @@ export function useChannelClose() {
                     },
                 ];
 
-                console.log('Final state:', state);
+                setResponse('channelClose', {
+                    status: 'Closing channel on-chain...',
+                    success: false,
+                });
 
                 // Close the channel
                 await NitroliteStore.closeChannel(channelId, state);
@@ -161,14 +226,37 @@ export function useChannelClose() {
                 // Update wallet state
                 WalletStore.closeChannel();
 
+                // Record successful channel close
+                addToHistory('CHANNEL_CLOSE', 'success', 'Channel closed successfully', {
+                    channelId,
+                    allocations: JSON.stringify(state.allocations),
+                    timestamp: Date.now(),
+                });
+
+                setResponse('channelClose', {
+                    status: 'Channel closed successfully',
+                    data: { channelId },
+                    success: true,
+                });
+
                 return true;
             } catch (error) {
                 WalletStore.setChannelOpen(false);
                 console.error('Error closing channel:', error);
+
+                setResponse('channelClose', {
+                    error: `Channel close failed: ${error}`,
+                    success: false,
+                });
+
+                addToHistory('CHANNEL_CLOSE', 'error', `Channel close failed: ${error}`);
+
                 throw error;
+            } finally {
+                setLoading('channelClose', false);
             }
         },
-        [clearStoredChannel, getChannelFromStorage],
+        [clearStoredChannel, getChannelFromStorage, setResponse, setLoading, addToHistory],
     );
 
     return {

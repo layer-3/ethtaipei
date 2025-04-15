@@ -72,20 +72,16 @@ export function DebugInterface() {
     const { getParticipants } = useDebugParticipants({
         wsProps: { isConnected, connect, sendRequest },
         activeChainId: settingsSnap.activeChain?.id,
-        setResponse,
-        addToHistory,
     });
 
     const { openVirtualChannel, closeVirtualChannel } = useDebugVirtualChannels({
         isConnected,
-        setResponse,
-        addToHistory,
     });
 
     // Original channel hooks
     const { handleCloseChannel } = useChannelClose();
 
-    const { handleCreateChannel } = useChannelCreate(setResponse, addToHistory);
+    const { handleCreateChannel } = useChannelCreate();
 
     // Modal handlers
     const handleOpenDeposit = () => AppStore.openDeposit();
@@ -342,10 +338,8 @@ export function DebugInterface() {
                             setResponse('closeBrokerChannel', response);
                             addToHistory(
                                 'closeBrokerChannel',
-                                response && response.success ? 'success' : 'error',
-                                response && response.success
-                                    ? 'Channel closed successfully'
-                                    : 'Failed to close channel',
+                                response ? 'success' : 'error',
+                                response ? 'Channel closed successfully' : 'Failed to close channel',
                             );
 
                             // Clear channel ID after closing
@@ -357,20 +351,16 @@ export function DebugInterface() {
                             setResponse('closeChannel', response);
                             addToHistory(
                                 'closeChannel',
-                                response && response.success ? 'success' : 'error',
-                                response && response.success
-                                    ? 'Channel closed successfully'
-                                    : 'Failed to close channel',
+                                response ? 'success' : 'error',
+                                response ? 'Channel closed successfully' : 'Failed to close channel',
                             );
                             await handleCloseChannel(response);
 
                             setResponse('closeChannel', response);
                             addToHistory(
                                 'closeChannel',
-                                response && response.success ? 'success' : 'error',
-                                response && response.success
-                                    ? 'Channel closed successfully'
-                                    : 'Failed to close channel',
+                                response ? 'success' : 'error',
+                                response ? 'Channel closed successfully' : 'Failed to close channel',
                             );
                             fetchAccountInfo();
                         }}

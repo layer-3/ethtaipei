@@ -1,26 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useSnapshot } from 'valtio';
+import { DebugStore } from '@/store/DebugStore';
 
 export const useResponseTracking = () => {
-    const [responses, setResponses] = useState<Record<string, any>>({});
-    const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-
-    const setResponse = useCallback((key: string, value: any) => {
-        setResponses((prev) => ({ ...prev, [key]: value }));
-    }, []);
-
-    const setLoading = useCallback((key: string, isLoading: boolean) => {
-        setLoadingStates((prev) => ({ ...prev, [key]: isLoading }));
-    }, []);
-
-    const clearResponses = useCallback(() => {
-        setResponses({});
-    }, []);
+    const { responses, loadingStates } = useSnapshot(DebugStore.state);
 
     return {
         responses,
         loadingStates,
-        setResponse,
-        setLoading,
-        clearResponses,
+        setResponse: DebugStore.setResponse,
+        setLoading: DebugStore.setLoading,
+        clearResponses: DebugStore.clearResponses,
     };
 };

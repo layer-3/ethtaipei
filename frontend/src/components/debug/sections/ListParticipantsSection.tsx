@@ -74,17 +74,20 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                 <tr>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
                                         Address
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
                                         Balance
                                     </th>
                                     <th
                                         scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
                                         Select
                                     </th>
                                 </tr>
@@ -105,13 +108,15 @@ export const ListParticipantsSection: React.FC<ListParticipantsSectionProps> = (
                                                     : selectedParticipant === participant.address
                                                       ? 'bg-green-50'
                                                       : ''
-                                            }>
+                                            }
+                                        >
                                             <td className="px-6 py-2 whitespace-nowrap text-sm">
                                                 <div className="flex items-center">
                                                     <span
                                                         className={
                                                             isCurrentUser(participant.address) ? 'font-semibold' : ''
-                                                        }>
+                                                        }
+                                                    >
                                                         {participant.address}
                                                         {isCurrentUser(participant.address) && (
                                                             <span className="ml-1 text-blue-600">(You)</span>

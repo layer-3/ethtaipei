@@ -1,43 +1,15 @@
-import { useState, useCallback } from 'react';
-
-type TransactionStatus = 'success' | 'error' | 'pending';
-
-export interface Transaction {
-    id: string;
-    type: string;
-    timestamp: number;
-    status: TransactionStatus;
-    message: string;
-    details?: any;
-}
+import { useSnapshot } from 'valtio';
+import { DebugStore, Transaction } from '@/store/DebugStore'; // Import Transaction type too
 
 export const useTransactionHistory = () => {
-    const [transactionHistory, setTransactionHistory] = useState<Transaction[]>([]);
+    const { transactionHistory } = useSnapshot(DebugStore.state);
 
-    console.log('test');
-
-    const addToHistory = useCallback((type: string, status: TransactionStatus, message: string, details?: any) => {
-        console.log('Add to history', type, status, message, details);
-        setTransactionHistory((prev) => [
-            {
-                id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                type,
-                timestamp: Date.now(),
-                status,
-                message,
-                details,
-            },
-            ...prev,
-        ]);
-    }, []);
-
-    const clearHistory = useCallback(() => {
-        setTransactionHistory([]);
-    }, []);
+    // Type assertion for the snapshot state if needed, or ensure DebugStore state typing is correct
+    const typedTransactionHistory = transactionHistory as Transaction[];
 
     return {
-        transactionHistory,
-        addToHistory,
-        clearHistory,
+        transactionHistory: typedTransactionHistory,
+        addToHistory: DebugStore.addToHistory,
+        clearHistory: DebugStore.clearHistory,
     };
 };
