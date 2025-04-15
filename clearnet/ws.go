@@ -27,10 +27,11 @@ type UnifiedWSHandler struct {
 	connections    map[string]*websocket.Conn
 	connectionsMu  sync.RWMutex
 	custodyWrapper *CustodyClientWrapper
+	rpcService     *RPCMessageService
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
-func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, ledger *Ledger, messageRouter RouterInterface, custodyWrapper *CustodyClientWrapper) *UnifiedWSHandler {
+func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, ledger *Ledger, messageRouter RouterInterface, custodyWrapper *CustodyClientWrapper, rpcService *RPCMessageService) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
 		node:           node,
 		channelService: channelService,
@@ -45,6 +46,7 @@ func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, 
 		},
 		connections:    make(map[string]*websocket.Conn),
 		custodyWrapper: custodyWrapper,
+		rpcService:     rpcService,
 	}
 }
 
@@ -153,16 +155,23 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		}
 
 		requestID, _ := regularMsg.Req[0].(float64)
+		params, _ := regularMsg.Req[2].([]any)
+		timestamp, _ := regularMsg.Req[3].(float64)
 
 		// Build RPC request object.
 		rpcRequest := RPCRequest{
 			Req: RPCMessage{
 				Method:    method,
 				RequestID: uint64(requestID),
-				Params:    regularMsg.Req[2].([]interface{}),
-				Timestamp: uint64(time.Now().Unix()),
+				Params:    params,
+				Timestamp: uint64(timestamp),
 			},
 			Sig: regularMsg.Sig,
+		}
+
+		// Store the request message
+		if err := h.rpcService.StoreMessage(&rpcRequest); err != nil {
+			log.Printf("Error storing RPC request: %v", err)
 		}
 
 		// Validate the signature for the message
@@ -319,6 +328,11 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// For methods other than SendMessage, send back the RPC response.
 		rpcResponse.Sig = []string{"server-signature"}
 		wsResponseData, _ := json.Marshal(rpcResponse)
+
+		// Store the response message
+		if err := h.rpcService.StoreResponseMessage(&rpcRequest, rpcResponse); err != nil {
+			log.Printf("Error storing RPC response: %v", err)
+		}
 
 		// Use NextWriter for safer message delivery
 		w, err := conn.NextWriter(websocket.TextMessage)

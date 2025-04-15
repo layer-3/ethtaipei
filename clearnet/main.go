@@ -43,6 +43,7 @@ var (
 	router         *Router
 	messageRouter  RouterInterface
 	centrifugeNode *centrifuge.Node
+	rpcService     *RPCMessageService
 )
 
 // setupDatabase initializes the database connection and performs migrations.
@@ -52,7 +53,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 	// Auto-migrate the models.
-	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}); err != nil {
+	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}, &RPCMessageDB{}); err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -141,6 +142,7 @@ func main() {
 	ledger = NewLedger(db)
 	router = NewRouter(centrifugeNode)
 	messageRouter = NewRouter(centrifugeNode)
+	rpcService = NewRPCMessageService(db)
 
 	// Retrieve the private key.
 	privateKeyHex := os.Getenv("BROKER_PRIVATE_KEY")
@@ -158,8 +160,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, custodyPOLYGON)
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, custodyPOLYGON, rpcService)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
+
+	// Register RPC message endpoints
+	http.HandleFunc("/rpc/messages", HandleGetRPCMessages)
+	http.HandleFunc("/rpc/messages/", HandleGetRPCMessageByID)
 
 	// Start the HTTP server.
 	startHTTPServer()

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,6 +83,15 @@ type ChannelResponse struct {
 	Status       string `json:"status"`
 	ParticipantA string `json:"participantA,omitempty"`
 	ParticipantB string `json:"participantB,omitempty"`
+}
+
+// GetRPCMessagesResponse represents the response for the GetRPCMessages endpoint
+type GetRPCMessagesResponse struct {
+	Messages []RPCMessageDB `json:"messages"`
+	Total    int64         `json:"total"`
+	Offset   int           `json:"offset"`
+	Limit    int           `json:"limit"`
+	HasMore  bool          `json:"hasMore"`
 }
 
 // TODO: this will be triggered automatically when we receive an event from Blockchain.
@@ -936,4 +947,92 @@ func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error
 	address := common.HexToAddress(addr)
 
 	return address.Hex(), nil
+}
+
+// HandleGetRPCMessages handles requests to retrieve RPC messages
+func HandleGetRPCMessages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get pagination parameters
+	limit := 100
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	// Get messages from the database
+	messages, total, err := rpcService.GetMessages(limit, offset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error retrieving messages: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Create response
+	response := GetRPCMessagesResponse{
+		Messages: messages,
+		Total:    total,
+		Offset:   offset,
+		Limit:    limit,
+		HasMore:  offset+limit < int(total),
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Encode and send response
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// HandleGetRPCMessageByID handles requests to retrieve a specific RPC message by ID
+func HandleGetRPCMessageByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get request ID from URL path
+	reqIDStr := r.URL.Path[len("/rpc/messages/"):]
+	reqID, err := strconv.ParseUint(reqIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid request ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get message from the database
+	message, err := rpcService.GetMessageByID(reqID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, "Message not found", http.StatusNotFound)
+		} else {
+			http.Error(w, fmt.Sprintf("Error retrieving message: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Encode and send response
+	if err := json.NewEncoder(w).Encode(message); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
