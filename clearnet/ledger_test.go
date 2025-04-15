@@ -269,7 +269,7 @@ func TestHandleCloseChannel(t *testing.T) {
 	// Check that channel is marked as closed
 	var updatedChannel DBVirtualChannel
 	require.NoError(t, db.Where("channel_id = ?", virtualChannelID).First(&updatedChannel).Error)
-	assert.Equal(t, "closed", updatedChannel.Status)
+	assert.Equal(t, ChannelStatusClosed, updatedChannel.Status)
 
 	// Check that funds were transferred back to direct channels according to allocations
 	directAccountA := ledger.Account(channelA.ChannelID, participantA)

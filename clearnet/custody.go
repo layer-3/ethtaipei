@@ -198,11 +198,18 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 				log.Printf("[ChannelCreated] Error getting balances for participant: %v", err)
 				return err
 			}
+
 			for tokenAddress, balance := range balances {
 				if err := account.Record(tokenAddress, -balance); err != nil {
 					log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
 					return err
 				}
+			}
+
+			err = CloseChannel(tx, channelID.Hex())
+			if err != nil {
+				log.Printf("[ChannelCreated] Error closing channel: %v", err)
+				return err
 			}
 			return nil
 		})

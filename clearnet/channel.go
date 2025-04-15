@@ -11,18 +11,26 @@ import (
 	"gorm.io/gorm"
 )
 
+type ChannelStatus string
+
+var (
+	ChannelStatusOpen   ChannelStatus = "open"
+	ChannelStatusClosed ChannelStatus = "closed"
+)
+
 // DBChannel represents a state channel between participants
 type DBChannel struct {
-	ID           uint      `gorm:"primaryKey"`
-	ChannelID    string    `gorm:"column:channel_id;type:char(64);uniqueIndex;not null"`
-	ParticipantA string    `gorm:"column:participant_a;type:char(42);not null"`
-	ParticipantB string    `gorm:"column:participant_b;type:char(42);not null"`
-	Challenge    uint64    `gorm:"column:challenge;default:0"`
-	Nonce        uint64    `gorm:"column:nonce;default:0"`
-	Adjudicator  string    `gorm:"column:adjudicator;type:char(42);default:''"`
-	NetworkID    string    `gorm:"column:network_id;type:varchar(32);default:''"`
-	CreatedAt    time.Time `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP"`
+	ID           uint          `gorm:"primaryKey"`
+	ChannelID    string        `gorm:"column:channel_id;type:char(64);uniqueIndex;not null"`
+	ParticipantA string        `gorm:"column:participant_a;type:char(42);not null"`
+	ParticipantB string        `gorm:"column:participant_b;type:char(42);not null"`
+	Status       ChannelStatus `gorm:"column:status;type:varchar(20);not null;default:'open'"`
+	Challenge    uint64        `gorm:"column:challenge;default:0"`
+	Nonce        uint64        `gorm:"column:nonce;default:0"`
+	Adjudicator  string        `gorm:"column:adjudicator;type:char(42);default:''"`
+	NetworkID    string        `gorm:"column:network_id;type:varchar(32);default:''"`
+	CreatedAt    time.Time     `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"`
+	UpdatedAt    time.Time     `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP"`
 }
 
 // ToNitroChannel converts the channel to a nitrolite.Channel
@@ -88,6 +96,7 @@ func (s *ChannelService) GetOrCreateChannel(channelID, participantA string, nonc
 				ParticipantA: participantA,
 				ParticipantB: BrokerAddress, // Always use broker address for real channels
 				NetworkID:    network,       // Set the network ID for real channels
+				Status:       ChannelStatusOpen,
 				Nonce:        nonce,
 				Adjudicator:  adjudicator,
 				CreatedAt:    time.Now(),
@@ -130,4 +139,26 @@ func (s *ChannelService) GetChannelByID(channelID string) (*DBChannel, error) {
 	}
 
 	return &channel, nil
+}
+
+// CloseChannel closes a channel by updating its status to "closed"
+func CloseChannel(db *gorm.DB, channelID string) error {
+	var channel DBChannel
+	result := db.Where("channel_id = ?", channelID).First(&channel)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("channel with ID %s not found", channelID)
+		}
+		return fmt.Errorf("error finding channel: %w", result.Error)
+	}
+
+	// Update the channel status to "closed"
+	channel.Status = ChannelStatusClosed
+	channel.UpdatedAt = time.Now()
+	if err := db.Save(&channel).Error; err != nil {
+		return fmt.Errorf("failed to close channel: %w", err)
+	}
+
+	log.Printf("Closed channel with ID: %s", channelID)
+	return nil
 }

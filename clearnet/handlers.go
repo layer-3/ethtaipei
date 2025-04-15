@@ -458,7 +458,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 		}
 
 		// 2. Check if the channel is open
-		if virtualChannel.Status != "open" {
+		if virtualChannel.Status != ChannelStatusOpen {
 			return fmt.Errorf("channel is not open, current status: %s", virtualChannel.Status)
 		}
 

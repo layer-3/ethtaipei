@@ -9,13 +9,14 @@ import (
 
 // Entry represents a ledger entry in the database
 type Entry struct {
-	ID           uint      `gorm:"primaryKey"`
-	ChannelID    string    `gorm:"column:channel_id;type:char(64);not null"`
-	Participant  string    `gorm:"column:participant;type:char(40);not null"`
-	TokenAddress string    `gorm:"column:token_address;type:char(40);not null"`
-	Credit       int64     `gorm:"column:credit;not null"`
-	Debit        int64     `gorm:"column:debit;not null"`
-	CreatedAt    time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
+	ID           uint   `gorm:"primaryKey"`
+	ChannelID    string `gorm:"column:channel_id;type:char(64);not null"`
+	Participant  string `gorm:"column:participant;type:char(40);not null"`
+	TokenAddress string `gorm:"column:token_address;type:char(40);not null"`
+	// NetworkID  string    `gorm:"column:network_id;type:char(40);not null"`
+	Credit    int64     `gorm:"column:credit;not null"`
+	Debit     int64     `gorm:"column:debit;not null"`
+	CreatedAt time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
 }
 
 // TableName specifies the table name for the Entry model
