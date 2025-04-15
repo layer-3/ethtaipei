@@ -294,7 +294,6 @@ func (h *EventHandler) handleChannelCreatedEventNodit(networkID string, ethLog t
 	_, err = h.channelService.GetOrCreateChannel(
 		channelID.Hex(),
 		participantA,
-		tokenAddress,
 		channelCreatedEvent.Channel.Nonce,
 		channelCreatedEvent.Channel.Adjudicator.Hex(),
 		networkID,
@@ -319,8 +318,8 @@ func (h *EventHandler) handleChannelCreatedEventNodit(networkID string, ethLog t
 		log.Printf("[ChannelCreated] Broker is not a participant in this channel, skipping join")
 	}
 
-	account := ledger.Account(channelID.Hex(), participantA, tokenAddress)
-	if err := account.Record(tokenAmount.Int64()); err != nil {
+	account := ledger.Account(channelID.Hex(), participantA)
+	if err := account.Record(tokenAddress, tokenAmount.Int64()); err != nil {
 		log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
 		return
 	}
