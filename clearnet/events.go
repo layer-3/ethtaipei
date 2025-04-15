@@ -13,7 +13,7 @@ type ChanState uint8
 type CreatedEvent struct {
 	ChannelId common.Hash
 	Channel   nitrolite.Channel
-	Initial   State
+	Initial   nitrolite.State
 }
 
 type JoinedEvent struct {

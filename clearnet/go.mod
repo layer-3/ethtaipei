@@ -4,11 +4,10 @@ go 1.24.0
 
 require (
 	github.com/centrifugal/centrifuge v0.35.0
-	github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e
+	github.com/erc7824/go-nitrolite v0.0.0-20250415141747-f154f3eefba9
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/gorilla/websocket v1.5.3
 	github.com/ipfs/go-log/v2 v2.5.1
-	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.10.0
 	gorm.io/driver/sqlite v1.5.7

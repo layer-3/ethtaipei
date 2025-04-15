@@ -192,7 +192,7 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 
 	// Generate a unique channel ID for the virtual channel
 	nitroliteChannel := nitrolite.Channel{
-		Participants: [2]common.Address{participantA, participantB},
+		Participants: []common.Address{participantA, participantB},
 		Adjudicator:  adjudicator,
 		Challenge:    virtualChannel.Challenge,
 		Nonce:        virtualChannel.Nonce,
@@ -503,7 +503,7 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 		return nil, fmt.Errorf("failed to decode state data: %w", err)
 	}
 
-	allocations := []Allocation{
+	allocations := []nitrolite.Allocation{
 		{
 			Destination: common.HexToAddress(params.FundsDestination),
 			Token:       common.HexToAddress(tokenAddress),
@@ -517,7 +517,7 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 	}
 	channelID := common.HexToHash(channel.ChannelID)
 
-	encodedState, err := encodeState(channelID, stateData, allocations)
+	encodedState, err := nitrolite.EncodeState(channelID, stateData, allocations)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode state hash: %w", err)
 	}

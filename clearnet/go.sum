@@ -57,8 +57,8 @@ github.com/deepmap/oapi-codegen v1.6.0 h1:w/d1ntwh91XI0b/8ja7+u5SvA4IFfM0UNNLmiD
 github.com/deepmap/oapi-codegen v1.6.0/go.mod h1:ryDa9AgbELGeB+YEXE1dR53yAjHwFvE9iAUlWl9Al3M=
 github.com/dolthub/maphash v0.1.0 h1:bsQ7JsF4FkkWyrP3oCnFJgrCUAFbFf3kOl4L/QxPDyQ=
 github.com/dolthub/maphash v0.1.0/go.mod h1:gkg4Ch4CdCDu5h6PMriVLawB7koZ+5ijb9puGMV50a4=
-github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e h1:QEVMjjQ4QNTSkybJ9uM4H4U2HGEzfFe/0x7U+VNhjEE=
-github.com/erc7824/go-nitrolite v0.0.0-20250405113918-019770594f0e/go.mod h1:3SDBHeCQKsLSPP8AAdxzgeI7m+zVp+S6b4/imF3x6G8=
+github.com/erc7824/go-nitrolite v0.0.0-20250415141747-f154f3eefba9 h1:r5tEajnpV8Q2Vy8kAl+jI6/vkE76ebo2dpUnqNhA0p0=
+github.com/erc7824/go-nitrolite v0.0.0-20250415141747-f154f3eefba9/go.mod h1:bRJLEvondMsTHYjapAfqze28MAZW7dcqd2h6JXU1cdE=
 github.com/ethereum/c-kzg-4844 v1.0.0 h1:0X1LBXxaEtYD9xsyj9B9ctQEZIpnvVDeoBx8aHEwTNA=
 github.com/ethereum/c-kzg-4844 v1.0.0/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
 github.com/ethereum/go-ethereum v1.15.7 h1:vm1XXruZVnqtODBgqFaTclzP0xAvCvQIDKyFNUA1JpY=

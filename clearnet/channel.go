@@ -32,7 +32,7 @@ func (c *DBChannel) ToNitroChannel() (*nitrolite.Channel, error) {
 	adjudicator := common.HexToAddress(c.Adjudicator)
 
 	return &nitrolite.Channel{
-		Participants: [2]common.Address{participantA, participantB},
+		Participants: []common.Address{participantA, participantB},
 		Adjudicator:  adjudicator,
 		Challenge:    c.Challenge,
 		Nonce:        c.Nonce,
