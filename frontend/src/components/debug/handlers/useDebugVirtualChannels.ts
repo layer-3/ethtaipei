@@ -53,10 +53,10 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
 
                 const response = await sendRequest('CreateVirtualChannel', JSON.stringify([params]));
 
-                setResponse('virtualChannel', response);
+                setResponse('virtualChannel', JSON.stringify(response));
 
-                if (response && response.channelId) {
-                    localStorage.setItem('virtual_channel_id', response.channelId);
+                if (response && response[0].channelId) {
+                    localStorage.setItem('virtual_channel_id', response[0].channelId);
                     addToHistory(
                         'virtualChannel',
                         'success',
@@ -119,7 +119,7 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
                     `Virtual channel ${virtualChannelId.substring(0, 10)}... closed`,
                 );
 
-                if (response && response.success) {
+                if (response) {
                     localStorage.removeItem('virtual_channel_id');
                 }
             } catch (error) {

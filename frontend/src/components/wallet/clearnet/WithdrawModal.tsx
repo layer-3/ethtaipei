@@ -1,5 +1,3 @@
-import { WithdrawFromCustody } from './WithdrawFromCustody';
-
 interface WithdrawModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -17,7 +15,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
                         &times;
                     </button>
                 </div>
-                <WithdrawFromCustody />
+                {/* <WithdrawFromCustody /> */}
             </div>
         </div>
     );
