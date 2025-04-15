@@ -23,7 +23,7 @@ var (
 // CustodyClientWrapper implements the BlockchainClient interface using the Custody contract
 type CustodyClientWrapper struct {
 	client       *ethclient.Client
-	custody      *Custody
+	custody      *nitrolite.Custody
 	custodyAddr  common.Address
 	transactOpts *bind.TransactOpts
 	networkID    string
@@ -38,7 +38,7 @@ func NewCustodyClientWrapper(
 	networkID string,
 	privateKey *ecdsa.PrivateKey,
 ) (*CustodyClientWrapper, error) {
-	custody, err := NewCustody(custodyAddress, client)
+	custody, err := nitrolite.NewCustody(custodyAddress, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind custody contract: %w", err)
 	}
@@ -53,12 +53,12 @@ func NewCustodyClientWrapper(
 	}, nil
 }
 
-func (c *CustodyClientWrapper) SignEncodedState(encodedState []byte) (Signature, error) {
+func (c *CustodyClientWrapper) SignEncodedState(encodedState []byte) (nitrolite.Signature, error) {
 	sig, err := nitrolite.Sign(encodedState, c.privateKey)
 	if err != nil {
-		return Signature{}, fmt.Errorf("failed to sign encoded state: %w", err)
+		return nitrolite.Signature{}, fmt.Errorf("failed to sign encoded state: %w", err)
 	}
-	return Signature{
+	return nitrolite.Signature{
 		V: sig.V,
 		R: sig.R,
 		S: sig.S,
@@ -99,7 +99,7 @@ func (c *CustodyClientWrapper) GetNetworkID() string {
 	return c.networkID
 }
 
-func (c *CustodyClientWrapper) GetCustody() *Custody {
+func (c *CustodyClientWrapper) GetCustody() *nitrolite.Custody {
 	return c.custody
 }
 
@@ -146,7 +146,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		encodedState, err := encodeState(ev.ChannelId, ev.Initial.Data, ev.Initial.Allocations)
+		encodedState, err := nitrolite.EncodeState(ev.ChannelId, ev.Initial.Data, ev.Initial.Allocations)
 		if err != nil {
 			log.Printf("[ChannelCreated] Error encoding state hash: %v", err)
 			return
@@ -209,52 +209,4 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 	default:
 		fmt.Println("Unknown event ID:", eventID.Hex())
 	}
-}
-
-func encodeState(channelID [32]byte, stateData []byte, allocations []Allocation) ([]byte, error) {
-	// Define Allocation[] as tuple[]
-	allocationType, err := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
-		{
-			Name: "destination",
-			Type: "address",
-		},
-		{
-			Name: "token",
-			Type: "address",
-		},
-		{
-			Name: "amount",
-			Type: "uint256",
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert Go structs to interface{} slice matching tuple[]
-	var allocValues []interface{}
-	for _, alloc := range allocations {
-		allocValues = append(allocValues, struct {
-			Destination common.Address
-			Token       common.Address
-			Amount      *big.Int
-		}{
-			Destination: alloc.Destination,
-			Token:       alloc.Token,
-			Amount:      alloc.Amount,
-		})
-	}
-
-	// ABI encode channelId (bytes32), data (bytes), allocations (tuple[])
-	args := abi.Arguments{
-		{Type: abi.Type{T: abi.FixedBytesTy, Size: 32}}, // channelId
-		{Type: abi.Type{T: abi.BytesTy}},                // data
-		{Type: allocationType},                          // allocations as tuple[]
-	}
-
-	packed, err := args.Pack(channelID, stateData, allocations)
-	if err != nil {
-		return nil, err
-	}
-	return packed, nil
 }

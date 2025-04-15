@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/erc7824/go-nitrolite"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,7 +25,7 @@ func init() {
 	log.SetLogLevel("base-event-listener", "debug")
 
 	var err error
-	custodyAbi, err = CustodyMetaData.GetAbi()
+	custodyAbi, err = nitrolite.CustodyMetaData.GetAbi()
 	if err != nil {
 		panic(err)
 	}
