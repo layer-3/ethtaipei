@@ -156,7 +156,7 @@ func main() {
 	}
 
 	// Get the Polygon client (or any other network you want to use as default)
-	custodyPOLYGON := clients["polygon"]
+	custodyPOLYGON := clients["137"]
 	if custodyPOLYGON == nil {
 		log.Fatal("Polygon client is required but not initialized")
 	}
@@ -199,7 +199,7 @@ func initBlockchainClients(privateKeyHex string) (map[string]*CustodyClientWrapp
 			continue
 		}
 
-		clients[name] = client
+		clients[network.ChainID] = client
 	}
 
 	return clients, nil
