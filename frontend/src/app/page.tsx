@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSnapshot } from 'valtio';
 import { AppStore } from '@/store';
 import Privy from '@/providers/privy';
@@ -8,6 +8,7 @@ import { NitroliteClientWrapper } from '@/providers/NitroliteClientWrapper';
 import { MinimizedApps, MainHeader, AppCatalog, YuzuxSection, YuzuxAppContainer } from '@/components';
 import { Deposit } from '@/components/wallet/clearnet';
 import { WebSocketProvider } from '@/context/WebSocketContext';
+import { fetchAssets } from '@/store/AssetsStore';
 
 export default function HomePage() {
     const appSnap = useSnapshot(AppStore.state);
@@ -31,6 +32,10 @@ export default function HomePage() {
     // const handleCloseChannel = useCallback(() => {
     //     AppStore.closeCloseChannel();
     // }, []);
+
+    useEffect(() => {
+        fetchAssets();
+    }, []);
 
     return (
         <Privy>

@@ -1,11 +1,10 @@
 import { useCallback } from 'react';
-import APP_CONFIG from '@/config/app';
-import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { useVirtualChannelOpen, useVirtualChannelClose } from '@/hooks/channel';
 import { useTransactionHistory } from '@/hooks/debug/useTransactionHistory';
 import { useResponseTracking } from '@/hooks/debug/useResponseTracking';
 
 /**
- * Encapsulate opening and closing of a virtual channel logic.
+ * Encapsulate debug opening and closing of a virtual channel logic.
  */
 interface UseDebugVirtualChannelsParams {
     isConnected: boolean;
@@ -14,6 +13,8 @@ interface UseDebugVirtualChannelsParams {
 export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannelsParams) {
     const { setResponse } = useResponseTracking();
     const { addToHistory } = useTransactionHistory();
+    const { openVirtualChannel: openVirtualChannelBase } = useVirtualChannelOpen();
+    const { closeVirtualChannel: closeVirtualChannelBase } = useVirtualChannelClose();
 
     const openVirtualChannel = useCallback(
         async (
@@ -27,51 +28,33 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
             addToHistory('virtualChannel', 'pending', 'Opening virtual channel...');
 
             try {
-                const tokenAddress = APP_CONFIG.TOKENS[activeChainId];
-                const adjudicatorAddress = APP_CONFIG.ADJUDICATORS.dummy[activeChainId];
-                const challengePeriod = APP_CONFIG.CHANNEL.CHALLENGE_PERIOD;
-
-                if (!tokenAddress || !adjudicatorAddress) {
-                    throw new Error('Invalid token address or adjudicator address');
-                }
-
-                const amountBigInt =
-                    typeof amount === 'string' && !amount.startsWith('0x')
-                        ? parseTokenUnits(tokenAddress, amount)
-                        : BigInt(amount);
-
-                const params = {
+                const result = await openVirtualChannelBase(
+                    sendRequest,
                     participantA,
                     participantB,
-                    token_address: tokenAddress,
-                    amountA: +String(amountBigInt),
-                    amountB: 0,
-                    adjudicator: adjudicatorAddress,
-                    challenge: challengePeriod,
-                    nonce: Date.now(),
-                };
+                    amount,
+                    activeChainId
+                );
 
-                // @ts-ignore
-                const response = await sendRequest('CreateVirtualChannel', [params]);
+                setResponse('virtualChannel', JSON.stringify(result));
 
-                setResponse('virtualChannel', JSON.stringify(response));
-
-                if (response && response[0].channelId) {
-                    localStorage.setItem('virtual_channel_id', response[0].channelId);
+                if (result.success && result.channelId) {
                     addToHistory(
                         'virtualChannel',
                         'success',
-                        `Virtual channel created. ID: ${response.channelId.substring(0, 10)}...`,
+                        `Virtual channel created. ID: ${result.channelId.substring(0, 10)}...`,
                     );
-                } else {
+                } else if (result.success) {
                     addToHistory('virtualChannel', 'success', 'Virtual channel response received, no ID.');
+                } else {
+                    throw new Error(result.error || 'Unknown error');
                 }
             } catch (error) {
                 setResponse('virtualChannel', { error: error instanceof Error ? error.message : 'Unknown error' });
                 addToHistory('virtualChannel', 'error', 'Failed to create virtual channel');
             }
         },
-        [addToHistory, isConnected, setResponse],
+        [addToHistory, isConnected, setResponse, openVirtualChannelBase],
     );
 
     const closeVirtualChannel = useCallback(
@@ -88,48 +71,34 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
             addToHistory('closeVirtualChannel', 'pending', 'Closing virtual channel...');
 
             try {
-                const tokenAddress = APP_CONFIG.TOKENS[activeChainId];
-                const adjudicatorAddress = APP_CONFIG.ADJUDICATORS.dummy[activeChainId];
-                const virtualChannelId = localStorage.getItem('virtual_channel_id');
-
-                if (!tokenAddress || !adjudicatorAddress) {
-                    throw new Error('Invalid token address or adjudicator address');
-                }
-
-                const amountBigInt =
-                    typeof amountB === 'string' && !amountB.startsWith('0x')
-                        ? parseTokenUnits(tokenAddress, amountB)
-                        : BigInt(amountB);
-
-                const params = {
-                    allocations: [
-                        { amount: amountA, participant: participantA },
-                        { amount: +String(amountBigInt), participant: participantB },
-                    ],
-                    channelId: virtualChannelId,
-                    token_address: tokenAddress,
-                };
-
-                // @ts-ignore
-                const response = await sendRequest('CloseVirtualChannel', [params]);
-
-                setResponse('closeVirtualChannel', response);
-
-                addToHistory(
-                    'closeVirtualChannel',
-                    'success',
-                    `Virtual channel ${virtualChannelId.substring(0, 10)}... closed`,
+                const result = await closeVirtualChannelBase(
+                    sendRequest,
+                    participantA,
+                    participantB,
+                    amountA,
+                    amountB,
+                    activeChainId
                 );
 
-                if (response) {
-                    localStorage.removeItem('virtual_channel_id');
+                setResponse('closeVirtualChannel', result);
+
+                if (result && result.success) {
+                    const storedChannelId = localStorage.getItem('virtual_channel_id');
+                    
+                    addToHistory(
+                        'closeVirtualChannel',
+                        'success',
+                        `Virtual channel ${storedChannelId?.substring(0, 10) || 'unknown'}... closed`,
+                    );
+                } else {
+                    throw new Error(result?.error || 'Unknown error');
                 }
             } catch (error) {
                 setResponse('closeVirtualChannel', { error: error instanceof Error ? error.message : 'Unknown error' });
                 addToHistory('closeVirtualChannel', 'error', 'Failed to close virtual channel');
             }
         },
-        [addToHistory, isConnected, setResponse],
+        [addToHistory, isConnected, setResponse, closeVirtualChannelBase],
     );
 
     return {

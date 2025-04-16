@@ -5,11 +5,12 @@ import { useSnapshot } from 'valtio';
 import { Modal } from './common/Modal';
 import { QrScanner } from './QrScanner';
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
-import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
+import { NitroliteStore, SettingsStore } from '@/store';
 import APP_CONFIG from '@/config/app';
 import { useWebSocket } from '@/hooks';
-import { useDebugVirtualChannels } from '@/components/debug/handlers/useDebugVirtualChannels';
+import { useVirtualChannelOpen, useVirtualChannelClose } from '@/hooks/channel';
 import { Address } from 'viem';
+import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 
 interface SendProps {
     isOpen: boolean;
@@ -22,28 +23,22 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
     const nitroSnap = useSnapshot(NitroliteStore.state);
     const settingsSnap = useSnapshot(SettingsStore.state);
 
-    const { sendRequest, isConnected } = useWebSocket();
+    const chainId = useMemo(() => settingsSnap.activeChain.id, []);
 
-    const { openVirtualChannel, closeVirtualChannel } = useDebugVirtualChannels({
-        isConnected,
+    const { sendRequest, isConnected, connect } = useWebSocket();
+
+    const { getParticipants } = useGetParticipants({
+        wsProps: { isConnected, connect, sendRequest },
+        activeChainId: chainId,
     });
+    const { openVirtualChannel } = useVirtualChannelOpen();
+    const { closeVirtualChannel } = useVirtualChannelClose();
 
     const [step, setStep] = useState<SendStep>('scan');
     const [recipientAddress, setRecipientAddress] = useState('');
     const [amount, setAmount] = useState('0');
     const [isMobile, setIsMobile] = useState(false);
     const [processingError, setProcessingError] = useState<string | null>(null);
-
-    const chainId = useMemo(() => WalletStore.state.chainId, []);
-
-    const currentBalance = useMemo(() => {
-        const nitroState = NitroliteStore.getLatestState();
-
-        if (!nitroState) return BigInt(0);
-        const creatorAllocation = nitroState.allocations[0];
-
-        return creatorAllocation.amount;
-    }, []);
 
     useEffect(() => {
         const checkIfMobile = () => {
@@ -129,7 +124,6 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         setStep('processing');
         setProcessingError(null);
 
-        const chainId = settingsSnap.activeChain?.id;
         const participantA = nitroSnap.stateSigner?.address;
         const participantB = recipientAddress as Address;
         const tokenConfig = chainId ? APP_CONFIG.TOKENS[chainId] : undefined;
@@ -150,7 +144,11 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         try {
             console.log('Opening virtual channel with:', { participantA, participantB, amount, chainId });
 
-            await openVirtualChannel(sendRequest, participantA, participantB, amount, chainId);
+            const openResult = await openVirtualChannel(sendRequest, participantA, participantB, amount, chainId);
+
+            if (!openResult.success) {
+                throw new Error(openResult.error || 'Failed to open virtual channel');
+            }
 
             const virtualChannelId = localStorage.getItem('virtual_channel_id');
 
@@ -165,9 +163,9 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
             };
 
             console.log('Closing virtual channel with allocations:', allocations);
-            await closeVirtualChannel(
+            // The virtualChannelId is internally retrieved from localStorage in the hook
+            const closeResult = await closeVirtualChannel(
                 sendRequest,
-                virtualChannelId,
                 participantA,
                 participantB,
                 allocations.participantA,
@@ -175,7 +173,13 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
                 chainId,
             );
 
+            if (!closeResult || !closeResult.success) {
+                throw new Error(closeResult?.error || 'Failed to close virtual channel');
+            }
+
             console.log('Virtual channel closed successfully.');
+
+            getParticipants();
 
             setStep('success');
             setTimeout(() => {
@@ -200,6 +204,7 @@ export const Send: React.FC<SendProps> = ({ isOpen, onClose }) => {
         openVirtualChannel,
         closeVirtualChannel,
         isMobile,
+        chainId,
     ]);
 
     const scanComponent = useMemo(

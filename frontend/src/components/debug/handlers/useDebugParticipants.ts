@@ -46,7 +46,7 @@ export function useDebugParticipants({ wsProps, activeChainId }: UseDebugPartici
             }
 
             try {
-                const response = await sendRequest('ListOpenParticipants', JSON.stringify([message]));
+                const response = await sendRequest('ListOpenParticipants', [message]);
 
                 console.log('Participants response:', response);
                 setResponse('participants', response);
