@@ -149,9 +149,17 @@ func main() {
 	}
 	log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 
-	// Initialize blockchain clients.
-	custodyPOLYGON, _, _ := initBlockchainClients(privateKeyHex)
-	// custodyPOLYGON, custodyCELO, custodyBASE := initBlockchainClients(privateKeyHex)
+	// Initialize blockchain clients
+	clients, err := initBlockchainClients(privateKeyHex)
+	if err != nil {
+		log.Fatalf("Failed to initialize blockchain clients: %v", err)
+	}
+
+	// Get the Polygon client (or any other network you want to use as default)
+	custodyPOLYGON := clients["polygon"]
+	if custodyPOLYGON == nil {
+		log.Fatal("Polygon client is required but not initialized")
+	}
 
 	// Start the Centrifuge node.
 	if err := centrifugeNode.Run(); err != nil {
@@ -175,52 +183,24 @@ func main() {
 	log.Println("Server stopped")
 }
 
-// TODO: define config in a proper flexible way, do not hardcode networks as envs.
-// initBlockchainClients initializes blockchain clients for Polygon and Celo.
-func initBlockchainClients(privateKeyHex string) (custodyPOLYGON, custodyCELO, custodyBASE *CustodyClientWrapper) {
-	polInfuraURL := os.Getenv("POLYGON_INFURA_URL")
-	if polInfuraURL == "" {
-		log.Println("POLYGON_INFURA_URL environment variable is required")
-	}
-
-	polCustodyAddress := os.Getenv("POLYGON_CUSTODY_CONTRACT_ADDRESS")
-	if polCustodyAddress == "" {
-		log.Println("POLYGON_CUSTODY_CONTRACT_ADDRESS environment variable is required")
-	}
-
-	custodyPOLYGON, err := setupBlockchainClient(privateKeyHex, polInfuraURL, polCustodyAddress, "137")
+// initBlockchainClients initializes blockchain clients based on environment variables
+func initBlockchainClients(privateKeyHex string) (map[string]*CustodyClientWrapper, error) {
+	config, err := LoadConfig()
 	if err != nil {
-		log.Printf("Warning: Failed to initialize Polygon blockchain client: %v", err)
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	celoInfuraURL := os.Getenv("CELO_INFURA_URL")
-	if celoInfuraURL == "" {
-		log.Println("CELO_INFURA_URL environment variable is required")
+	clients := make(map[string]*CustodyClientWrapper)
+
+	for name, network := range config.Networks {
+		client, err := setupBlockchainClient(privateKeyHex, network.InfuraURL, network.CustodyAddress, network.ChainID)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize %s blockchain client: %v", name, err)
+			continue
+		}
+
+		clients[name] = client
 	}
 
-	celoCustodyAddress := os.Getenv("CELO_CUSTODY_CONTRACT_ADDRESS")
-	if celoCustodyAddress == "" {
-		log.Println("CELO_CUSTODY_CONTRACT_ADDRESS environment variable is required")
-	}
-
-	custodyCELO, err = setupBlockchainClient(privateKeyHex, celoInfuraURL, celoCustodyAddress, "42220")
-	if err != nil {
-		log.Printf("Warning: Failed to initialize Celo blockchain client: %v", err)
-	}
-
-	baseInfuraURL := os.Getenv("BASE_INFURA_URL")
-	if celoInfuraURL == "" {
-		log.Println("BASE_INFURA_URL environment variable is required")
-	}
-
-	baseCustodyAddress := os.Getenv("BASE_CUSTODY_CONTRACT_ADDRESS")
-	if celoCustodyAddress == "" {
-		log.Println("BASE_CUSTODY_CONTRACT_ADDRESS environment variable is required")
-	}
-
-	custodyBASE, err = setupBlockchainClient(privateKeyHex, baseInfuraURL, baseCustodyAddress, "8453")
-	if err != nil {
-		log.Printf("Warning: Failed to initialize Base blockchain client: %v", err)
-	}
-	return
+	return clients, nil
 }
