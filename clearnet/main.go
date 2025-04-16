@@ -4,15 +4,23 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
+	"github.com/centrifugal/centrifuge"
+	"github.com/layer-3/ethtaipei/clearnet/blocksync"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var BrokerAddress string
+
+// Global services.
+var (
+	channelService *ChannelService
+	ledger         *Ledger
+	router         *Router
+	messageRouter  RouterInterface
+	centrifugeNode *centrifuge.Node
+	blockSync      blocksync.Store
+)
 
 func main() {
 	config, err := LoadConfig()
@@ -30,6 +38,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialise signer: %v", err)
 	}
+
+	blockSync = blocksync.NewGormStore(db)
 
 	// Initialize Prometheus metrics
 	metrics := NewMetrics()
@@ -74,21 +84,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-
-	// Wait for shutdown signal.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
-
-	log.Println("Shutting down...")
-
-	// Shutdown metrics server
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := metricsServer.Shutdown(ctx); err != nil {
-		log.Printf("Error shutting down metrics server: %v", err)
-	}
-
-	unifiedWSHandler.CloseAllConnections()
-	log.Println("Server stopped")
 }
