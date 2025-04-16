@@ -24,8 +24,8 @@ import (
 
 // RequestMessage represents a request sent to the server.
 type RequestMessage struct {
-	Req []interface{} `json:"req"`
-	Sig []string      `json:"sig"`
+	Req []any    `json:"req"`
+	Sig []string `json:"sig"`
 }
 
 // ResponseMessage represents a generic response from the server.
@@ -68,7 +68,7 @@ type ChannelAvailabilityResponse struct {
 }
 
 // mustMarshal is a helper that marshals data or logs a fatal error.
-func mustMarshal(v interface{}) []byte {
+func mustMarshal(v any) []byte {
 	data, err := json.Marshal(v)
 	if err != nil {
 		log.Fatalf("Error marshaling JSON: %v", err)
@@ -147,19 +147,19 @@ func readLoop(participant string, conn *websocket.Conn) {
 		}
 
 		// Parse the message to identify the message type
-		var parsed map[string]interface{}
+		var parsed map[string]any
 		if err := json.Unmarshal(msg, &parsed); err != nil {
 			log.Printf("[%s] Received (unparseable): %s", participant, inlineJSON(msg))
 			continue
 		}
 
 		// Check if this is a public message
-		if res, ok := parsed["res"].([]interface{}); ok && len(res) > 1 {
+		if res, ok := parsed["res"].([]any); ok && len(res) > 1 {
 			method, isString := res[1].(string)
 			if isString && method == "IncomingMessage" {
-				if params, ok := res[2].([]interface{}); ok && len(params) > 0 {
-					if msgData, ok := params[0].(map[string]interface{}); ok {
-						if innerData, ok := msgData["data"].(map[string]interface{}); ok {
+				if params, ok := res[2].([]any); ok && len(params) > 0 {
+					if msgData, ok := params[0].(map[string]any); ok {
+						if innerData, ok := msgData["data"].(map[string]any); ok {
 							if msgType, ok := innerData["type"].(string); ok && msgType == "public_message" {
 								// This is a public message
 								sender := "unknown"
@@ -191,7 +191,7 @@ func readLoop(participant string, conn *websocket.Conn) {
 }
 
 // sendAndReceive sends a request and waits synchronously for a response.
-func sendAndReceive(conn *websocket.Conn, reqData []interface{}, privateKey *ecdsa.PrivateKey) (json.RawMessage, error) {
+func sendAndReceive(conn *websocket.Conn, reqData []any, privateKey *ecdsa.PrivateKey) (json.RawMessage, error) {
 	// Marshal request data for signing
 	reqDataJSON, err := json.Marshal(reqData)
 	if err != nil {
@@ -239,20 +239,20 @@ func sendMessage(conn *websocket.Conn, requestID int, virtualChannelID, sender, 
 		content = fmt.Sprintf("pong from %s to %s", sender, recipient)
 	}
 
-	messageContent := map[string]interface{}{
+	messageContent := map[string]any{
 		"type":      msgType,
 		"content":   content,
 		"timestamp": time.Now().UnixNano(),
 	}
 
-	sendMsgParams := map[string]interface{}{
+	sendMsgParams := map[string]any{
 		"channelId": virtualChannelID,
 		"recipient": recipient,
 		"data":      messageContent,
 	}
 
 	// Create the request data
-	reqData := []interface{}{requestID, "SendMessage", []interface{}{sendMsgParams}, uint64(time.Now().Unix())}
+	reqData := []any{requestID, "SendMessage", []any{sendMsgParams}, uint64(time.Now().Unix())}
 
 	// Marshal request data for signing
 	reqDataJSON, err := json.Marshal(reqData)
@@ -292,7 +292,7 @@ func connectAndAuth(serverAddr, publicKey string, privateKey *ecdsa.PrivateKey) 
 
 	// Create authentication request
 	timestamp := uint64(time.Now().Unix())
-	reqData := []interface{}{1, "auth", []interface{}{publicKey}, timestamp}
+	reqData := []any{1, "auth", []any{publicKey}, timestamp}
 
 	// Marshal request data for signing
 	reqDataJSON, err := json.Marshal(reqData)
@@ -452,7 +452,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		NetworkID:    networkID,
 	}
 	createChannelAParamsJSON, _ := json.Marshal(createChannelAParams)
-	createChannelAReqData := []interface{}{2, "CreateChannel", []interface{}{json.RawMessage(createChannelAParamsJSON)}, uint64(time.Now().Unix())}
+	createChannelAReqData := []any{2, "CreateChannel", []any{json.RawMessage(createChannelAParamsJSON)}, uint64(time.Now().Unix())}
 
 	respA, err := sendAndReceive(connA, createChannelAReqData, privateKeyA)
 	if err != nil {
@@ -469,7 +469,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		NetworkID:    networkID,
 	}
 	createChannelBParamsJSON, _ := json.Marshal(createChannelBParams)
-	createChannelBReqData := []interface{}{3, "CreateChannel", []interface{}{json.RawMessage(createChannelBParamsJSON)}, uint64(time.Now().Unix())}
+	createChannelBReqData := []any{3, "CreateChannel", []any{json.RawMessage(createChannelBParamsJSON)}, uint64(time.Now().Unix())}
 
 	respB, err := sendAndReceive(connB, createChannelBReqData, privateKeyB)
 	if err != nil {
@@ -486,7 +486,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		"token_address": tokenAddress,
 	}
 	listChannelsParamsJSONBeforeVC, _ := json.Marshal(listChannelsParamsBeforeVC)
-	listChannelsMsgBeforeVCReqData := []interface{}{10, "ListOpenParticipants", []interface{}{json.RawMessage(listChannelsParamsJSONBeforeVC)}, uint64(time.Now().Unix())}
+	listChannelsMsgBeforeVCReqData := []any{10, "ListOpenParticipants", []any{json.RawMessage(listChannelsParamsJSONBeforeVC)}, uint64(time.Now().Unix())}
 
 	respListBeforeVC, err := sendAndReceive(connA, listChannelsMsgBeforeVCReqData, privateKeyA)
 	if err != nil {
@@ -520,7 +520,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		Nonce:        uint64(time.Now().UnixNano()),
 	}
 	createVCParamsJSON, _ := json.Marshal(createVCParams)
-	createVCReqData := []interface{}{4, "CreateVirtualChannel", []interface{}{json.RawMessage(createVCParamsJSON)}, uint64(time.Now().Unix())}
+	createVCReqData := []any{4, "CreateVirtualChannel", []any{json.RawMessage(createVCParamsJSON)}, uint64(time.Now().Unix())}
 
 	respVC, err := sendAndReceive(connA, createVCReqData, privateKeyA)
 	if err != nil {
@@ -529,7 +529,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 	log.Printf("[A] CreateVirtualChannel response: %s", inlineJSON(respVC))
 
 	// Extract the virtual channel ID from the response.
-	var rpcResp []interface{}
+	var rpcResp []any
 	var respMsg ResponseMessage
 	if err := json.Unmarshal(respVC, &respMsg); err != nil {
 		log.Fatalf("Error unmarshaling virtual channel response: %v", err)
@@ -540,11 +540,11 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 	if len(rpcResp) < 3 {
 		log.Fatalf("Unexpected virtual channel response format")
 	}
-	dataArray, ok := rpcResp[2].([]interface{})
+	dataArray, ok := rpcResp[2].([]any)
 	if !ok || len(dataArray) < 1 {
 		log.Fatalf("Unexpected virtual channel data format")
 	}
-	channelData, ok := dataArray[0].(map[string]interface{})
+	channelData, ok := dataArray[0].(map[string]any)
 	if !ok {
 		log.Fatalf("Unexpected channel data format")
 	}
@@ -560,7 +560,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		"token_address": tokenAddress,
 	}
 	listChannelsParamsJSON, _ := json.Marshal(listChannelsParams)
-	listChannelsReqData := []interface{}{11, "ListOpenParticipants", []interface{}{json.RawMessage(listChannelsParamsJSON)}, uint64(time.Now().Unix())}
+	listChannelsReqData := []any{11, "ListOpenParticipants", []any{json.RawMessage(listChannelsParamsJSON)}, uint64(time.Now().Unix())}
 
 	respList, err := sendAndReceive(connA, listChannelsReqData, privateKeyA)
 	if err != nil {
@@ -574,7 +574,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		log.Fatalf("Error unmarshaling list channels response: %v", err)
 	}
 
-	var listRpcResp []interface{}
+	var listRpcResp []any
 	if err := json.Unmarshal(listRespMsg.Res, &listRpcResp); err != nil {
 		log.Fatalf("Error unmarshaling list channels RPC response: %v", err)
 	}
@@ -583,13 +583,13 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		log.Fatalf("Unexpected list channels response format")
 	}
 
-	channelsArray, ok := listRpcResp[2].([]interface{})
+	channelsArray, ok := listRpcResp[2].([]any)
 	if !ok || len(channelsArray) < 1 {
 		log.Printf("No available channels found or unexpected format")
 	} else {
 		log.Printf("=== Available Channels for Virtual Channels ===")
 		for _, ch := range channelsArray {
-			if channelData, ok := ch.(map[string]interface{}); ok {
+			if channelData, ok := ch.(map[string]any); ok {
 				address, _ := channelData["address"].(string)
 				amount, _ := channelData["amount"].(float64)
 				log.Printf("Address: %s, Available Amount: %.0f", address, amount)
@@ -603,7 +603,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 	readLoopWG := sync.WaitGroup{}
 	readLoopWG.Add(2)
 
-	//readLoopDone := make(chan struct{})
+	// readLoopDone := make(chan struct{})
 
 	go func() {
 		defer readLoopWG.Done()
@@ -663,7 +663,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		// 	"message": "Hello everyone! This is a public broadcast test message.",
 		// }
 		// publicMsgParamsJSON, _ := json.Marshal(publicMsgParams)
-		// publicMsgReqData := []interface{}{14, "SendPublicMessage", []interface{}{json.RawMessage(publicMsgParamsJSON)}, uint64(time.Now().Unix())}
+		// publicMsgReqData := []any{14, "SendPublicMessage", []any{json.RawMessage(publicMsgParamsJSON)}, uint64(time.Now().Unix())}
 
 		// log.Printf("Sending public message...")
 		// respPublicMsg, err := sendAndReceive(connA, publicMsgReqData, privateKeyA)
@@ -680,10 +680,10 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		// Create allocation parameters for closing the channel
 		// In a real scenario, these values would be negotiated off-chain between participants
 		// Create a simple map structure for the request
-		closeChannelParams := map[string]interface{}{
+		closeChannelParams := map[string]any{
 			"channelId":     virtualChannelID,
 			"token_address": tokenAddress,
-			"allocations": []map[string]interface{}{
+			"allocations": []map[string]any{
 				{
 					"participant": addressA,
 					"amount":      "250", // Participant A gets more than initial 200
@@ -696,7 +696,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 		}
 
 		closeChannelParamsJSON, _ := json.Marshal(closeChannelParams)
-		closeChannelReqData := []interface{}{12, "CloseVirtualChannel", []interface{}{json.RawMessage(closeChannelParamsJSON)}, uint64(time.Now().Unix())}
+		closeChannelReqData := []any{12, "CloseVirtualChannel", []any{json.RawMessage(closeChannelParamsJSON)}, uint64(time.Now().Unix())}
 
 		respClose, err := sendAndReceive(connA, closeChannelReqData, privateKeyA)
 		if err != nil {
@@ -711,7 +711,7 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 			"token_address": tokenAddress,
 		}
 		listChannelsParamsJSONAfterClose, _ := json.Marshal(listChannelsParamsAfterClose)
-		listChannelsMsgAfterCloseReqData := []interface{}{13, "ListOpenParticipants", []interface{}{json.RawMessage(listChannelsParamsJSONAfterClose)}, uint64(time.Now().Unix())}
+		listChannelsMsgAfterCloseReqData := []any{13, "ListOpenParticipants", []any{json.RawMessage(listChannelsParamsJSONAfterClose)}, uint64(time.Now().Unix())}
 
 		respListAfterClose, err := sendAndReceive(connA, listChannelsMsgAfterCloseReqData, privateKeyA)
 		if err != nil {
@@ -737,8 +737,8 @@ func runPingPongTest(serverAddr, privKeyAHex, privKeyBHex, networkID string) {
 			select {
 			case <-ticker.C:
 				// Send a ping to both connections to keep them alive
-				pingAReqData := []interface{}{999, "ping", []interface{}{}, uint64(time.Now().Unix())}
-				pingBReqData := []interface{}{998, "ping", []interface{}{}, uint64(time.Now().Unix())}
+				pingAReqData := []any{999, "ping", []any{}, uint64(time.Now().Unix())}
+				pingBReqData := []any{998, "ping", []any{}, uint64(time.Now().Unix())}
 
 				// Sign the pings
 				pingADataJSON, _ := json.Marshal(pingAReqData)

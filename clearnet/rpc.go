@@ -46,7 +46,7 @@ func (m *RPCMessage) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid method: %w", err)
 	}
 
-	// Parse Params ([]interface{})
+	// Parse Params ([]any)
 	if err := json.Unmarshal(rawMsg[2], &m.Params); err != nil {
 		return fmt.Errorf("invalid params: %w", err)
 	}
@@ -64,7 +64,7 @@ func (m *RPCMessage) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface for RPCMessage
 func (m RPCMessage) MarshalJSON() ([]byte, error) {
 	// Create array representation
-	return json.Marshal([]interface{}{
+	return json.Marshal([]any{
 		m.RequestID,
 		m.Method,
 		m.Params,
