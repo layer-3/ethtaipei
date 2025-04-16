@@ -27,29 +27,29 @@ type Allocation struct {
 
 // CreateVirtualChannelParams represents parameters needed for virtual channel creation
 type CreateVirtualChannelParams struct {
-	ParticipantA       string       `json:"participantA"`
-	ParticipantB       string       `json:"participantB"`
+	ParticipantA       string       `json:"participant_a"`
+	ParticipantB       string       `json:"participant_b"`
 	InitialAllocations []Allocation `json:"allocations"`
 }
 
 // CloseVirtualChannelParams represents parameters needed for virtual channel closure
 type CloseVirtualChannelParams struct {
-	ChannelID        string       `json:"channelId"`
+	ChannelID        string       `json:"channel_id"`
 	FinalAllocations []Allocation `json:"allocations"`
 }
 
 // CloseDirectChannelParams represents parameters needed for virtual channel closure
 type CloseDirectChannelParams struct {
-	ChannelID        string `json:"channelId"`
-	FundsDestination string `json:"fundsDestination"`
+	ChannelID        string `json:"channel_id"`
+	FundsDestination string `json:"funds_destination"`
 }
 
 // CloseDirectChannelResponse represents the response for closing a direct channel
 type CloseDirectChannelResponse struct {
-	ChannelID        string         `json:"channelId"`
-	StateData        string         `json:"stateData"`
+	ChannelID        string         `json:"channel_id"`
+	StateData        string         `json:"state_data"`
 	FinalAllocations []Allocation   `json:"allocations"`
-	Signature        CloseSignature `json:"server-signature"`
+	Signature        CloseSignature `json:"server_signature"`
 }
 
 type CloseSignature struct {
@@ -60,10 +60,8 @@ type CloseSignature struct {
 
 // ChannelResponse represents response data for channel operations
 type ChannelResponse struct {
-	ChannelID    string `json:"channelId"`
-	Status       string `json:"status"`
-	ParticipantA string `json:"participantA,omitempty"`
-	ParticipantB string `json:"participantB,omitempty"`
+	ChannelID string `json:"channel_id"`
+	Status    string `json:"status"`
 }
 
 // HandleCreateVirtualChannel creates a virtual channel between two participants
@@ -148,7 +146,7 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 			ChannelID:    virtualChannelID.Hex(),
 			ParticipantA: virtualChannel.ParticipantA,
 			ParticipantB: virtualChannel.ParticipantB,
-			Status:       "open",
+			Status:       ChannelStatusOpen,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -178,10 +176,8 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 
 	// Create a response
 	response := &ChannelResponse{
-		ChannelID:    virtualChannelID.Hex(),
-		Status:       "created",
-		ParticipantA: virtualChannel.ParticipantA,
-		ParticipantB: virtualChannel.ParticipantB,
+		ChannelID: virtualChannelID.Hex(),
+		Status:    string(ChannelStatusOpen),
 	}
 
 	// Create the RPC response
@@ -579,7 +575,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 	// Create a response
 	response := &ChannelResponse{
 		ChannelID: params.ChannelID,
-		Status:    "closed",
+		Status:    string(ChannelStatusClosed),
 	}
 
 	// Create the RPC response
