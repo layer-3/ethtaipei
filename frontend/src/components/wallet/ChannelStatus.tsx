@@ -1,9 +1,7 @@
-// import { useMessageService } from "@/hooks/useMessageService";
 import { useSnapshot } from 'valtio';
 import WalletStore from '@/store/WalletStore';
 import NitroliteStore from '@/store/NitroliteStore';
 import { useMemo } from 'react';
-// import { useChannelClosing } from '@/hooks/channel/useChannelClosing';
 
 interface ChannelStatusProps {
     status: string;
@@ -16,8 +14,6 @@ export function ChannelStatus({ status }: ChannelStatusProps) {
     const channelId = useMemo(() => {
         return nitroliteSnap.channelContext.getChannelId();
     }, [nitroliteSnap]);
-
-    // const { handleCloseChannel } = useChannelClosing();
 
     return (
         <div className="bg-white p-3 rounded-lg border border-[#3531ff]/30 shadow-sm flex-1">
@@ -68,15 +64,13 @@ export function ChannelStatus({ status }: ChannelStatusProps) {
                         </code>
                         <button
                             onClick={() => navigator.clipboard.writeText(channelId)}
-                            className="p-1 hover:bg-gray-100 rounded"
-                        >
+                            className="p-1 hover:bg-gray-100 rounded">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 className="h-4 w-4 text-gray-600"
                                 fill="none"
                                 viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
+                                stroke="currentColor">
                                 <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
@@ -91,8 +85,7 @@ export function ChannelStatus({ status }: ChannelStatusProps) {
                     // onClick={() =>
                     //     handleCloseChannel(channelId, walletSnap.selectedTokenAddress, [walletSnap.selectedAmount, '0'])
                     // }
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors pointer"
-                >
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors pointer">
                     Close
                 </button>
             </div>

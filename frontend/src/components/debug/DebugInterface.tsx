@@ -48,8 +48,7 @@ export function DebugInterface() {
     const { addToHistory, transactionHistory } = useTransactionHistory();
 
     // WebSocket
-    const wsUrl = APP_CONFIG.WEBSOCKET.URL;
-    const { sendRequest, connect, generateKeys, isConnected, hasKeys, status } = useWebSocket(wsUrl);
+    const { sendRequest, connect, generateKeys, isConnected, hasKeys, status } = useWebSocket();
 
     // Local UI States
     const [accountInfo, setAccountInfo] = useState<AccountInfo>({
@@ -332,10 +331,7 @@ export function DebugInterface() {
                             setResponse('closeBrokerChannel', null);
                             addToHistory('closeBrokerChannel', 'pending', 'Closing channel...');
 
-                            const response = await sendRequest(
-                                'CloseDirectChannel',
-                                JSON.stringify([closeVirtualChannelParams]),
-                            );
+                            const response = await sendRequest('CloseDirectChannel', [closeVirtualChannelParams]);
 
                             setResponse('closeBrokerChannel', response);
                             addToHistory(

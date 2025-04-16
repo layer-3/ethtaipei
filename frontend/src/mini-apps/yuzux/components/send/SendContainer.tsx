@@ -8,6 +8,7 @@ import { useWebSocket } from '@/hooks';
 import { useDeviceDetection } from '@/hooks/device/useDeviceDetection';
 import { useAmountInput } from '@/hooks/payment/useAmountInput';
 import { usePaymentFlow } from '@/hooks/payment/usePaymentFlow';
+import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { SendStep } from '../../types';
 import { Address } from 'viem';
 import { ScanStep, ManualEntryStep, AmountEntryStep, ProcessingStep, SuccessStep } from './steps';
@@ -26,11 +27,16 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
 
     const chainId = settingsSnap.activeChain?.id;
 
-    const { sendRequest, isConnected } = useWebSocket();
+    const { sendRequest, isConnected, connect } = useWebSocket();
     const { amount, handleAmountChange } = useAmountInput();
     const { processPayment, processingError } = usePaymentFlow({
         isConnected,
         sendRequest,
+    });
+    
+    const { getParticipants } = useGetParticipants({
+        wsProps: { isConnected, connect, sendRequest },
+        activeChainId: chainId,
     });
 
     const [step, setStep] = useState<SendStep>('scan');
@@ -83,6 +89,14 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
         const result = await processPayment(participantA!, participantB, amount, chainId!);
 
         if (result.success) {
+            // Refetch participants to get updated balance
+            try {
+                await getParticipants();
+                console.log('Successfully refreshed participants data after payment');
+            } catch (error) {
+                console.error('Failed to refresh participants data after payment:', error);
+            }
+            
             setStep('success');
             setTimeout(() => {
                 onClose();
@@ -92,7 +106,16 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
         } else {
             setStep('manual');
         }
-    }, [amount, recipientAddress, onClose, settingsSnap.activeChain, nitroSnap.stateSigner, processPayment, isMobile]);
+    }, [
+        amount, 
+        recipientAddress, 
+        onClose, 
+        settingsSnap.activeChain, 
+        nitroSnap.stateSigner, 
+        processPayment, 
+        isMobile,
+        getParticipants
+    ]);
 
     const renderStep = () => {
         switch (step) {

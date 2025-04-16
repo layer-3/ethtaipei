@@ -72,7 +72,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
         <div className="flex flex-col h-full">
             <div className="flex-1 p-6">
                 <div className="flex flex-col space-y-6">
-                    <div className="animate-fadeIn" style={{ animationDelay: '0.1s' }}>
+                    <div className="">
                         <label className="block text-sm font-medium text-white mb-2">Recipient Address</label>
 
                         <div className="relative">
@@ -123,7 +123,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                         <div className="min-h-[28px] mt-3">
                             {validationError ? (
                                 <div
-                                    className="flex items-center text-red-500 text-sm animate-fadeIn"
+                                    className="flex items-center text-red-500 text-sm "
                                     style={{ animationDelay: '0.05s' }}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -142,7 +142,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                                 </div>
                             ) : recipientAddress && isAddressValid ? (
                                 <div
-                                    className="flex items-center text-green-500 text-sm animate-fadeIn"
+                                    className="flex items-center text-green-500 text-sm "
                                     style={{ animationDelay: '0.05s' }}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -164,7 +164,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                     </div>
                     {/* Address format hint */}
                     <div
-                        className="bg-gray-900 rounded-lg p-4 text-xs text-gray-400 animate-fadeIn border border-gray-800"
+                        className="bg-gray-900 rounded-lg p-4 text-xs text-gray-400  border border-gray-800"
                         style={{ animationDelay: '0.2s' }}>
                         <p className="font-medium text-white mb-1">Address Format</p>
                         <p>
@@ -179,7 +179,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
             </div>
 
             {/* Buttons */}
-            <div className="p-6 space-y-3 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
+            <div className="p-6 space-y-3 " style={{ animationDelay: '0.3s' }}>
                 <button
                     onClick={onAddressSubmit}
                     disabled={!isAddressValid}

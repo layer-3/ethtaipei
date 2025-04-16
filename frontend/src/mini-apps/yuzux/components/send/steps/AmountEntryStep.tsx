@@ -37,34 +37,37 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
 
     // Button enabled if: amount is positive AND not exceeding balance
     const canPay = +amount > 0 && !isExceedingBalance;
-    
-    // Handle quick amount selection
-    const handleQuickAmountSelection = useCallback((percentage: number) => {
-        try {
-            const balanceNum = parseFloat(availableBalance);
-            
-            if (isNaN(balanceNum) || balanceNum <= 0) return;
 
-            let calculatedAmount: number;
-            
-            // If MAX (100%), use the full balance
-            if (percentage === 100) {
-                calculatedAmount = balanceNum;
-            } else {
-                calculatedAmount = balanceNum * (percentage / 100);
+    // Handle quick amount selection
+    const handleQuickAmountSelection = useCallback(
+        (percentage: number) => {
+            try {
+                const balanceNum = parseFloat(availableBalance);
+
+                if (isNaN(balanceNum) || balanceNum <= 0) return;
+
+                let calculatedAmount: number;
+
+                // If MAX (100%), use the full balance
+                if (percentage === 100) {
+                    calculatedAmount = balanceNum;
+                } else {
+                    calculatedAmount = balanceNum * (percentage / 100);
+                }
+
+                // Format to 2 decimal places for display
+                const formattedAmount = calculatedAmount.toFixed(2);
+
+                // Remove trailing zeros
+                const finalAmount = formattedAmount.replace(/\.00$/, '');
+
+                onAmountChange(finalAmount);
+            } catch (error) {
+                console.error('Error calculating quick amount:', error);
             }
-            
-            // Format to 2 decimal places for display
-            const formattedAmount = calculatedAmount.toFixed(2);
-            
-            // Remove trailing zeros
-            const finalAmount = formattedAmount.replace(/\.00$/, '');
-            
-            onAmountChange(finalAmount);
-        } catch (error) {
-            console.error('Error calculating quick amount:', error);
-        }
-    }, [availableBalance, onAmountChange]);
+        },
+        [availableBalance, onAmountChange],
+    );
 
     return (
         <div className="flex flex-col h-full">
@@ -78,15 +81,13 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
 
                     {/* Display error message if exceeding balance */}
                     {isExceedingBalance && (
-                        <div className="mt-2 text-sm text-red-500 animate-fadeIn">
-                            Amount exceeds your available balance
-                        </div>
+                        <div className="mt-2 text-sm text-red-500">Amount exceeds your available balance</div>
                     )}
                 </div>
                 <div className="text-center">
                     <div className="mt-2 text-sm text-white">to: {recipientAddress}</div>
                 </div>
-                
+
                 <div className="p-4">
                     <button
                         disabled={!canPay}
@@ -94,15 +95,13 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
                         className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                         Pay
                     </button>
-                    
+
                     {/* Quick amount buttons */}
                     <div className="mb-4">
-                        <QuickAmountButtons 
-                            onSelectAmount={handleQuickAmountSelection}
-                        />
+                        <QuickAmountButtons onSelectAmount={handleQuickAmountSelection} />
                     </div>
                 </div>
-                
+
                 <div className="py-3 text-white">
                     <NumberPad value={amount} onChange={onAmountChange} />
                 </div>
