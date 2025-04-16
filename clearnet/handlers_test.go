@@ -31,10 +31,7 @@ func TestHandleMessageSending(t *testing.T) {
 		ChannelID:    channelID,
 		ParticipantA: sender,
 		ParticipantB: recipient,
-		TokenAddress: "0xToken",
 		Status:       "open",
-		Version:      1,
-		ExpiresAt:    time.Now().Add(24 * time.Hour),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -136,10 +133,7 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 		ChannelID:    virtualChannelID,
 		ParticipantA: participantA,
 		ParticipantB: participantB,
-		TokenAddress: tokenAddress,
 		Status:       "open",
-		Version:      0,
-		ExpiresAt:    time.Now().Add(24 * time.Hour),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -153,20 +147,22 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 	require.NoError(t, accountB.Record(tokenAddress, 300))
 
 	// Create allocation parameters for closing
-	allocations := []FinalAllocation{
+	allocations := []Allocation{
 		{
-			Participant: participantA,
-			Amount:      big.NewInt(250), // Participant A gets more than initial deposit
+			Participant:  participantA,
+			Amount:       big.NewInt(250), // Participant A gets more than initial deposit
+			TokenAddress: tokenAddress,
 		},
 		{
-			Participant: participantB,
-			Amount:      big.NewInt(250), // Participant B gets less than initial deposit
+			Participant:  participantB,
+			Amount:       big.NewInt(250), // Participant B gets less than initial deposit
+			TokenAddress: tokenAddress,
 		},
 	}
 
 	closeParams := CloseVirtualChannelParams{
-		ChannelID:   virtualChannelID,
-		Allocations: allocations,
+		ChannelID:        virtualChannelID,
+		FinalAllocations: allocations,
 	}
 
 	// Create RPC request
@@ -194,8 +190,7 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 	// Check that channel is marked as closed
 	var updatedChannel DBVirtualChannel
 	require.NoError(t, db.Where("channel_id = ?", virtualChannelID).First(&updatedChannel).Error)
-	assert.Equal(t, "closed", updatedChannel.Status)
-	assert.Equal(t, uint64(1), updatedChannel.Version)
+	assert.Equal(t, ChannelStatusClosed, updatedChannel.Status)
 
 	// Check that funds were transferred back to direct channels according to allocations
 	directAccountA := ledger.Account(channelA.ChannelID, participantA)

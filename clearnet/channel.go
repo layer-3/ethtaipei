@@ -11,18 +11,26 @@ import (
 	"gorm.io/gorm"
 )
 
+type ChannelStatus string
+
+var (
+	ChannelStatusOpen   ChannelStatus = "open"
+	ChannelStatusClosed ChannelStatus = "closed"
+)
+
 // DBChannel represents a state channel between participants
 type DBChannel struct {
-	ID           uint      `gorm:"primaryKey"`
-	ChannelID    string    `gorm:"column:channel_id;type:char(64);uniqueIndex;not null"`
-	ParticipantA string    `gorm:"column:participant_a;type:char(42);not null"`
-	ParticipantB string    `gorm:"column:participant_b;type:char(42);not null"`
-	Challenge    uint64    `gorm:"column:challenge;default:0"`
-	Nonce        uint64    `gorm:"column:nonce;default:0"`
-	Adjudicator  string    `gorm:"column:adjudicator;type:char(42);default:''"`
-	NetworkID    string    `gorm:"column:network_id;type:varchar(32);default:''"`
-	CreatedAt    time.Time `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP"`
+	ID           uint          `gorm:"primaryKey"`
+	ChannelID    string        `gorm:"column:channel_id;uniqueIndex;"`
+	ParticipantA string        `gorm:"column:participant_a;not null"`
+	ParticipantB string        `gorm:"column:participant_b;not null"`
+	Status       ChannelStatus `gorm:"column:status;not null;"`
+	Challenge    uint64        `gorm:"column:challenge;default:0"`
+	Nonce        uint64        `gorm:"column:nonce;default:0"`
+	Adjudicator  string        `gorm:"column:adjudicator;not null"`
+	NetworkID    string        `gorm:"column:network_id;not null"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // ToNitroChannel converts the channel to a nitrolite.Channel
@@ -67,56 +75,27 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 	}
 }
 
-// GetOrCreateChannel gets an existing channel or creates a new one
+// CreateChannel creates a new channel in the database
 // For real channels, participantB is always the broker application
-func (s *ChannelService) GetOrCreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID ...string) (*DBChannel, error) {
-	var channel DBChannel
-	result := s.db.Where("channel_id = ?", channelID).First(&channel)
-
-	// Determine network ID value (empty string if not provided)
-	network := ""
-	if len(networkID) > 0 && networkID[0] != "" {
-		network = networkID[0]
+func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID string) error {
+	channel := DBChannel{
+		ChannelID:    channelID,
+		ParticipantA: participantA,
+		ParticipantB: BrokerAddress, // Always use broker address for direct channels
+		NetworkID:    networkID,     // Set the network ID for real channels
+		Status:       ChannelStatusOpen,
+		Nonce:        nonce,
+		Adjudicator:  adjudicator,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			// Channel not found, create a new one
-			// Always use the broker address for participantB in real channels
-			channel = DBChannel{
-				ChannelID:    channelID,
-				ParticipantA: participantA,
-				ParticipantB: BrokerAddress, // Always use broker address for real channels
-				NetworkID:    network,       // Set the network ID for real channels
-				Nonce:        nonce,
-				Adjudicator:  adjudicator,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
-			}
-
-			if err := s.db.Create(&channel).Error; err != nil {
-				return nil, fmt.Errorf("failed to create channel: %w", err)
-			}
-
-			log.Printf("Created new channel with ID: %s, network: %s", channelID, network)
-			return &channel, nil
-		}
-
-		return nil, fmt.Errorf("error finding channel: %w", result.Error)
+	if err := s.db.Create(&channel).Error; err != nil {
+		return fmt.Errorf("failed to create channel: %w", err)
 	}
 
-	// If network ID is provided and channel doesn't have one, update it
-	if network != "" && channel.NetworkID == "" {
-		channel.NetworkID = network
-		if err := s.db.Save(&channel).Error; err != nil {
-			log.Printf("Failed to update network ID: %v", err)
-		} else {
-			log.Printf("Updated network ID for channel %s to %s", channelID, network)
-		}
-	}
-
-	log.Printf("Found existing channel with ID: %s, network: %s", channelID, channel.NetworkID)
-	return &channel, nil
+	log.Printf("Created new channel with ID: %s, network: %s", channelID, networkID)
+	return nil
 }
 
 // GetChannelByID retrieves a channel by its ID
@@ -127,6 +106,43 @@ func (s *ChannelService) GetChannelByID(channelID string) (*DBChannel, error) {
 			return nil, nil // Channel not found
 		}
 		return nil, fmt.Errorf("error finding channel: %w", err)
+	}
+
+	return &channel, nil
+}
+
+// CloseChannel closes a channel by updating its status to "closed"
+func CloseChannel(db *gorm.DB, channelID string) error {
+	var channel DBChannel
+	result := db.Where("channel_id = ?", channelID).First(&channel)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("channel with ID %s not found", channelID)
+		}
+		return fmt.Errorf("error finding channel: %w", result.Error)
+	}
+
+	// Update the channel status to "closed"
+	channel.Status = ChannelStatusClosed
+	channel.UpdatedAt = time.Now()
+	if err := db.Save(&channel).Error; err != nil {
+		return fmt.Errorf("failed to close channel: %w", err)
+	}
+
+	log.Printf("Closed channel with ID: %s", channelID)
+	return nil
+}
+
+// CheckExistingChannels checks if there is an existing open channel on the same network between participant A and B
+func (s *ChannelService) CheckExistingChannels(participantA, participantB, networkID string) (*DBChannel, error) {
+	var channel DBChannel
+	err := s.db.Where("participant_a = ? AND participant_b = ? AND network_id = ? AND status = ?", participantA, participantB, networkID, ChannelStatusOpen).
+		First(&channel).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // No open channel found
+		}
+		return nil, fmt.Errorf("error checking for existing open channel: %w", err)
 	}
 
 	return &channel, nil
