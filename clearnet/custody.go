@@ -120,20 +120,32 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		// TODO: verify that ParticipantB is the broker.
-		// Commented because dont want to break the current deployment.
-		// participantB := ev.Channel.Participants[1].Hex()
-		// if participantB != BrokerAddress {
-		// 	return
-		// }
-
 		participantA := ev.Channel.Participants[0].Hex()
 		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
 		tokenAmount := ev.Initial.Allocations[0].Amount
 		nonce := ev.Channel.Nonce
+		participantB := ev.Channel.Participants[1].Hex()
+
+		// Check if channel was created with the broker.
+		if participantB != BrokerAddress {
+			fmt.Printf("participantB [%s] is not Broker[%s]: ", participantB, BrokerAddress)
+			return
+		}
+
+		// Check if there is already existing open channel with the broker
+		existingOpenChannel, err := channelService.CheckExistingChannels(participantA, participantB, c.networkID)
+		if err != nil {
+			log.Printf("[ChannelCreated] Error checking channels in database: %v", err)
+			return
+		}
+
+		if existingOpenChannel != nil {
+			log.Printf("[ChannelCreated] An open direct channel with broker already exists: %s", existingOpenChannel.ChannelID)
+			// return // Do not return for debug reason
+			// TODO: uncomment
+		}
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
-		// Create or update the channel with network ID
 		err = channelService.CreateChannel(
 			channelID.Hex(),
 			participantA,
@@ -179,9 +191,6 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 		log.Printf("ChannelClosed event data: %+v\n", ev)
-
-		// Assumption: User have only one direct channel with the broker.
-		// Assumption: We expect that participants agreed and closed virual channels.
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
 		openDirectChannel, err := channelService.GetChannelByID(channelID.Hex())

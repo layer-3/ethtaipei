@@ -8,7 +8,6 @@ require (
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/gorilla/websocket v1.5.3
 	github.com/ipfs/go-log/v2 v2.5.1
-	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.10.0
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12

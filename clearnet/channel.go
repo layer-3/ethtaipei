@@ -132,3 +132,18 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 	log.Printf("Closed channel with ID: %s", channelID)
 	return nil
 }
+
+// CheckExistingChannels checks if there is an existing open channel on the same network between participant A and B
+func (s *ChannelService) CheckExistingChannels(participantA, participantB, networkID string) (*DBChannel, error) {
+	var channel DBChannel
+	err := s.db.Where("participant_a = ? AND participant_b = ? AND network_id = ? AND status = ?", participantA, participantB, networkID, ChannelStatusOpen).
+		First(&channel).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // No open channel found
+		}
+		return nil, fmt.Errorf("error checking for existing open channel: %w", err)
+	}
+
+	return &channel, nil
+}
