@@ -11,8 +11,9 @@ import (
 
 // TestSendMessageProxyBehavior tests that the SendMessage method acts as a proxy without sending a response
 func TestSendMessageProxyBehavior(t *testing.T) {
-	// Setup test database
-	db := setupTestDB(t)
+	// Setup test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create services
 	ledger := NewLedger(db)
