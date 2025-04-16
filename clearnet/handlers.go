@@ -354,29 +354,30 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 
 	// Grab user balances
 	account := ledger.Account(channel.ChannelID, channel.ParticipantA)
-	balances, err := account.Balances()
+	balance, err := account.Balance(channel.TokenAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
 
-	allocations := []nitrolite.Allocation{}
-	for token, balance := range balances {
-		if balance < 0 {
-			return nil, errors.New("insufficient funds for participant: " + token)
-		}
+	if channel.Amount-balance < 0 {
+		return nil, errors.New("temporary dev error: resize this channel first")
+	}
 
-		allocations = append(allocations, []nitrolite.Allocation{
-			{
-				Destination: common.HexToAddress(params.FundsDestination),
-				Token:       common.HexToAddress(token),
-				Amount:      big.NewInt(balance),
-			},
-			{
-				Destination: common.HexToAddress(channel.ParticipantB),
-				Token:       common.HexToAddress(token),
-				Amount:      big.NewInt(0), // TODO: do not hardcode
-			},
-		}...)
+	if balance < 0 {
+		return nil, errors.New("insufficient funds for participant: " + channel.TokenAddress)
+	}
+
+	allocations := []nitrolite.Allocation{
+		{
+			Destination: common.HexToAddress(params.FundsDestination),
+			Token:       common.HexToAddress(channel.TokenAddress),
+			Amount:      big.NewInt(balance),
+		},
+		{
+			Destination: common.HexToAddress(channel.ParticipantB),
+			Token:       common.HexToAddress(channel.TokenAddress),
+			Amount:      big.NewInt(channel.Amount - balance), // Broker receives the remaining amount
+		},
 	}
 
 	stateDataStr := "0x0000000000000000000000000000000000000000000000000000000000001ec7"

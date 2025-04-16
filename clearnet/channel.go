@@ -29,6 +29,8 @@ type DBChannel struct {
 	Nonce        uint64        `gorm:"column:nonce;default:0"`
 	Adjudicator  string        `gorm:"column:adjudicator;not null"`
 	NetworkID    string        `gorm:"column:network_id;not null"`
+	TokenAddress string        `gorm:"column:token_address;not null"`
+	Amount       int64         `gorm:"column:amount;not null"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -77,7 +79,7 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 
 // CreateChannel creates a new channel in the database
 // For real channels, participantB is always the broker application
-func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID string) error {
+func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID string, tokenAddress string, amount int64) error {
 	channel := DBChannel{
 		ChannelID:    channelID,
 		ParticipantA: participantA,
@@ -86,6 +88,8 @@ func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uin
 		Status:       ChannelStatusOpen,
 		Nonce:        nonce,
 		Adjudicator:  adjudicator,
+		TokenAddress: tokenAddress,
+		Amount:       amount,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -124,6 +128,7 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 
 	// Update the channel status to "closed"
 	channel.Status = ChannelStatusClosed
+	channel.Amount = 0
 	channel.UpdatedAt = time.Now()
 	if err := db.Save(&channel).Error; err != nil {
 		return fmt.Errorf("failed to close channel: %w", err)

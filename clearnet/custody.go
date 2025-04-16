@@ -148,6 +148,9 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			// TODO: uncomment
 		}
 
+		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
+		tokenAmount := ev.Initial.Allocations[0].Amount
+
 		channelID := common.BytesToHash(ev.ChannelId[:])
 		err = channelService.CreateChannel(
 			channelID.Hex(),
@@ -155,6 +158,8 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			nonce,
 			ev.Channel.Adjudicator.Hex(),
 			c.networkID,
+			tokenAddress,
+			tokenAmount.Int64(),
 		)
 		if err != nil {
 			log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
@@ -178,9 +183,6 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
 			channelID, c.networkID)
 
-		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
-		tokenAmount := ev.Initial.Allocations[0].Amount
-
 		// TODO: Broker also needs to keep record for himself.
 		account := ledger.Account(channelID.Hex(), participantA)
 		fmt.Println("recording token address:", tokenAddress)
@@ -190,16 +192,6 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
 			return
 		}
-
-		// // TODO: create channel and record allocations in one transaction
-		// for _, allocation := range ev.Initial.Allocations {
-		// 	account := ledger.Account(channelID.Hex(), allocation.Destination.Hex())
-
-		// 	if err := account.Record(allocation.Token.Hex(), allocation.Amount.Int64()); err != nil {
-		// 		log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
-		// 		return
-		// 	}
-		// }
 
 	case custodyAbi.Events["Joined"].ID:
 		ev, err := c.custody.ParseJoined(l)
