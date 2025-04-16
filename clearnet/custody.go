@@ -14,6 +14,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"gorm.io/gorm"
+
+	"github.com/layer-3/ethtaipei/clearnet/blocksync"
+	"github.com/layer-3/ethtaipei/clearnet/blocksync/eth"
+	"github.com/layer-3/ethtaipei/clearnet/blocksync/stream"
 )
 
 var (
@@ -28,6 +32,7 @@ type CustodyClientWrapper struct {
 	transactOpts *bind.TransactOpts
 	networkID    string
 	privateKey   *ecdsa.PrivateKey
+	tracker      *blocksync.Tracker
 }
 
 // NewCustodyClientWrapper creates a new custody client wrapper
@@ -104,8 +109,67 @@ func (c *CustodyClientWrapper) GetCustody() *nitrolite.Custody {
 }
 
 func (c *CustodyClientWrapper) ListenEvents() {
-	// TODO: store processed events in a database
-	ListenEvents(c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
+	chainID, err := c.client.ChainID(context.Background())
+	if err != nil {
+		log.Printf("Failed to get chain ID: %v", err)
+		return
+	}
+	log.Printf("Using chain ID: %s", chainID.String())
+
+	// Create a new blocksync tracker for this network
+	// Create a node backend with our existing client
+	backendClient := &eth.NodeBackend{Client: c.client}
+	
+	// Set up the tracker with the correct parameter order: client, store, confirmationNumber
+	confNum := blocksync.DefaultConfirmationTiers[blocksync.Safe]
+	c.tracker = blocksync.NewTracker(backendClient, blockSync, &confNum)
+
+	// Start the tracker with background context
+	ctx := context.Background()
+	go func() {
+		if err := c.tracker.Start(ctx); err != nil {
+			log.Printf("Error starting tracker: %v", err)
+		}
+	}()
+
+	// Subscribe to events from the contract address
+	logSub := c.tracker.SubscribeEvents(stream.Topic(c.custodyAddr.Hex()))
+
+	// Handle subscription errors
+	go func() {
+		for err := range logSub.Err() {
+			log.Printf("Subscription error: %v", err)
+		}
+	}()
+
+	// Process events
+	go func() {
+		for event := range logSub.Event() {
+			if event.Removed {
+				continue
+			}
+
+			// Convert the event to a types.Log for processing
+			ethLog := types.Log{
+				Address:     common.Address(event.Address),
+				Topics:      make([]common.Hash, len(event.Topics)),
+				Data:        event.Data,
+				BlockNumber: event.Height,
+				TxHash:      common.Hash(event.TxHash),
+				TxIndex:     event.TxIndex,
+				BlockHash:   common.Hash(event.BlockHash),
+				Index:       event.LogIndex,
+				Removed:     event.Removed,
+			}
+
+			// Convert topics from eth.Hash to common.Hash
+			for i, topic := range event.Topics {
+				ethLog.Topics[i] = common.Hash(topic)
+			}
+
+			c.handleBlockChainEvent(ethLog)
+		}
+	}()
 }
 
 func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {

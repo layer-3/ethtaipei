@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/layer-3/ethtaipei/clearnet/blocksync"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -43,6 +44,7 @@ var (
 	router         *Router
 	messageRouter  RouterInterface
 	centrifugeNode *centrifuge.Node
+	blockSync      blocksync.Store
 )
 
 // setupDatabase initializes the database connection and performs migrations.
@@ -52,7 +54,13 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 	// Auto-migrate the models.
-	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}); err != nil {
+	if err := db.AutoMigrate(
+		&Entry{},
+		&DBChannel{},
+		&DBVirtualChannel{},
+		&blocksync.HeadModel{},
+		&blocksync.LogModel{},
+	); err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -95,6 +103,9 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 		return nil, fmt.Errorf("error casting public key to ECDSA")
 	}
 	BrokerAddress = crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+
+	// Use the blocksync package to configure the blockchain backend
+	log.Printf("Initializing blockchain client with chain ID %s and address: %s", networkID, BrokerAddress)
 
 	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID, privateKey)
 	if err != nil {
@@ -141,6 +152,9 @@ func main() {
 	ledger = NewLedger(db)
 	router = NewRouter(centrifugeNode)
 	messageRouter = NewRouter(centrifugeNode)
+	
+	// Initialize blocksync store
+	blockSync = blocksync.NewGormStore(db)
 
 	// Retrieve the private key.
 	privateKeyHex := os.Getenv("BROKER_PRIVATE_KEY")
