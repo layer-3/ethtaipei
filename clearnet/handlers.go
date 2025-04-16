@@ -125,7 +125,6 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 				return err
 			}
 
-			// Check if participantA has enough funds
 			account := ledgerTx.Account(participantChannel.ChannelID, allocation.Participant)
 
 			fmt.Println("Participant channel ID ", participantChannel.ChannelID)

@@ -123,7 +123,7 @@ func (a *Account) Record(tokenAddress string, amount int64) error {
 // Transfer moves funds from this account to another account
 func (a *Account) Transfer(toAccount *Account, tokenAddress string, amount int64) error {
 	fmt.Println("transferring amount:", amount)
-	if amount <= 0 {
+	if amount < 0 {
 		return errors.New("transfer amount must be positive")
 	}
 
