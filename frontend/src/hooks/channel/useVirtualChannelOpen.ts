@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import APP_CONFIG from '@/config/app';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { Allocation } from '@erc7824/nitrolite/dist/client/types';
 
 /**
  * Hook for opening a virtual channel.
@@ -25,23 +26,32 @@ export function useVirtualChannelOpen() {
 
                 const amountBigInt = parseTokenUnits(tokenAddress, amount);
 
+                // TODO: [Allocation, Allocation]
+                const allocations: [any, any] = [
+                    {
+                        participant: participantA,
+                        token_address: tokenAddress,
+                        amount: +String(amountBigInt),
+                    },
+                    {
+                        participant: participantB,
+                        token_address: tokenAddress,
+                        amount: 0,
+                    },
+                ];
+
                 const params = {
-                    participantA,
-                    participantB,
-                    token_address: tokenAddress,
-                    amountA: +String(amountBigInt),
-                    amountB: 0,
-                    adjudicator: adjudicatorAddress,
-                    challenge: challengePeriod,
-                    nonce: Date.now(),
+                    participant_a: participantA,
+                    participant_b: participantB,
+                    allocations: allocations,
                 };
 
                 // @ts-ignore
                 const response = await sendRequest('CreateVirtualChannel', [params]);
 
-                if (response && response[0].channelId) {
-                    localStorage.setItem('virtual_channel_id', response[0].channelId);
-                    return { success: true, channelId: response[0].channelId, response };
+                if (response && response[0].channel_id) {
+                    localStorage.setItem('virtual_channel_id', response[0].channel_id);
+                    return { success: true, channel_id: response[0].channel_id, response };
                 } else {
                     return { success: true, response };
                 }

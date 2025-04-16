@@ -170,10 +170,21 @@ export function useChannelClose() {
                 const brokerState = finalState[0] || storedData;
 
                 const responseState = {
-                    channelId: brokerState.channelId,
-                    stateData: brokerState.stateData,
-                    allocations: brokerState.allocations,
-                    'server-signature': removeQuotesFromRS(brokerState['server-signature']),
+                    channelId: brokerState.channel_id,
+                    stateData: brokerState.state_data,
+                    allocations: [
+                        {
+                            destination: brokerState.allocations[0].participant,
+                            token: brokerState.allocations[0].token_address,
+                            amount: brokerState.allocations[0].amount,
+                        },
+                        {
+                            destination: brokerState.allocations[1].participant,
+                            token: brokerState.allocations[1].token_address,
+                            amount: brokerState.allocations[1].amount,
+                        },
+                    ],
+                    server_signature: removeQuotesFromRS(brokerState['server_signature']),
                 };
 
                 const state: State = {
@@ -206,9 +217,9 @@ export function useChannelClose() {
                         v: Number(parsedSig.v),
                     },
                     {
-                        r: responseState['server-signature'].r as Hex,
-                        s: responseState['server-signature'].s as Hex,
-                        v: +responseState['server-signature'].v.toString(),
+                        r: responseState['server_signature'].r as Hex,
+                        s: responseState['server_signature'].s as Hex,
+                        v: +responseState['server_signature'].v.toString(),
                     },
                 ];
 

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useSnapshot } from 'valtio';
-import WalletStore from '@/store/WalletStore';
+// import WalletStore from '@/store/WalletStore';
 import { Modal } from './common/Modal';
 import { QrCodeDisplay } from './QrCodeDisplay';
 import { AddressDisplay } from './AddressDisplay';
+import { NitroliteStore } from '@/store';
 
 interface ReceiveProps {
     isOpen: boolean;
@@ -11,7 +12,8 @@ interface ReceiveProps {
 }
 
 export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
-    const walletSnap = useSnapshot(WalletStore.state);
+    // const walletSnap = useSnapshot(WalletStore.state);
+    const nitroliteSnap = useSnapshot(NitroliteStore.state);
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -35,16 +37,16 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
     }, []);
 
     const handleShare = async () => {
-        if (!walletSnap.walletAddress) return;
+        if (!nitroliteSnap.stateSigner.address) return;
 
         try {
             if (navigator.share) {
                 await navigator.share({
                     title: 'My Wallet Address',
-                    text: `Here's my wallet address: ${walletSnap.walletAddress}`,
+                    text: `Here's my wallet address: ${nitroliteSnap.stateSigner.address}`,
                 });
             } else {
-                navigator.clipboard.writeText(walletSnap.walletAddress);
+                navigator.clipboard.writeText(nitroliteSnap.stateSigner.address);
                 alert('Sharing not supported in this browser. Address copied to clipboard instead.');
             }
         } catch (error) {
@@ -57,12 +59,12 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
             <div className="flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto">
                     <div className="flex flex-col items-center">
-                        {walletSnap.walletAddress && (
+                        {nitroliteSnap.stateSigner.address && (
                             <div className="pt-6 rounded-lg mx-auto">
-                                <QrCodeDisplay address={walletSnap.walletAddress} />
+                                <QrCodeDisplay address={nitroliteSnap.stateSigner.address} />
                             </div>
                         )}
-                        <AddressDisplay address={walletSnap.walletAddress || '0x0'} />
+                        <AddressDisplay address={nitroliteSnap.stateSigner.address || '0x0'} />
                     </div>
                 </div>
 
@@ -71,8 +73,7 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
                     <div className="mt-auto w-full px-6 pb-4">
                         <button
                             onClick={handleShare}
-                            className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white"
-                        >
+                            className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white">
                             Share
                         </button>
                     </div>

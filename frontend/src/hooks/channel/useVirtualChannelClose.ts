@@ -30,16 +30,23 @@ export function useVirtualChannelClose() {
 
                 const amountBigInt = parseTokenUnits(tokenAddress, amountB);
 
-                const params = {
-                    allocations: [
-                        { amount: amountA, participant: participantA },
-                        { amount: +String(amountBigInt), participant: participantB },
-                    ],
-                    channelId: virtualChannelId,
-                    token_address: tokenAddress,
-                };
+                const allocations = [
+                    {
+                        participant: participantA,
+                        token_address: tokenAddress,
+                        amount: +amountA,
+                    },
+                    {
+                        participant: participantB,
+                        token_address: tokenAddress,
+                        amount: +String(amountBigInt),
+                    },
+                ];
 
-                console.log('params', params);
+                const params = {
+                    allocations: allocations,
+                    channel_id: virtualChannelId,
+                };
 
                 // @ts-ignore
                 const response = await sendRequest('CloseVirtualChannel', [params]);

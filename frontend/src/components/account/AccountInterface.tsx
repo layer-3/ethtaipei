@@ -182,8 +182,8 @@ export function AccountInterface() {
 
             // Sample data based on the example in the DebugInterface
             const closeDirectChannelParams = {
-                channelId: channelId,
-                fundsDestination: walletSnap.walletAddress,
+                channel_id: channelId,
+                funds_destination: walletSnap.walletAddress,
             };
 
             // Send request to close the direct channel

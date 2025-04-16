@@ -325,7 +325,7 @@ export function DebugInterface() {
                             // Sample data based on the example in the comments
                             const closeVirtualChannelParams = {
                                 channelId: channelId,
-                                fundsDestination: walletSnap.walletAddress,
+                                funds_destination: walletSnap.walletAddress,
                             };
 
                             setResponse('closeBrokerChannel', null);
