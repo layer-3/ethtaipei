@@ -120,9 +120,12 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
+		if len(ev.Channel.Participants) < 2 {
+			log.Println("[ChannelCreated] Error: not enough participants in the channel")
+			return
+		}
+
 		participantA := ev.Channel.Participants[0].Hex()
-		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
-		tokenAmount := ev.Initial.Allocations[0].Amount
 		nonce := ev.Channel.Nonce
 		participantB := ev.Channel.Participants[1].Hex()
 
@@ -163,20 +166,24 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			log.Printf("[ChannelCreated] Error encoding state hash: %v", err)
 			return
 		}
+
 		// TODO: We need to join on "Created" event, but record channel creation in the db om Joined event.
 		if err := c.Join(channelID.Hex(), encodedState); err != nil {
 			log.Printf("[ChannelCreated] Error joining channel: %v", err)
 			return
 		}
-		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
-			channelID, c.networkID)
 
-		// TODO: Broker also needs to keep record for himself.
-		account := ledger.Account(channelID.Hex(), participantA)
-		if err := account.Record(tokenAddress, tokenAmount.Int64()); err != nil {
-			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
-			return
+		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s", channelID, c.networkID)
+
+		// TODO: create channel and record allocations in one transaction
+		for _, allocation := range ev.Initial.Allocations {
+			account := ledger.Account(channelID.Hex(), allocation.Destination.Hex())
+			if err := account.Record(allocation.Token.Hex(), allocation.Amount.Int64()); err != nil {
+				log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
+				return
+			}
 		}
+
 	case custodyAbi.Events["Joined"].ID:
 		ev, err := c.custody.ParseJoined(l)
 		if err != nil {
@@ -184,6 +191,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 		log.Printf("Joined event data: %+v\n", ev)
+
 	case custodyAbi.Events["ChannelClosed"].ID:
 		ev, err := c.custody.ParseChannelClosed(l)
 		if err != nil {
@@ -198,6 +206,8 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
 			return
 		}
+
+		// TODO: add broker accounting for direct channels.
 		account := ledger.Account(channelID.Hex(), openDirectChannel.ParticipantA)
 
 		err = ledger.db.Transaction(func(tx *gorm.DB) error {
