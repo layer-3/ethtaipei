@@ -52,10 +52,25 @@ module.exports = {
                     '50%': { top: '97%' },
                     '100%': { top: '0%' },
                 },
+                'fadeIn': {
+                    '0%': { opacity: '0' },
+                    '100%': { opacity: '1' },
+                },
+                'slideUp': {
+                    '0%': { transform: 'translateY(10px)', opacity: '0' },
+                    '100%': { transform: 'translateY(0)', opacity: '1' },
+                },
+                'pulse-border': {
+                    '0%, 100%': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                    '50%': { borderColor: 'rgba(255, 255, 255, 0.8)' },
+                },
             },
             animation: {
                 'fade-scale-in': 'fade-scale-in 0.3s ease-out forwards',
                 'scan-line': 'scan-line 2s ease-in-out infinite',
+                'fadeIn': 'fadeIn 0.3s ease-in-out forwards',
+                'slideUp': 'slideUp 0.4s ease-out forwards',
+                'pulse-border': 'pulse-border 1.5s ease-in-out infinite',
             },
         },
     },

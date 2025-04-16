@@ -29,7 +29,7 @@ export function useVirtualChannelOpen() {
                     participantA,
                     participantB,
                     token_address: tokenAddress,
-                    amountA: String(amountBigInt),
+                    amountA: +String(amountBigInt),
                     amountB: 0,
                     adjudicator: adjudicatorAddress,
                     challenge: challengePeriod,
