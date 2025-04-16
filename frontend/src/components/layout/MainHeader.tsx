@@ -1,4 +1,5 @@
 import { useSnapshot } from 'valtio';
+import Link from 'next/link';
 import { WalletStore } from '@/store';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
@@ -20,8 +21,16 @@ export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
                     <ActionButton onClick={onOpenDeposit}>Deposit</ActionButton>
                 )}
             </div>
-            <div className={walletSnap.connected ? '' : 'ml-auto'}>
-                {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}
+            <div className="flex items-center gap-4">
+                <Link
+                    href="/account" 
+                    className="px-4 py-2 border border-gray-600 rounded-md text-white hover:bg-gray-800 transition-colors"
+                >
+                    Account
+                </Link>
+                <div className={walletSnap.connected ? '' : 'ml-auto'}>
+                    {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}
+                </div>
             </div>
         </header>
     );
