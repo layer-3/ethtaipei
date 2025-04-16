@@ -39,13 +39,13 @@ export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
         }
     }, [walletSnap.connected, isConnected, settingsSnap.activeChain?.id, getParticipants]);
 
-    // Periodically refresh participants data every 15 seconds
+    // Periodically refresh participants data every 2 seconds
     useEffect(() => {
         if (!walletSnap.connected || !isConnected) return;
 
         const intervalId = setInterval(() => {
             getParticipants();
-        }, 15000); // 15 seconds
+        }, 2000);
 
         return () => clearInterval(intervalId);
     }, [walletSnap.connected, isConnected, getParticipants]);

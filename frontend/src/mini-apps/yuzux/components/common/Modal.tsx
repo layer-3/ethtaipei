@@ -49,7 +49,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
                           : 'translate-x-full'
                 }`}
             >
-                <div className="flex items-center p-4 relative">
+                <div className="flex items-center p-4 relative z-50 bg-black">
                     <button onClick={handleClose} className="absolute left-4 text-white hover:text-gray-200">
                         <svg
                             width="24"

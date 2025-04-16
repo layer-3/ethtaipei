@@ -66,33 +66,49 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
         let html5QrcodeScanner: Html5Qrcode | null = null;
 
+        // Function to calculate viewport dimensions
+        const getViewportDimensions = () => {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                aspectRatio: window.innerWidth / window.innerHeight,
+            };
+        };
+
         const startScanner = async () => {
             try {
                 // Create an instance of the scanner
                 html5QrcodeScanner = new Html5Qrcode(scannerDivId);
                 scannerRef.current = html5QrcodeScanner;
 
+                const viewport = getViewportDimensions();
+
+                // Using fixed size for QR box to ensure consistent scanning
+
                 const config = {
                     fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1,
-                    disableFlip: false,
-                    borderWidth: '50px 10px',
+                    qrbox: { 
+                        width: 250, 
+                        height: 250
+                    },
+                    aspectRatio: 1.0,
+                    disableFlip: false
                 };
 
                 // Start scanning
                 await html5QrcodeScanner.start(
-                    { facingMode: 'environment' },
+                    { 
+                        facingMode: { exact: 'environment' },
+                    },
                     config,
                     (decodedText) => {
                         // On successful scan
                         onScan(decodedText);
-                        // Don't stop scanning - let the parent component control this
-                        // html5QrcodeScanner.stop();
                     },
                     (errorMessage) => {
                         // Ignore not found errors (these are normal when no QR code is in view)
-                        if (errorMessage.includes('No MultiFormat Readers')) {
+                        if (errorMessage.includes('No MultiFormat Readers') || 
+                            errorMessage.includes('QR code parse error')) {
                             return;
                         }
 
@@ -108,8 +124,22 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
         startScanner();
 
+        // Handle resize events
+        const handleResize = () => {
+            // If we need to restart the scanner with new dimensions, we could do that here
+            // For now, we'll rely on the responsive container styling
+            console.log('Window resized, scanner container should adapt automatically');
+        };
+
+        // Add resize event listener
+        window.addEventListener('resize', handleResize);
+
         // Clean up function
         return () => {
+            // Remove resize event listener
+            window.removeEventListener('resize', handleResize);
+
+            // Stop scanner
             if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
                 html5QrcodeScanner
                     .stop()
@@ -126,15 +156,14 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     // No camera view
     if (!hasCamera) {
         return (
-            <div className="flex flex-col items-center justify-center h-full bg-black text-white p-4">
+            <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0" style={{ zIndex: 5 }}>
                 <div className="text-center mb-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
+                        stroke="currentColor">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -158,15 +187,14 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     // No permission view
     if (!permission) {
         return (
-            <div className="flex flex-col items-center justify-center h-full bg-black text-white p-4">
+            <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0" style={{ zIndex: 5 }}>
                 <div className="text-center mb-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
+                        stroke="currentColor">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -182,11 +210,19 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     }
 
     return (
-        <div className="relative h-full bg-black">
+        <div className="w-full h-full bg-black">
+            {/* Full screen scanner (will be overlapped by header) */}
             <div
                 id={scannerDivId}
-                className="aspect-square max-w-md mx-auto overflow-hidden"
-                style={{ width: '100%', height: 'auto' }}
+                className="w-full h-full"
+                style={{ 
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 5 // Lower z-index so header can overlap
+                }}
             />
         </div>
     );

@@ -33,7 +33,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
         isConnected,
         sendRequest,
     });
-    
+
     const { getParticipants } = useGetParticipants({
         wsProps: { isConnected, connect, sendRequest },
         activeChainId: chainId,
@@ -55,7 +55,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
-            setStep(isMobile ? 'scan' : 'manual');
+            setStep(isMobile ? 'scan' : 'scan');
             setRecipientAddress('');
         }
     }, [isOpen, isMobile]);
@@ -96,7 +96,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
             } catch (error) {
                 console.error('Failed to refresh participants data after payment:', error);
             }
-            
+
             setStep('success');
             setTimeout(() => {
                 onClose();
@@ -107,14 +107,14 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
             setStep('manual');
         }
     }, [
-        amount, 
-        recipientAddress, 
-        onClose, 
-        settingsSnap.activeChain, 
-        nitroSnap.stateSigner, 
-        processPayment, 
+        amount,
+        recipientAddress,
+        onClose,
+        settingsSnap.activeChain,
+        nitroSnap.stateSigner,
+        processPayment,
         isMobile,
-        getParticipants
+        getParticipants,
     ]);
 
     const renderStep = () => {
