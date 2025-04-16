@@ -292,6 +292,8 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 		return nil, fmt.Errorf("failed to fetch channels: %w", err)
 	}
 
+	fmt.Println("Foundbroker channels:", channels)
+
 	// Create a response list with participant addresses and available funds
 	var availableChannels []ChannelAvailabilityResponse
 	for _, channel := range channels {
@@ -300,21 +302,22 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 		account := ledger.Account(channel.ChannelID, channel.ParticipantA)
 		balance, err := account.Balance(tokenAddress)
 		if err != nil {
+			fmt.Println(err)
 			// Skip this channel if there's an error getting balance
-			continue
+			//	continue
 		}
 
-		// Only include if the participant has available funds
-		if balance > 0 {
-			// Print debug info about the balance calculation
-			log.Printf("Participant %s has balance %d in channel %s",
-				channel.ParticipantA, balance, channel.ChannelID)
+		// // Only include if the participant has available funds
+		// if balance > 0 {
+		// 	// Print debug info about the balance calculation
+		// 	log.Printf("Participant %s has balance %d in channel %s",
+		// 		channel.ParticipantA, balance, channel.ChannelID)
 
-			availableChannels = append(availableChannels, ChannelAvailabilityResponse{
-				Address: channel.ParticipantA,
-				Amount:  balance,
-			})
-		}
+		availableChannels = append(availableChannels, ChannelAvailabilityResponse{
+			Address: channel.ParticipantA,
+			Amount:  balance,
+		})
+		// }
 	}
 
 	// Create the RPC response
