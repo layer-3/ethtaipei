@@ -127,6 +127,12 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 
 			// Check if participantA has enough funds
 			account := ledgerTx.Account(participantChannel.ChannelID, allocation.Participant)
+
+			fmt.Println("Participant channel ID ", participantChannel.ChannelID)
+			fmt.Println("Participant ", allocation.Participant)
+			fmt.Println("Allocation Info: ", allocation.Amount.Int64())
+			fmt.Println("Amount ", allocation.Amount.Int64())
+
 			balance, err := account.Balance(allocation.TokenAddress)
 			if err != nil {
 				return fmt.Errorf("failed to check participant A balance: %w", err)
@@ -134,7 +140,7 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 			if balance < allocation.Amount.Int64() {
 				return errors.New("insufficient funds")
 			}
-
+			fmt.Println("Balance ", allocation.Amount.Int64())
 			toAccount := ledgerTx.Account(virtualChannelID.Hex(), allocation.Participant)
 			if err := account.Transfer(toAccount, allocation.TokenAddress, allocation.Amount.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds from participant A: %w", err)
