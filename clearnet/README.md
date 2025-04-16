@@ -2,6 +2,26 @@
 
 ClearNet implements a WebSocket-based RPC API for managing payment channels and message routing in a state channel network.
 
+## Configuration
+
+### Database Configuration
+
+ClearNet supports both SQLite and PostgreSQL databases:
+
+- **SQLite** (default): Lightweight file-based database, good for development and testing
+- **PostgreSQL**: Production-grade database with better concurrency and performance
+
+Environment variables:
+
+- `DATABASE_DRIVER`: Set to `sqlite` or `postgres` to specify database type
+- `DATABASE_URL`: Connection string for the database
+  - SQLite example: `file:clearnet.db?cache=shared`
+  - PostgreSQL example: `postgres://postgres:postgres@localhost:5432/clearnet?sslmode=disable`
+
+For running tests with different databases:
+
+- `TEST_DB_DRIVER`: Set to `sqlite` (default) or `postgres` to run tests with a specific database
+
 ## Message Format
 
 All RPC messages follow this format:

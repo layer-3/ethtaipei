@@ -1,16 +1,24 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	container "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -75,11 +83,14 @@ func (m *MockWebsocketConn) NextReader() (messageType int, r io.Reader, err erro
 	return 0, nil, nil
 }
 
-// setupTestDB creates an in-memory database for testing
-func setupTestDB(t *testing.T) *gorm.DB {
-	// Use a unique database name for each test to avoid sharing data between tests
-	dbName := fmt.Sprintf("file::memory:test%d?mode=memory&cache=shared", time.Now().UnixNano())
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+// setupTestSqlite creates an in-memory SQLite DB for testing
+func setupTestSqlite(t testing.TB) *gorm.DB {
+	t.Helper()
+
+	// Generate a unique DSN for the in-memory DB to avoid sharing data between tests
+	uniqueDSN := fmt.Sprintf("file::memory:test%s?mode=memory&cache=shared", uuid.NewString())
+
+	db, err := gorm.Open(sqlite.Open(uniqueDSN), &gorm.Config{})
 	require.NoError(t, err)
 
 	// Auto migrate all required models
@@ -89,10 +100,83 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// setupTestPostgres creates a PostgreSQL database using testcontainers
+func setupTestPostgres(ctx context.Context, t testing.TB) (*gorm.DB, testcontainers.Container) {
+	t.Helper()
+
+	const dbName = "postgres"
+	const dbUser = "postgres"
+	const dbPassword = "postgres"
+
+	// Start the PostgreSQL container
+	postgresContainer, err := container.Run(ctx,
+		"postgres:16-alpine",
+		container.WithDatabase(dbName),
+		container.WithUsername(dbUser),
+		container.WithPassword(dbPassword),
+		testcontainers.WithEnv(map[string]string{
+			"POSTGRES_HOST_AUTH_METHOD": "trust",
+		}),
+		testcontainers.WithWaitStrategy(
+			wait.ForAll(
+				wait.ForLog("database system is ready to accept connections"),
+				wait.ForListeningPort("5432/tcp"),
+			)))
+	require.NoError(t, err)
+	log.Println("Started container:", postgresContainer.GetContainerID())
+
+	// Get connection string
+	url, err := postgresContainer.ConnectionString(ctx, "sslmode=disable")
+	require.NoError(t, err)
+	log.Println("PostgreSQL URL:", url)
+
+	// Connect to database
+	db, err := gorm.Open(postgres.Open(url), &gorm.Config{})
+	require.NoError(t, err)
+
+	// Auto migrate all required models
+	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{})
+	require.NoError(t, err)
+
+	return db, postgresContainer
+}
+
+// setupTestDB creates a test database based on the TEST_DB_DRIVER environment variable
+func setupTestDB(t testing.TB) (*gorm.DB, func()) {
+	t.Helper()
+
+	// Create a context with the test timeout
+	ctx := context.Background()
+
+	var db *gorm.DB
+	var cleanup func()
+
+	switch os.Getenv("TEST_DB_DRIVER") {
+	case "postgres":
+		log.Println("Using PostgreSQL for testing")
+		var container testcontainers.Container
+		db, container = setupTestPostgres(ctx, t)
+		cleanup = func() {
+			if container != nil {
+				if err := container.Terminate(ctx); err != nil {
+					log.Printf("Failed to terminate PostgreSQL container: %v", err)
+				}
+			}
+		}
+	default:
+		log.Println("Using SQLite for testing (default)")
+		db = setupTestSqlite(t)
+		cleanup = func() {} // No cleanup needed for SQLite in-memory database
+	}
+
+	return db, cleanup
+}
+
 // TestHandleSendMessage tests the message forwarding functionality
 func TestHandleSendMessage(t *testing.T) {
-	// Set up test database
-	db := setupTestDB(t)
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create a mock router
 	mockRouter := &MockRouter{}
@@ -171,8 +255,9 @@ func TestHandlePing(t *testing.T) {
 
 // TestHandleCloseChannel tests the close channel handler functionality
 func TestHandleCloseChannel(t *testing.T) {
-	// Set up test database
-	db := setupTestDB(t)
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create ledger
 	ledger := NewLedger(db)
@@ -296,8 +381,9 @@ func TestHandleCloseChannel(t *testing.T) {
 
 // TestHandleHandleListOpenParticipants tests the list available channels handler functionality
 func TestHandleHandleListOpenParticipants(t *testing.T) {
-	// Set up test database
-	db := setupTestDB(t)
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create channel service and ledger
 	channelService := NewChannelService(db)

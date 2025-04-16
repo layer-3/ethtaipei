@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -48,10 +49,26 @@ var (
 
 // setupDatabase initializes the database connection and performs migrations.
 func setupDatabase(dsn string) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	var db *gorm.DB
+	var err error
+
+	// Determine which database driver to use based on DSN prefix
+	if dsn == "" {
+		dsn = "file:clearnet.db?cache=shared"
+		log.Println("Using SQLite database with default connection string")
+		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	} else if len(dsn) >= 4 && dsn[:4] == "file" || len(dsn) >= 6 && dsn[:6] == "sqlite" {
+		log.Println("Using SQLite database")
+		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	} else {
+		log.Println("Using PostgreSQL database")
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	// Auto-migrate the models.
 	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}); err != nil {
 		return nil, err
@@ -123,10 +140,18 @@ func main() {
 		log.Printf("Warning: .env file not found")
 	}
 
-	// Get database URL from environment variable
+	// Get database URL and driver from environment variables
 	dbURL := os.Getenv("DATABASE_URL")
+	dbDriver := os.Getenv("DATABASE_DRIVER")
+	
+	// Set default connection string based on driver
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/clearnet?sslmode=disable"
+		switch dbDriver {
+		case "postgres":
+			dbURL = "postgres://postgres:postgres@localhost:5432/clearnet?sslmode=disable"
+		case "sqlite", "":
+			dbURL = "file:clearnet.db?cache=shared"
+		}
 	}
 
 	// Setup database
