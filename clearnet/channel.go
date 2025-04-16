@@ -75,57 +75,27 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 	}
 }
 
-// GetOrCreateChannel gets an existing channel or creates a new one
+// CreateChannel creates a new channel in the database
 // For real channels, participantB is always the broker application
-func (s *ChannelService) GetOrCreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID ...string) (*DBChannel, error) {
-	var channel DBChannel
-	result := s.db.Where("channel_id = ?", channelID).First(&channel)
-
-	// Determine network ID value (empty string if not provided)
-	network := ""
-	if len(networkID) > 0 && networkID[0] != "" {
-		network = networkID[0]
+func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID string) error {
+	channel := DBChannel{
+		ChannelID:    channelID,
+		ParticipantA: participantA,
+		ParticipantB: BrokerAddress, // Always use broker address for direct channels
+		NetworkID:    networkID,     // Set the network ID for real channels
+		Status:       ChannelStatusOpen,
+		Nonce:        nonce,
+		Adjudicator:  adjudicator,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			// Channel not found, create a new one
-			// Always use the broker address for participantB in real channels
-			channel = DBChannel{
-				ChannelID:    channelID,
-				ParticipantA: participantA,
-				ParticipantB: BrokerAddress, // Always use broker address for real channels
-				NetworkID:    network,       // Set the network ID for real channels
-				Status:       ChannelStatusOpen,
-				Nonce:        nonce,
-				Adjudicator:  adjudicator,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
-			}
-
-			if err := s.db.Create(&channel).Error; err != nil {
-				return nil, fmt.Errorf("failed to create channel: %w", err)
-			}
-
-			log.Printf("Created new channel with ID: %s, network: %s", channelID, network)
-			return &channel, nil
-		}
-
-		return nil, fmt.Errorf("error finding channel: %w", result.Error)
+	if err := s.db.Create(&channel).Error; err != nil {
+		return fmt.Errorf("failed to create channel: %w", err)
 	}
 
-	// If network ID is provided and channel doesn't have one, update it
-	if network != "" && channel.NetworkID == "" {
-		channel.NetworkID = network
-		if err := s.db.Save(&channel).Error; err != nil {
-			log.Printf("Failed to update network ID: %v", err)
-		} else {
-			log.Printf("Updated network ID for channel %s to %s", channelID, network)
-		}
-	}
-
-	log.Printf("Found existing channel with ID: %s, network: %s", channelID, channel.NetworkID)
-	return &channel, nil
+	log.Printf("Created new channel with ID: %s, network: %s", channelID, networkID)
+	return nil
 }
 
 // GetChannelByID retrieves a channel by its ID

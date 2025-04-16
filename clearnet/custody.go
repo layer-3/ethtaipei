@@ -134,7 +134,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
 		// Create or update the channel with network ID
-		_, err = channelService.GetOrCreateChannel(
+		err = channelService.CreateChannel(
 			channelID.Hex(),
 			participantA,
 			nonce,
