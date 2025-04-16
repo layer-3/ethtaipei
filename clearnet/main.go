@@ -16,7 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"gorm.io/driver/sqlite"
+	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -47,7 +48,7 @@ var (
 
 // setupDatabase initializes the database connection and performs migrations.
 func setupDatabase(dsn string) (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -117,16 +118,21 @@ func startHTTPServer() {
 }
 
 func main() {
-	// Initialize the database.
-	dsn := os.Getenv("BROKER_DB_DSN")
-	if dsn == "" {
-		dsn = "file:broker.db?mode=memory&cache=shared"
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found")
 	}
 
-	log.Printf("Using database DSN: %s", dsn)
-	db, err := setupDatabase(dsn)
+	// Get database URL from environment variable
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@localhost:5432/clearnet?sslmode=disable"
+	}
+
+	// Setup database
+	db, err := setupDatabase(dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to setup database: %v", err)
 	}
 
 	// Initialize Centrifuge node.

@@ -7,19 +7,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 // TestSendMessageProxyBehavior tests that the SendMessage method acts as a proxy without sending a response
 func TestSendMessageProxyBehavior(t *testing.T) {
 	// Setup test database
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	require.NoError(t, err)
-
-	// Auto migrate models
-	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{})
-	require.NoError(t, err)
+	db := setupTestDB(t)
 
 	// Create services
 	ledger := NewLedger(db)
@@ -42,7 +35,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 		UpdatedAt:    time.Now(),
 	}
 
-	err = db.Create(&virtualChannel).Error
+	err := db.Create(&virtualChannel).Error
 	require.NoError(t, err)
 
 	// Create test request
