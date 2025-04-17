@@ -221,18 +221,17 @@ export function useChannelCreate() {
                     // Update the channel context with the signed initial state
                     NitroliteStore.setChannelContext(channel, initialState, app);
 
+                    // Create the channel on-chain
+                    await NitroliteStore.createChannel(channelId);
+
+                    const result = { channelId, tokenAddress, amount: amountBigInt.toString() };
+
                     // Save channel data to localStorage
                     saveChannelToStorage(channel, initialState, channelId);
                     setResponse('channelCreation', {
                         status: 'Channel context created, creating on-chain...',
                         success: false,
                     });
-
-                    // Create the channel on-chain
-                    await NitroliteStore.createChannel(channelId);
-
-                    const result = { channelId, tokenAddress, amount: amountBigInt.toString() };
-
                     // Add successful creation to history
                     addToHistory(
                         'CHANNEL_CREATE',

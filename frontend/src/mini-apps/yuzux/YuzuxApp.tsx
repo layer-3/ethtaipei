@@ -118,8 +118,8 @@ export function YuzuxApp() {
                     </svg>
                 </button>
             </div>
-            <div className="text-white">{JSON.stringify(nitroSnap.participants)}</div>
-            <div className="text-white">{JSON.stringify(nitroSnap.userAccountFromParticipants)}</div>
+            {/* <div className="text-white">{JSON.stringify(nitroSnap.participants)}</div> */}
+            {/* <div className="text-white">{JSON.stringify(nitroSnap.userAccountFromParticipants)}</div> */}
             <div className="flex-grow flex items-center justify-center">
                 <div
                     className={`text-white text-center transform transition-transform duration-300 ${

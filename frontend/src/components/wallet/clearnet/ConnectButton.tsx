@@ -60,7 +60,7 @@ export const ConnectButton: React.FC = () => {
     return (
         <button
             onClick={connectWallet}
-            className="flex items-center gap-2 px-4 py-2 rounded border border-gray-200 hover:border-primary-hover transition-colors bg-primary">
+            className="flex items-center gap-2 px-4 py-2 rounded hover:border-primary-hover transition-colors bg-primary">
             <span className="text-black font-normal">Login</span>
         </button>
     );

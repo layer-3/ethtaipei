@@ -9,8 +9,6 @@ export function AppCatalog() {
                 <AppCard image="/clearnet_icons/snake_game.png" title="Snake Game" category="Arcade/Action" />
                 <AppCard image="/clearnet_icons/ping-pong.png" title="Ping-Pong" category="Arcade/Action" />
                 <AppCard image="/clearnet_icons/snake_game.png" title="Snake Game" category="Arcade/Action" />
-                <AppCard image="/clearnet_icons/ping-pong.png" title="Ping-Pong" category="Arcade/Action" />
-                <AppCard image="/clearnet_icons/snake_game.png" title="Snake Game" category="Arcade/Action" />
             </section>
         </>
     );
