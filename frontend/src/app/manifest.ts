@@ -2,11 +2,11 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: 'YuzuX',
-        short_name: 'YuzuX',
-        theme_color: '#000',
-        background_color: '#000',
-        display: 'minimal-ui',
+        name: 'ClearNet',
+        short_name: 'ClearNet',
+        theme_color: '#fff',
+        background_color: '#fff',
+        display: 'standalone',
         orientation: 'any',
         scope: '/',
         start_url: '/',
