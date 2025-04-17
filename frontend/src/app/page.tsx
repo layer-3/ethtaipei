@@ -56,7 +56,7 @@ function HomePage() {
 
                         <YuzuxSection onOpenYuzux={handleOpenYuzux} />
 
-                        <hr className="border-gray-300 mt-8" />
+                        <hr className="border-gray-200 mt-4" />
 
                         <AppCatalog />
                     </main>

@@ -65,22 +65,17 @@ export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
     })();
 
     return (
-        <header className="flex gap-4 items-center justify-between flex-wrap">
-            <div className="flex gap-4 items-center">
-                {walletSnap.connected && !walletSnap.channelOpen && (
-                    <ActionButton onClick={onOpenDeposit}>Deposit</ActionButton>
-                )}
-            </div>
+        <header className="flex gap-4 items-center justify-end flex-wrap">
             <div className="flex items-center gap-4">
                 {!walletSnap.connected ? (
                     // Show connect button if not connected
-                    <div>{isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}</div>
+                    <div className="">{isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}</div>
                 ) : (
                     // Show wallet address with balance if connected
                     <Link href="/account" className="group">
                         <div className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-300 transition-colors">
                             <div className="flex flex-col">
-                                <span className="text-sm text-вфкл font-mono">
+                                <span className="text-sm text-dark font-mono">
                                     {shortenHex(walletSnap.walletAddress || '', 4)}
                                 </span>
                                 <span className="text-xs text-gray-800 group-hover:text-gray-900 transition-colors">

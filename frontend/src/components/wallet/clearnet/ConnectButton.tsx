@@ -49,7 +49,7 @@ export const ConnectButton: React.FC = () => {
                 {WalletStore.state.walletProvider === 'privy' ? (
                     <UserPill />
                 ) : (
-                    <div className="px-4 py-2 rounded-xl border border-gray-200 bg-primary">
+                    <div className="px-4 py-2 rounded border border-gray-200 bg-primary">
                         {shortenHex(WalletStore.getWalletAddress() || '', 4)}
                     </div>
                 )}
@@ -60,8 +60,7 @@ export const ConnectButton: React.FC = () => {
     return (
         <button
             onClick={connectWallet}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary"
-        >
+            className="flex items-center gap-2 px-4 py-2 rounded border border-gray-200 hover:border-primary-hover transition-colors bg-primary">
             <span className="text-black font-normal">Login</span>
         </button>
     );
