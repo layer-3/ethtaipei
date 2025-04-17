@@ -7,10 +7,10 @@ import (
 
 // NetworkConfig represents configuration for a blockchain network
 type NetworkConfig struct {
-	Name            string
-	ChainID         string
-	InfuraURL       string
-	CustodyAddress  string
+	Name           string
+	ChainID        string
+	InfuraURL      string
+	CustodyAddress string
 }
 
 // Config represents the overall application configuration

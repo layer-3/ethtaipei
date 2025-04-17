@@ -155,18 +155,21 @@ func main() {
 		log.Fatalf("Failed to initialize blockchain clients: %v", err)
 	}
 
-	// Get the Polygon client (or any other network you want to use as default)
-	custodyPOLYGON := clients["137"]
-	if custodyPOLYGON == nil {
-		log.Fatal("Polygon client is required but not initialized")
+	// Create multi-network custody wrapper with Polygon as default
+	multiNetworkCustody := NewMultiNetworkCustodyWrapper(clients, "137")
+	if multiNetworkCustody.GetDefaultClient() == nil {
+		log.Fatal("Polygon client (chain ID 137) is required but not initialized")
 	}
+
+	// Start listeners for all networks
+	multiNetworkCustody.ListenAllEvents()
 
 	// Start the Centrifuge node.
 	if err := centrifugeNode.Run(); err != nil {
 		log.Fatal(err)
 	}
 
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, custodyPOLYGON)
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, multiNetworkCustody.GetDefaultClient())
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Start the HTTP server.
