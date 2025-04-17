@@ -251,7 +251,8 @@ export function AccountInterface() {
                                 stroke="currentColor"
                                 strokeWidth="2"
                                 strokeLinecap="round"
-                                strokeLinejoin="round">
+                                strokeLinejoin="round"
+                            >
                                 <path d="M19 12H5M12 19l-7-7 7-7" />
                             </svg>
                         </Link>
@@ -268,7 +269,8 @@ export function AccountInterface() {
                         <button
                             onClick={refreshAccountInfo}
                             disabled={loading.refresh}
-                            className="text-sm px-3 py-1 bg-white text-black rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            className="text-sm px-3 py-1 bg-white text-black rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             {loading.refresh ? 'Refreshing...' : 'Refresh'}
                         </button>
                     </div>
@@ -324,7 +326,8 @@ export function AccountInterface() {
                             loading.withdrawal ||
                             !nitroSnap.accountInfo?.deposited ||
                             nitroSnap.accountInfo.deposited <= 0n
-                        }>
+                        }
+                    >
                         {loading.withdrawal ? 'Processing...' : 'Withdrawal'}
                     </ActionButton>
                     <ActionButton onClick={handleChallenge} disabled={loading.challenge}>
