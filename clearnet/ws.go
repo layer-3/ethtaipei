@@ -30,7 +30,13 @@ type UnifiedWSHandler struct {
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
-func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, ledger *Ledger, messageRouter RouterInterface, custodyWrapper *CustodyClientWrapper) *UnifiedWSHandler {
+func NewUnifiedWSHandler(
+	node *centrifuge.Node,
+	channelService *ChannelService,
+	ledger *Ledger,
+	messageRouter RouterInterface,
+	custodyWrapper *CustodyClientWrapper,
+) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
 		node:           node,
 		channelService: channelService,
