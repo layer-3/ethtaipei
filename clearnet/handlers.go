@@ -560,7 +560,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 		}
 
 		// 10. Mark the virtual channel as closed
-		if err := tx.Model(&virtualChannel).Updates(map[string]interface{}{
+		if err := tx.Model(&virtualChannel).Updates(map[string]any{
 			"status":     "closed",
 			"updated_at": time.Now(),
 		}).Error; err != nil {
@@ -633,7 +633,7 @@ func HandleBroadcastMessage(address string, req *RPCRequest, ledger *Ledger, wsH
 
 	// Create the broadcast message in a format similar to direct messages
 	// The outer structure will be added by the BroadcastMessage method
-	broadcastMsg := map[string]interface{}{
+	broadcastMsg := map[string]any{
 		"type":          "public_message",
 		"senderAddress": address,
 		"content":       params.Message, // Match the "content" field used in SendMessage
@@ -644,7 +644,7 @@ func HandleBroadcastMessage(address string, req *RPCRequest, ledger *Ledger, wsH
 	wsHandler.BroadcastMessage(broadcastMsg)
 
 	// Create the RPC response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":  "sent",
 		"message": params.Message,
 	}
@@ -697,7 +697,7 @@ func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error
 	}
 
 	// Extract public key from req[2]
-	addrArr, ok := authMsg.Req[2].([]interface{})
+	addrArr, ok := authMsg.Req[2].([]any)
 	if !ok || len(addrArr) == 0 {
 		return "", errors.New("missing public key in authentication message")
 	}

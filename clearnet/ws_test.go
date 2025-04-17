@@ -83,7 +83,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 		Res: RPCMessage{
 			RequestID: 12345, // Dummy ID for testing
 			Method:    "IncomingMessage",
-			Params: []any{map[string]interface{}{
+			Params: []any{map[string]any{
 				"channelId": channelID,
 				"sender":    sender,
 				"data":      msgData,
@@ -107,7 +107,7 @@ func TestSendMessageProxyBehavior(t *testing.T) {
 	assert.Equal(t, "broker-signature", parsedRPC.Sig[0])
 
 	// Verify the message parameters
-	params, ok := parsedRPC.Res.Params[0].(map[string]interface{})
+	params, ok := parsedRPC.Res.Params[0].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, channelID, params["channelId"])
 	assert.Equal(t, sender, params["sender"])
