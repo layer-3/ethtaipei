@@ -1,5 +1,5 @@
 module.exports = {
-  rules: {
-    'padding-line-between-statements': 'off'
-  }
+    rules: {
+        'padding-line-between-statements': 'off',
+    },
 };

@@ -33,7 +33,7 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
                     participantA,
                     participantB,
                     amount,
-                    activeChainId
+                    activeChainId,
                 );
 
                 setResponse('virtualChannel', JSON.stringify(result));
@@ -77,14 +77,14 @@ export function useDebugVirtualChannels({ isConnected }: UseDebugVirtualChannels
                     participantB,
                     amountA,
                     amountB,
-                    activeChainId
+                    activeChainId,
                 );
 
                 setResponse('closeVirtualChannel', result);
 
                 if (result && result.success) {
                     const storedChannelId = localStorage.getItem('virtual_channel_id');
-                    
+
                     addToHistory(
                         'closeVirtualChannel',
                         'success',

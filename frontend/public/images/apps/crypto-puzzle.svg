@@ -1,0 +1,17 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="800" height="600" fill="#3C366B"/>
+<rect x="200" y="150" width="100" height="100" rx="5" fill="#667EEA"/>
+<rect x="310" y="150" width="100" height="100" rx="5" fill="#C3DAFE"/>
+<rect x="420" y="150" width="100" height="100" rx="5" fill="#667EEA"/>
+<rect x="530" y="150" width="100" height="100" rx="5" fill="#C3DAFE"/>
+<rect x="200" y="260" width="100" height="100" rx="5" fill="#C3DAFE"/>
+<rect x="310" y="260" width="100" height="100" rx="5" fill="#667EEA"/>
+<rect x="420" y="260" width="100" height="100" rx="5" fill="#C3DAFE"/>
+<rect x="530" y="260" width="100" height="100" rx="5" fill="#667EEA"/>
+<rect x="200" y="370" width="100" height="100" rx="5" fill="#667EEA"/>
+<rect x="310" y="370" width="100" height="100" rx="5" fill="#C3DAFE"/>
+<circle cx="370" cy="210" r="25" fill="#FEFCBF"/>
+<path d="M370 197 L370 223 M357 210 L383 210" stroke="#744210" stroke-width="3"/>
+<text x="270" y="60" font-family="Arial" font-size="24" fill="white">CRYPTO PUZZLE</text>
+<text x="280" y="520" font-family="Arial" font-size="18" fill="#A3BFFA">Earn Rewards For Solutions</text>
+</svg>

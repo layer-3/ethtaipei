@@ -1,11 +1,9 @@
 import { useSnapshot } from 'valtio';
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { WalletStore, NitroliteStore, SettingsStore } from '@/store';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
-import { ActionButton } from '@/components/ui/ActionButton';
-import { shortenHex } from '@/helpers/shortenHex';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 import APP_CONFIG from '@/config/app';
 import { useWebSocket } from '@/hooks/websocket';
@@ -65,36 +63,45 @@ export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
     })();
 
     return (
-        <header className="flex gap-4 items-center justify-end flex-wrap">
-            <div className="flex items-center gap-4">
+        <header className="flex justify-between items-center mb-2 md:mb-2 max-w-7xl mx-auto w-full">
+            <div className="flex items-center">
+                <Link href="/" className="flex items-center">
+                    <span className="ml-2 font-bold text-2xl text-gray-900">ClearNet</span>
+                </Link>
+            </div>
+
+            <div className="flex items-center">
                 {!walletSnap.connected ? (
-                    // Show connect button if not connected
-                    <div className="">{isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}</div>
+                    // Not connected - show Account button that triggers wallet connect
+                    isPrivyEnabled ? (
+                        <ConnectButton />
+                    ) : (
+                        <MetaMaskConnectButton />
+                    )
                 ) : (
-                    // Show wallet address with balance if connected
+                    // Connected - show Account button that links to account page
                     <Link href="/account" className="group">
-                        <div className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-300 transition-colors">
+                        <div className="flex items-center gap-3 px-3 md:px-4 py-2 bg-white rounded-[2px] hover:bg-gray-100 transition-colors">
+                            <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="w-4 h-4 md:w-5 md:h-5 text-gray-600">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                </svg>
+                            </div>
                             <div className="flex flex-col">
-                                <span className="text-sm text-dark font-mono">
-                                    {shortenHex(walletSnap.walletAddress || '', 4)}
-                                </span>
-                                <span className="text-xs text-gray-800 group-hover:text-gray-900 transition-colors">
+                                <span className="text-sm text-gray-900 font-medium">Account</span>
+                                <span className="text-xs text-gray-600 group-hover:text-gray-900 transition-colors">
                                     Balance: ${formattedBalance}
                                 </span>
                             </div>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="text-gray-900 group-hover:text-dark transition-colors">
-                                <path d="M9 18l6-6-6-6" />
-                            </svg>
                         </div>
                     </Link>
                 )}

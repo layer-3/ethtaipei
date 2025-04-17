@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="800" height="600" fill="#1A365D"/>
+<circle cx="400" cy="300" r="150" fill="#2B6CB0" fill-opacity="0.7"/>
+<circle cx="400" cy="300" r="130" fill="#2C5282"/>
+<path d="M320 250 A100,100 0 0,1 480,250" stroke="#EBF8FF" stroke-width="3" fill="none"/>
+<path d="M320 350 A100,100 0 0,0 480,350" stroke="#EBF8FF" stroke-width="3" fill="none"/>
+<circle cx="320" cy="300" r="30" fill="#63B3ED"/>
+<circle cx="480" cy="300" r="30" fill="#4299E1"/>
+<circle cx="400" cy="230" r="30" fill="#3182CE"/>
+<circle cx="400" cy="370" r="30" fill="#2B6CB0"/>
+<line x1="320" y1="300" x2="480" y2="300" stroke="#90CDF4" stroke-width="2"/>
+<line x1="400" y1="230" x2="400" y2="370" stroke="#90CDF4" stroke-width="2"/>
+<circle cx="320" cy="300" r="20" fill="#3182CE"/>
+<text x="314" y="306" font-family="Arial" font-size="16" font-weight="bold" fill="white">A</text>
+<circle cx="480" cy="300" r="20" fill="#3182CE"/>
+<text x="474" y="306" font-family="Arial" font-size="16" font-weight="bold" fill="white">B</text>
+<path d="M260 400 C280 330, 520 330, 540 400" stroke="#90CDF4" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+<text x="180" y="60" font-family="Arial" font-size="28" font-weight="bold" fill="white">LIQUIDITY POOL</text>
+<text x="250" y="520" font-family="Arial" font-size="18" fill="#BEE3F8">Provide Liquidity &amp; Earn Rewards</text>
+</svg>

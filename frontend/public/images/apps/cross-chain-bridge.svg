@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background - Purple/Pink Gradient -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0" y1="0" x2="800" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6B46C1" />
+      <stop offset="100%" stop-color="#805AD5" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="600" rx="4" fill="url(#bg-gradient)"/>
+  
+  <!-- Bridge Icon -->
+  <g transform="translate(400, 300)">
+    <!-- Left Circle (Chain A) -->
+    <circle cx="-150" cy="0" r="100" fill="#000"/>
+    
+    <!-- Right Circle (Chain B) -->
+    <circle cx="150" cy="0" r="100" fill="#000"/>
+    
+    <!-- Bridge Top Arch -->
+    <path d="M-120 -50 C -70 -120, 70 -120, 120 -50" 
+          stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" fill="none"/>
+          
+    <!-- Bridge Bottom Arch -->
+    <path d="M-120 50 C -70 120, 70 120, 120 50" 
+          stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" fill="none"/>
+    
+    <!-- Bridge Pillars -->
+    <rect x="-130" y="-60" width="20" height="120" rx="2" fill="#FFFFFF"/>
+    <rect x="110" y="-60" width="20" height="120" rx="2" fill="#FFFFFF"/>
+    
+    <!-- Bridge Deck -->
+    <rect x="-140" y="-10" width="280" height="20" rx="4" fill="#FFFFFF"/>
+    
+    <!-- Chain Symbols -->
+    <text x="-170" y="10" font-family="Poppins, sans-serif" font-size="30" font-weight="600" fill="#D6BCFA" text-anchor="middle">A</text>
+    <text x="170" y="10" font-family="Poppins, sans-serif" font-size="30" font-weight="600" fill="#D6BCFA" text-anchor="middle">B</text>
+  </g>
+  
+  <!-- Token Transfer Animation -->
+  <g transform="translate(400, 290)">
+    <circle cx="-60" cy="0" r="14" fill="#B794F4"/>
+    <circle cx="0" cy="0" r="14" fill="#B794F4"/>
+    <circle cx="60" cy="0" r="14" fill="#B794F4"/>
+  </g>
+</svg>

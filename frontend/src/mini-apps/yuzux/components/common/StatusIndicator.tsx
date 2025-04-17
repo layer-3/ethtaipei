@@ -34,7 +34,9 @@ export const SuccessCheckmark: React.FC<SuccessCheckmarkProps> = ({ size = 'md' 
 
     return (
         <div className="mb-6 relative">
-            <div className={`${sizes[size].container} border-4 border-white rounded-full flex items-center justify-center`}>
+            <div
+                className={`${sizes[size].container} border-4 border-white rounded-full flex items-center justify-center`}
+            >
                 <svg className={`${sizes[size].icon} text-white`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>

@@ -15,7 +15,8 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({ processingError,
                     <p className="text-gray-400 break-words px-4">{processingError}</p>
                     <button
                         onClick={onRetry}
-                        className="mt-4 bg-white text-black py-2 px-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
+                        className="mt-4 bg-white text-black py-2 px-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white"
+                    >
                         Try Again
                     </button>
                 </div>

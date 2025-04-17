@@ -51,14 +51,16 @@ function HomePage() {
         <WebSocketProvider>
             <div className="min-h-screen flex flex-col">
                 <NitroliteClientWrapper>
-                    <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
+                    <main className="min-h-screen bg-white text-gray-900 px-4 md:px-8 lg:px-12 pt-4 flex flex-col pb-40">
                         <MainHeader onOpenDeposit={handleOpenDeposit} onOpenCloseChannel={handleOpenCloseChannel} />
 
-                        <YuzuxSection onOpenYuzux={handleOpenYuzux} />
+                        <div className="max-w-7xl mx-auto w-full mt-2 md:mt-4 lg:mt-6">
+                            <YuzuxSection onOpenYuzux={handleOpenYuzux} />
+                        </div>
 
-                        <hr className="border-gray-200 mt-4" />
-
-                        <AppCatalog />
+                        <div className="max-w-7xl mx-auto w-full mt-6 md:mt-6 lg:mt-6">
+                            <AppCatalog />
+                        </div>
                     </main>
 
                     <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />

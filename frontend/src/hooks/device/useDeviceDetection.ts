@@ -13,9 +13,7 @@ export function useDeviceDetection() {
             const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
             const mobileDevice =
-                (isMobileUserAgent && isSmallScreen) || 
-                (isMobileUserAgent && hasTouch) || 
-                (isSmallScreen && hasTouch);
+                (isMobileUserAgent && isSmallScreen) || (isMobileUserAgent && hasTouch) || (isSmallScreen && hasTouch);
 
             setIsMobile(mobileDevice);
         };

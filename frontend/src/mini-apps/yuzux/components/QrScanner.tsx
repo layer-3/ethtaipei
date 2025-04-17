@@ -87,17 +87,17 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
                 const config = {
                     fps: 10,
-                    qrbox: { 
-                        width: 250, 
-                        height: 250
+                    qrbox: {
+                        width: 250,
+                        height: 250,
                     },
                     aspectRatio: 1.0,
-                    disableFlip: false
+                    disableFlip: false,
                 };
 
                 // Start scanning
                 await html5QrcodeScanner.start(
-                    { 
+                    {
                         facingMode: { exact: 'environment' },
                     },
                     config,
@@ -107,8 +107,10 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                     },
                     (errorMessage) => {
                         // Ignore not found errors (these are normal when no QR code is in view)
-                        if (errorMessage.includes('No MultiFormat Readers') || 
-                            errorMessage.includes('QR code parse error')) {
+                        if (
+                            errorMessage.includes('No MultiFormat Readers') ||
+                            errorMessage.includes('QR code parse error')
+                        ) {
                             return;
                         }
 
@@ -156,14 +158,18 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     // No camera view
     if (!hasCamera) {
         return (
-            <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0" style={{ zIndex: 5 }}>
+            <div
+                className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0"
+                style={{ zIndex: 5 }}
+            >
                 <div className="text-center mb-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor">
+                        stroke="currentColor"
+                    >
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -187,14 +193,18 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     // No permission view
     if (!permission) {
         return (
-            <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0" style={{ zIndex: 5 }}>
+            <div
+                className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0"
+                style={{ zIndex: 5 }}
+            >
                 <div className="text-center mb-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor">
+                        stroke="currentColor"
+                    >
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -215,13 +225,13 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
             <div
                 id={scannerDivId}
                 className="w-full h-full"
-                style={{ 
+                style={{
                     position: 'fixed',
                     top: 0,
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    zIndex: 5 // Lower z-index so header can overlap
+                    zIndex: 5, // Lower z-index so header can overlap
                 }}
             />
         </div>

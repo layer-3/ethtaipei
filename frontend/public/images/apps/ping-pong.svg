@@ -1,0 +1,10 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="800" height="600" fill="#2A4365"/>
+<rect x="399" y="100" width="2" height="400" fill="white" stroke-dasharray="10 10"/>
+<circle cx="250" cy="200" r="30" fill="#FC8181"/>
+<rect x="50" y="180" width="15" height="120" rx="5" fill="white"/>
+<rect x="735" y="300" width="15" height="120" rx="5" fill="white"/>
+<path d="M250 200 L350 280 L450 150" stroke="white" stroke-width="3" stroke-dasharray="5 5"/>
+<text x="330" y="60" font-family="Arial" font-size="24" fill="white">PING PONG</text>
+<text x="280" y="520" font-family="Arial" font-size="18" fill="#63B3ED">Powered by State Channels</text>
+</svg>

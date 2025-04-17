@@ -255,7 +255,6 @@ export function AccountInterface() {
                                 <path d="M19 12H5M12 19l-7-7 7-7" />
                             </svg>
                         </Link>
-                        <h1 className="text-2xl font-bold text-black">Account</h1>
                     </div>
                     <div className="flex items-center">
                         {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}

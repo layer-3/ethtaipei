@@ -41,6 +41,6 @@ export function useAmountInput(initialValue: string = '0') {
     return {
         amount,
         setAmount,
-        handleAmountChange
+        handleAmountChange,
     };
 }

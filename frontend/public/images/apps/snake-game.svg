@@ -1,0 +1,15 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="800" height="600" fill="#234E52"/>
+<rect x="200" y="200" width="40" height="40" fill="#68D391"/>
+<rect x="240" y="200" width="40" height="40" fill="#68D391"/>
+<rect x="280" y="200" width="40" height="40" fill="#68D391"/>
+<rect x="320" y="200" width="40" height="40" fill="#68D391"/>
+<rect x="360" y="200" width="40" height="40" fill="#68D391"/>
+<rect x="400" y="200" width="40" height="40" fill="#38A169"/>
+<rect x="400" y="240" width="40" height="40" fill="#38A169"/>
+<rect x="400" y="280" width="40" height="40" fill="#38A169"/>
+<circle cx="520" cy="320" r="20" fill="#F6E05E"/>
+<circle cx="520" cy="320" r="15" fill="#ECC94B"/>
+<text x="300" y="60" font-family="Arial" font-size="24" fill="white">SNAKE GAME</text>
+<text x="280" y="520" font-family="Arial" font-size="18" fill="#9AE6B4">Collect Crypto Tokens</text>
+</svg>

@@ -33,6 +33,9 @@ module.exports = {
     content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['Poppins', 'sans-serif'],
+            },
             colors: {
                 ...systemColors,
             },
@@ -52,11 +55,11 @@ module.exports = {
                     '50%': { top: '97%' },
                     '100%': { top: '0%' },
                 },
-                'fadeIn': {
+                fadeIn: {
                     '0%': { opacity: '0' },
                     '100%': { opacity: '1' },
                 },
-                'slideUp': {
+                slideUp: {
                     '0%': { transform: 'translateY(10px)', opacity: '0' },
                     '100%': { transform: 'translateY(0)', opacity: '1' },
                 },
@@ -68,8 +71,8 @@ module.exports = {
             animation: {
                 'fade-scale-in': 'fade-scale-in 0.3s ease-out forwards',
                 'scan-line': 'scan-line 2s ease-in-out infinite',
-                'fadeIn': 'fadeIn 0.3s ease-in-out forwards',
-                'slideUp': 'slideUp 0.4s ease-out forwards',
+                fadeIn: 'fadeIn 0.3s ease-in-out forwards',
+                slideUp: 'slideUp 0.4s ease-out forwards',
                 'pulse-border': 'pulse-border 1.5s ease-in-out infinite',
             },
         },

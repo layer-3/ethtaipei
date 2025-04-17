@@ -95,7 +95,8 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                                             isPasting
                                                 ? 'bg-gray-200 text-gray-600'
                                                 : 'bg-white text-black hover:bg-gray-100 active:bg-gray-200'
-                                        }`}>
+                                        }`}
+                                    >
                                         {isPasting ? (
                                             <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-1" />
                                         ) : (
@@ -104,7 +105,8 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                                                 className="h-4 w-4 mr-1"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
-                                                stroke="currentColor">
+                                                stroke="currentColor"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -124,13 +126,15 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                             {validationError ? (
                                 <div
                                     className="flex items-center text-red-500 text-sm "
-                                    style={{ animationDelay: '0.05s' }}>
+                                    style={{ animationDelay: '0.05s' }}
+                                >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="h-4 w-4 mr-1 flex-shrink-0"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        stroke="currentColor">
+                                        stroke="currentColor"
+                                    >
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -143,13 +147,15 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                             ) : recipientAddress && isAddressValid ? (
                                 <div
                                     className="flex items-center text-green-500 text-sm "
-                                    style={{ animationDelay: '0.05s' }}>
+                                    style={{ animationDelay: '0.05s' }}
+                                >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="h-4 w-4 mr-1 flex-shrink-0"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        stroke="currentColor">
+                                        stroke="currentColor"
+                                    >
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -165,7 +171,8 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                     {/* Address format hint */}
                     <div
                         className="bg-gray-900 rounded-lg p-4 text-xs text-gray-400  border border-gray-800"
-                        style={{ animationDelay: '0.2s' }}>
+                        style={{ animationDelay: '0.2s' }}
+                    >
                         <p className="font-medium text-white mb-1">Address Format</p>
                         <p>
                             Ethereum addresses start with &quot;0x&quot; followed by 40 hexadecimal characters (0-9,
@@ -188,20 +195,23 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                             isAddressValid
                                 ? 'bg-white text-black hover:bg-gray-200 active:bg-gray-300'
                                 : 'disabled:opacity-50 disabled:cursor-not-allowed'
-                        }`}>
+                        }`}
+                >
                     Continue
                 </button>
 
                 {isMobile && (
                     <button
                         onClick={onSwitchToScan}
-                        className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-900 transition-colors text-lg font-medium border border-gray-800 mt-2">
+                        className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-900 transition-colors text-lg font-medium border border-gray-800 mt-2"
+                    >
                         <div className="flex items-center justify-center">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 className="h-5 w-5 mr-2"
                                 viewBox="0 0 20 20"
-                                fill="currentColor">
+                                fill="currentColor"
+                            >
                                 <path
                                     fillRule="evenodd"
                                     d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"

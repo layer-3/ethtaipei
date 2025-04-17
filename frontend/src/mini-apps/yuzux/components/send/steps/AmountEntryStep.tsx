@@ -92,7 +92,8 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
                     <button
                         disabled={!canPay}
                         onClick={onSubmit}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                    >
                         Pay
                     </button>
 

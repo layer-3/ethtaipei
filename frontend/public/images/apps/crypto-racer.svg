@@ -1,0 +1,17 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="800" height="600" fill="#2B6CB0"/>
+<path d="M0 200 L800 200" stroke="white" stroke-width="5" stroke-dasharray="50 30"/>
+<path d="M0 400 L800 400" stroke="white" stroke-width="5" stroke-dasharray="50 30"/>
+<rect x="200" y="250" width="120" height="60" rx="10" fill="#2C5282"/>
+<rect x="220" y="240" width="80" height="30" rx="10" fill="#2C5282"/>
+<circle cx="230" cy="310" r="15" fill="#1A365D"/>
+<circle cx="290" cy="310" r="15" fill="#1A365D"/>
+<rect x="500" y="260" width="120" height="60" rx="10" fill="#C53030"/>
+<rect x="520" y="250" width="80" height="30" rx="10" fill="#C53030"/>
+<circle cx="530" cy="320" r="15" fill="#742A2A"/>
+<circle cx="590" cy="320" r="15" fill="#742A2A"/>
+<circle cx="400" cy="150" r="30" fill="#F6E05E"/>
+<text x="380" y="155" font-family="Arial" font-size="14" fill="#744210">$</text>
+<text x="300" y="60" font-family="Arial" font-size="24" fill="white">CRYPTO RACER</text>
+<text x="280" y="520" font-family="Arial" font-size="18" fill="#90CDF4">Speed Boosts with Micropayments</text>
+</svg>
