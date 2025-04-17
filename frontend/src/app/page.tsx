@@ -2,16 +2,20 @@
 
 import { useCallback, useEffect } from 'react';
 import { useSnapshot } from 'valtio';
-import { AppStore } from '@/store';
+import { AppStore, NitroliteStore, WalletStore } from '@/store';
 import Privy from '@/providers/privy';
 import { NitroliteClientWrapper } from '@/providers/NitroliteClientWrapper';
 import { MinimizedApps, MainHeader, AppCatalog, YuzuxSection, YuzuxAppContainer } from '@/components';
 import { Deposit } from '@/components/wallet/clearnet';
 import { WebSocketProvider } from '@/context/WebSocketContext';
 import { fetchAssets } from '@/store/AssetsStore';
+import { usePrivy } from '@privy-io/react-auth';
 
-export default function HomePage() {
+function HomePage() {
     const appSnap = useSnapshot(AppStore.state);
+    const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
+    const WalletSnap = useSnapshot(WalletStore.state);
+    const { login, ready } = usePrivy();
 
     const handleOpenDeposit = useCallback(() => {
         AppStore.openDeposit();
@@ -22,44 +26,56 @@ export default function HomePage() {
     }, []);
 
     const handleOpenYuzux = useCallback(() => {
-        AppStore.openApp('yuzux');
-    }, []);
+        if (!WalletSnap.walletAddress && ready) {
+            login();
+        } else if (
+            WalletSnap.walletAddress &&
+            nitroliteSnapshot.accountInfo &&
+            nitroliteSnapshot.userAccountFromParticipants
+        ) {
+            AppStore.openApp('yuzux');
+        } else {
+            AppStore.openDeposit();
+        }
+    }, [nitroliteSnapshot]);
 
     const handleOpenCloseChannel = useCallback(() => {
         AppStore.openCloseChannel();
     }, []);
-
-    // const handleCloseChannel = useCallback(() => {
-    //     AppStore.closeCloseChannel();
-    // }, []);
 
     useEffect(() => {
         fetchAssets();
     }, []);
 
     return (
+        <WebSocketProvider>
+            <div className="min-h-screen flex flex-col">
+                <NitroliteClientWrapper>
+                    <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
+                        <MainHeader onOpenDeposit={handleOpenDeposit} onOpenCloseChannel={handleOpenCloseChannel} />
+
+                        <YuzuxSection onOpenYuzux={handleOpenYuzux} />
+
+                        <hr className="border-gray-300 mt-8" />
+
+                        <AppCatalog />
+                    </main>
+
+                    <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
+
+                    <YuzuxAppContainer />
+
+                    <MinimizedApps />
+                </NitroliteClientWrapper>
+            </div>
+        </WebSocketProvider>
+    );
+}
+
+export default function WrappedHomePage() {
+    return (
         <Privy>
-            <WebSocketProvider>
-                <div className="min-h-screen flex flex-col">
-                    <NitroliteClientWrapper>
-                        <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
-                            <MainHeader onOpenDeposit={handleOpenDeposit} onOpenCloseChannel={handleOpenCloseChannel} />
-
-                            <YuzuxSection onOpenYuzux={handleOpenYuzux} />
-
-                            <hr className="border-gray-300 mt-8" />
-
-                            <AppCatalog />
-                        </main>
-
-                        <Deposit isOpen={appSnap.isDepositOpen || false} onClose={handleCloseDeposit} />
-
-                        <YuzuxAppContainer />
-
-                        <MinimizedApps />
-                    </NitroliteClientWrapper>
-                </div>
-            </WebSocketProvider>
+            <HomePage />
         </Privy>
     );
 }
