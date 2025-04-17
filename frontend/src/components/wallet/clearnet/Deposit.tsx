@@ -24,6 +24,8 @@ interface DepositProps {
 export default function Deposit({ isOpen, onClose }: DepositProps) {
     const [value, setValue] = useState<string>('0');
     const [transactionStatus, setTransactionStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = useState<number | null>(null);
     const { balances, assets } = useSnapshot(AssetsStore.state);
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
     const { walletAddress } = useSnapshot(WalletStore.state);
@@ -323,11 +325,41 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         return defaultComponent;
     }, [transactionStatus, nitroliteSnapshot.status, processingComponent, successComponent, defaultComponent]);
 
+    // Handle swipe gesture to close (only for mobile)
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+    
+    const handleTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX);
+    };
+    
+    const handleTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        
+        const distance = touchStart - touchEnd;
+        const minSwipeDistance = 100; // Minimum distance required for swipe
+        
+        // If swipe from right to left and distance is sufficient
+        if (distance > minSwipeDistance) {
+            // Prevent default behavior and close the modal
+            onClose();
+        }
+        
+        // Reset touch states
+        setTouchStart(null);
+        setTouchEnd(null);
+    };
+
     return (
         <div
             className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             <div className="p-4 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">

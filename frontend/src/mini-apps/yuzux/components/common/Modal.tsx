@@ -14,7 +14,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
     const [animationState, setAnimationState] = useState<AnimationState>('exited');
     const { isMobile } = useDeviceDetection();
     const [swipeDistance, setSwipeDistance] = useState(0);
+    const [horizontalSwipeDistance, setHorizontalSwipeDistance] = useState(0);
     const startYRef = useRef<number | null>(null);
+    const startXRef = useRef<number | null>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -38,33 +40,57 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
     const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
         if (!isMobile) return;
         startYRef.current = e.touches[0].clientY;
+        startXRef.current = e.touches[0].clientX;
     };
 
     const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
-        if (!isMobile || startYRef.current === null) return;
+        if (!isMobile) return;
 
         const currentY = e.touches[0].clientY;
-        const deltaY = currentY - startYRef.current;
-
-        // Only allow downward swipes (positive deltaY)
-        if (deltaY > 0) {
-            setSwipeDistance(deltaY);
+        const currentX = e.touches[0].clientX;
+        
+        // Handle vertical swipe (existing functionality)
+        if (startYRef.current !== null) {
+            const deltaY = currentY - startYRef.current;
+            
+            // Only allow downward swipes (positive deltaY)
+            if (deltaY > 0) {
+                setSwipeDistance(deltaY);
+            }
+        }
+        
+        // Handle horizontal swipe (new functionality)
+        if (startXRef.current !== null) {
+            const deltaX = startXRef.current - currentX;
+            
+            // Only allow right-to-left swipes (positive deltaX)
+            if (deltaX > 0) {
+                setHorizontalSwipeDistance(deltaX);
+            }
         }
     };
 
     const handleTouchEnd = () => {
         if (!isMobile) return;
 
-        const SWIPE_THRESHOLD = 100; // pixels
+        const VERTICAL_SWIPE_THRESHOLD = 100; // pixels
+        const HORIZONTAL_SWIPE_THRESHOLD = 100; // pixels
 
-        if (swipeDistance > SWIPE_THRESHOLD) {
+        // Check if either swipe threshold is met
+        const shouldClose = 
+            swipeDistance > VERTICAL_SWIPE_THRESHOLD || 
+            horizontalSwipeDistance > HORIZONTAL_SWIPE_THRESHOLD;
+
+        if (shouldClose) {
             // Close the modal if swipe distance exceeds threshold
             handleClose();
         }
 
-        // Reset swipe distance with animation
+        // Reset swipe distances with animation
         setSwipeDistance(0);
+        setHorizontalSwipeDistance(0);
         startYRef.current = null;
+        startXRef.current = null;
     };
 
     if (animationState === 'exited' && !isOpen) return null;
@@ -84,9 +110,15 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
                 onTouchEnd={handleTouchEnd}
                 style={{
                     transform: `translateX(${
-                        animationState === 'entering' ? '100%' : animationState === 'entered' ? '0' : '100%'
+                        animationState === 'entering' 
+                            ? '100%' 
+                            : animationState === 'entered' 
+                                ? `${horizontalSwipeDistance}px` 
+                                : '100%'
                     }) translateY(${swipeDistance}px)`,
-                    transition: swipeDistance === 0 ? 'transform 300ms ease-in-out' : 'none',
+                    transition: swipeDistance === 0 && horizontalSwipeDistance === 0 
+                        ? 'transform 300ms ease-in-out' 
+                        : 'none',
                 }}
                 className="fixed inset-0 z-10 flex flex-col bg-black overflow-hidden transition-transform duration-300 ease-in-out transform"
             >
