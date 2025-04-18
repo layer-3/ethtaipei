@@ -1,6 +1,6 @@
 import { urlBase64ToUint8Array } from './urlBase64ToUint8Array';
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 interface NotificationOptions {
     title: string;
