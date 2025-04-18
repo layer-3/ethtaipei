@@ -37,17 +37,6 @@ export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
         }
     }, [walletSnap.connected, isConnected, settingsSnap.activeChain?.id, getParticipants]);
 
-    // Periodically refresh participants data every 2 seconds
-    useEffect(() => {
-        if (!walletSnap.connected || !isConnected) return;
-
-        const intervalId = setInterval(() => {
-            getParticipants();
-        }, 2000);
-
-        return () => clearInterval(intervalId);
-    }, [walletSnap.connected, isConnected, getParticipants]);
-
     const formattedBalance = (() => {
         if (!nitroSnap.userAccountFromParticipants || !settingsSnap.activeChain?.id) {
             return '0';
