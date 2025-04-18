@@ -70,6 +70,33 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const generateKeys = useCallback(async () => {
         try {
+            if (typeof window !== 'undefined') {
+                const savedKeys = localStorage.getItem(CRYPTO_KEYPAIR_KEY);
+
+                if (savedKeys) {
+                    try {
+                        const parsed = JSON.parse(savedKeys) as CryptoKeypair;
+
+                        if (parsed && typeof parsed.privateKey === 'string' && typeof parsed.publicKey === 'string') {
+                            if (parsed.publicKey && !parsed.address) {
+                                parsed.address = getAddressFromPublicKey(parsed.publicKey);
+                                localStorage.setItem(CRYPTO_KEYPAIR_KEY, JSON.stringify(parsed));
+                            }
+                            setKeyPair(parsed);
+                            const signer = createEthersSigner(parsed.privateKey);
+
+                            setCurrentSigner(signer);
+                            NitroliteStore.setStateSigner(signer);
+                            return parsed;
+                        }
+                    } catch (e) {
+                        // Could not parse, fall through and generate keys.
+                        console.error('Failed to parse saved keys during generateKeys:', e);
+                        localStorage.removeItem(CRYPTO_KEYPAIR_KEY);
+                    }
+                }
+            }
+            // If no valid keys in storage, generate new ones.
             const newKeyPair = await generateKeyPair();
 
             setKeyPair(newKeyPair);

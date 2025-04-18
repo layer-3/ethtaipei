@@ -11,6 +11,17 @@ import { formatSignificantWithSeparators } from '@/components/ui/Decimal';
 import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { useWebSocket } from '@/hooks';
 
+function setThemeColor(color: string) {
+    let themeMeta = document.querySelector('meta[name="theme-color"]');
+
+    if (!themeMeta) {
+        themeMeta = document.createElement('meta');
+        themeMeta.setAttribute('name', 'theme-color');
+        document.head.appendChild(themeMeta);
+    }
+    themeMeta.setAttribute('content', color);
+}
+
 export function YuzuxApp() {
     // WebSocket - Use the hook without the URL parameter
     const { sendRequest, connect, isConnected, generateKeys, hasKeys } = useWebSocket(); // Removed wsUrl
@@ -74,9 +85,11 @@ export function YuzuxApp() {
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
+        setThemeColor('#000');
 
         return () => {
             document.body.style.overflow = 'auto';
+            setThemeColor('#fff');
         };
     }, []);
 
@@ -102,15 +115,13 @@ export function YuzuxApp() {
         <div
             className={`fixed inset-0 bg-black z-50 flex flex-col p-6 transition-opacity duration-300 ease-in-out ${
                 isExiting ? 'opacity-0' : 'opacity-100'
-            }`}
-        >
+            }`}>
             <div className="flex justify-between items-center py-2">
                 <h1 className="text-3xl font-bold text-white">Yuzux</h1>
                 <button
                     onClick={handleMinimize}
                     className="bg-white hover:bg-gray-200 text-black p-2 rounded-full flex items-center justify-center transition-colors"
-                    aria-label="Minimize"
-                >
+                    aria-label="Minimize">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path
                             fillRule="evenodd"
@@ -126,8 +137,7 @@ export function YuzuxApp() {
                 <div
                     className={`text-white text-center transform transition-transform duration-300 ${
                         isExiting ? 'scale-95' : 'scale-100'
-                    }`}
-                >
+                    }`}>
                     <div className="flex flex-col items-center">
                         <span className="text-[56px] font-bold leading-none text-white">
                             $ {formatSignificantWithSeparators(String(currentBalance) || '0')}
@@ -139,14 +149,12 @@ export function YuzuxApp() {
                 <div className="flex justify-between max-w-md mx-auto">
                     <button
                         onClick={handleOpenReceive}
-                        className="flex-1 mr-2 bg-black text-white py-3 rounded-md hover:bg-gray-900 transition-colors flex items-center justify-center border border-white"
-                    >
+                        className="flex-1 mr-2 bg-black text-white py-3 rounded-md hover:bg-gray-900 transition-colors flex items-center justify-center border border-white">
                         Receive
                     </button>
                     <button
                         onClick={handleOpenSend}
-                        className="flex-1 ml-2 bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white"
-                    >
+                        className="flex-1 ml-2 bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white">
                         Pay
                     </button>
                 </div>
