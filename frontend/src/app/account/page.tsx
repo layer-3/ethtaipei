@@ -11,7 +11,7 @@ export default function AccountPage() {
             <WebSocketProvider>
                 <div className="min-h-screen flex flex-col">
                     <NitroliteClientWrapper>
-                        <main className="min-h-screen bg-white px-4 pt-4 flex flex-col pb-40">
+                        <main className="min-h-screen bg-white flex flex-col pb-40">
                             <AccountInterface />
                         </main>
                     </NitroliteClientWrapper>

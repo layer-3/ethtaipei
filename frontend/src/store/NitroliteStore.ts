@@ -3,7 +3,10 @@ import { AppLogic, ChannelContext, NitroliteClient, Channel, State } from '@erc7
 import { proxy } from 'valtio';
 import { Address } from 'viem';
 import { NitroliteState, ChannelId, AccountInfo, Participant } from './types'; // Added Participant
-import { WalletStore } from './index';
+import { SettingsStore, WalletStore } from './index';
+import { NotificationService } from '@/utils/notificationService';
+import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
+import APP_CONFIG from '@/config/app';
 
 /**
  * Nitrolite Store
@@ -107,17 +110,51 @@ const NitroliteStore = {
      * Set participants list and find the user's account within it.
      */
     setParticipants(participants: Participant[]): void {
-        state.participants = participants;
         const userAddress = WalletStore.state.walletAddress;
+        const previousUserAccount = state.userAccountFromParticipants;
 
-        if (userAddress) {
+        if (userAddress && state.stateSigner) {
             const userAccount = participants.find(
                 (p) => p.address.toLowerCase() === state.stateSigner.address.toLowerCase(),
             );
 
+            if (previousUserAccount && userAccount && previousUserAccount.amount !== userAccount.amount) {
+                const amountDiff = userAccount.amount - previousUserAccount.amount;
+                const chainId = SettingsStore.state.activeChain?.id;
+
+                const tokenConfig = APP_CONFIG.TOKENS[chainId];
+
+                const formattedAmount = formatTokenUnits(tokenConfig, amountDiff);
+
+                if (amountDiff > 0n) {
+                    this.notifyUser(`You received $ ${formattedAmount}`);
+                } else if (amountDiff < 0n) {
+                    this.notifyUser(`You sent $ ${formattedAmount.replace('-', '')}`);
+                }
+            }
+
             state.userAccountFromParticipants = userAccount || null;
         } else {
             state.userAccountFromParticipants = null;
+        }
+
+        state.participants = participants;
+    },
+
+    /**
+     * Show notification to user
+     */
+    notifyUser(body: string, title: string = 'Clearnet Transaction'): void {
+        try {
+            const notificationService = NotificationService.getInstance();
+
+            notificationService.showNotification({
+                title,
+                body,
+                url: '/account',
+            });
+        } catch (error) {
+            console.error('Failed to send notification:', error);
         }
     },
 

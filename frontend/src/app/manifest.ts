@@ -10,6 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
         orientation: 'any',
         scope: '/',
         start_url: '/',
+        permissions: ['notifications'],
         icons: [
             {
                 src: 'icons/icon-48x48.png',

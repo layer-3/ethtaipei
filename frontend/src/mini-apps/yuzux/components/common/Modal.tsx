@@ -48,21 +48,21 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 
         const currentY = e.touches[0].clientY;
         const currentX = e.touches[0].clientX;
-        
+
         // Handle vertical swipe (existing functionality)
         if (startYRef.current !== null) {
             const deltaY = currentY - startYRef.current;
-            
+
             // Only allow downward swipes (positive deltaY)
             if (deltaY > 0) {
                 setSwipeDistance(deltaY);
             }
         }
-        
+
         // Handle horizontal swipe (new functionality)
         if (startXRef.current !== null) {
             const deltaX = startXRef.current - currentX;
-            
+
             // Only allow right-to-left swipes (positive deltaX)
             if (deltaX > 0) {
                 setHorizontalSwipeDistance(deltaX);
@@ -77,9 +77,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
         const HORIZONTAL_SWIPE_THRESHOLD = 100; // pixels
 
         // Check if either swipe threshold is met
-        const shouldClose = 
-            swipeDistance > VERTICAL_SWIPE_THRESHOLD || 
-            horizontalSwipeDistance > HORIZONTAL_SWIPE_THRESHOLD;
+        const shouldClose =
+            swipeDistance > VERTICAL_SWIPE_THRESHOLD || horizontalSwipeDistance > HORIZONTAL_SWIPE_THRESHOLD;
 
         if (shouldClose) {
             // Close the modal if swipe distance exceeds threshold
@@ -110,15 +109,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
                 onTouchEnd={handleTouchEnd}
                 style={{
                     transform: `translateX(${
-                        animationState === 'entering' 
-                            ? '100%' 
-                            : animationState === 'entered' 
-                                ? `${horizontalSwipeDistance}px` 
-                                : '100%'
+                        animationState === 'entering'
+                            ? '100%'
+                            : animationState === 'entered'
+                              ? `${horizontalSwipeDistance}px`
+                              : '100%'
                     }) translateY(${swipeDistance}px)`,
-                    transition: swipeDistance === 0 && horizontalSwipeDistance === 0 
-                        ? 'transform 300ms ease-in-out' 
-                        : 'none',
+                    transition:
+                        swipeDistance === 0 && horizontalSwipeDistance === 0 ? 'transform 300ms ease-in-out' : 'none',
                 }}
                 className="fixed inset-0 z-10 flex flex-col bg-black overflow-hidden transition-transform duration-300 ease-in-out transform"
             >

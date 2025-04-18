@@ -109,7 +109,7 @@ export function YuzuxApp() {
         const displayValue = formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount);
 
         return displayValue;
-    }, [chainId, nitroSnap.accountInfo.locked]); // Removed appSnap.isSendOpen dependency
+    }, [chainId, nitroSnap.userAccountFromParticipants]);
 
     return (
         <div

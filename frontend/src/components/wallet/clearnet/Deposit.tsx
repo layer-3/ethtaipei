@@ -330,23 +330,23 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         setTouchEnd(null);
         setTouchStart(e.targetTouches[0].clientX);
     };
-    
+
     const handleTouchMove = (e: React.TouchEvent) => {
         setTouchEnd(e.targetTouches[0].clientX);
     };
-    
+
     const handleTouchEnd = () => {
         if (!touchStart || !touchEnd) return;
-        
+
         const distance = touchStart - touchEnd;
         const minSwipeDistance = 100; // Minimum distance required for swipe
-        
+
         // If swipe from right to left and distance is sufficient
         if (distance > minSwipeDistance) {
             // Prevent default behavior and close the modal
             onClose();
         }
-        
+
         // Reset touch states
         setTouchStart(null);
         setTouchEnd(null);

@@ -162,3 +162,7 @@ body {
         padding: 0 8px;
     }
 }
+
+.font-display {
+    font-family: "Poppins", sans-serif !important;
+}
