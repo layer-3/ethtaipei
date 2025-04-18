@@ -55,7 +55,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
-            setStep(isMobile ? 'scan' : 'manual');
+            setStep(isMobile ? 'scan' : 'scan');
             setRecipientAddress('');
         }
     }, [isOpen, isMobile]);

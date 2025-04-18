@@ -16,8 +16,7 @@ export const ScanStep: React.FC<ScanStepProps> = ({ onScan, onSwitchToManual }) 
             <div className="p-4 absolute bottom-0 w-full z-20">
                 <button
                     onClick={onSwitchToManual}
-                    className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white"
-                >
+                    className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white">
                     Enter Manually
                 </button>
             </div>

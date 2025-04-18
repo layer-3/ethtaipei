@@ -17,13 +17,6 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
     useEffect(() => {
         const checkCamera = async () => {
             try {
-                // First check if navigator and mediaDevices exist
-                if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-                    console.warn('MediaDevices API not supported in this environment');
-                    setHasCamera(false);
-                    return;
-                }
-
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter((device) => device.kind === 'videoinput');
 
@@ -44,15 +37,6 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
         const requestPermission = async () => {
             try {
-                // Check if mediaDevices API is available
-                if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    console.warn('MediaDevices API not supported in this environment');
-                    setPermission(false);
-                    setScanning(false);
-                    onError?.(new Error('MediaDevices API not supported'));
-                    return;
-                }
-
                 // Ask for permission to access camera
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
@@ -82,7 +66,14 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
         let html5QrcodeScanner: Html5Qrcode | null = null;
 
-        // We'll use a custom CSS approach instead of calculating viewport dimensions
+        // Function to calculate viewport dimensions
+        const getViewportDimensions = () => {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                aspectRatio: window.innerWidth / window.innerHeight,
+            };
+        };
 
         const startScanner = async () => {
             try {
@@ -90,88 +81,42 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                 html5QrcodeScanner = new Html5Qrcode(scannerDivId);
                 scannerRef.current = html5QrcodeScanner;
 
+                const viewport = getViewportDimensions();
+
                 // Using fixed size for QR box to ensure consistent scanning
 
-                // Force a square qrbox on mobile to fix the stretched scanner issue
                 const config = {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0,
+                    fps: 24,
+                    qrbox: {
+                        width: 250,
+                        height: 250,
+                    },
                     disableFlip: false,
                 };
 
-                // Start scanning - use a more permissive camera configuration
-                // First try with user-facing camera in case environment not available
-                try {
-                    await html5QrcodeScanner.start(
-                        { facingMode: 'environment' }, // More permissive
-                        config,
-                        (decodedText) => {
-                            // On successful scan
-                            onScan(decodedText);
-                        },
-                        (errorMessage) => {
-                            // Ignore not found errors (these are normal when no QR code is in view)
-                            if (
-                                errorMessage.includes('No MultiFormat Readers') ||
-                                errorMessage.includes('QR code parse error')
-                            ) {
-                                return;
-                            }
-
-                            // For other errors, log them
-                            console.warn(`QR scan error: ${errorMessage}`);
-                        },
-                    );
-                } catch (error) {
-                    console.warn('Environment camera failed, trying user camera:', error);
-                    // Fall back to user-facing camera if environment camera fails
-                    try {
-                        await html5QrcodeScanner.start(
-                            { facingMode: 'user' },
-                            config,
-                            (decodedText) => {
-                                // On successful scan
-                                onScan(decodedText);
-                            },
-                            (errorMessage) => {
-                                // Ignore not found errors (these are normal when no QR code is in view)
-                                if (
-                                    errorMessage.includes('No MultiFormat Readers') ||
-                                    errorMessage.includes('QR code parse error')
-                                ) {
-                                    return;
-                                }
-
-                                // For other errors, log them
-                                console.warn(`QR scan error: ${errorMessage}`);
-                            },
-                        );
-                    } catch (finalError) {
-                        // Last attempt: try with no constraints
-                        try {
-                            await html5QrcodeScanner.start(
-                                {}, // Use any available camera
-                                config,
-                                (decodedText) => {
-                                    onScan(decodedText);
-                                },
-                                (errorMessage) => {
-                                    if (
-                                        errorMessage.includes('No MultiFormat Readers') ||
-                                        errorMessage.includes('QR code parse error')
-                                    ) {
-                                        return;
-                                    }
-                                    console.warn(`QR scan error: ${errorMessage}`);
-                                },
-                            );
-                        } catch (error) {
-                            console.error('All camera options failed:', error);
-                            onError?.(error as Error);
+                // Start scanning
+                await html5QrcodeScanner.start(
+                    {
+                        facingMode: { exact: 'environment' },
+                    },
+                    config,
+                    (decodedText) => {
+                        // On successful scan
+                        onScan(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Ignore not found errors (these are normal when no QR code is in view)
+                        if (
+                            errorMessage.includes('No MultiFormat Readers') ||
+                            errorMessage.includes('QR code parse error')
+                        ) {
+                            return;
                         }
-                    }
-                }
+
+                        // For other errors, log them
+                        console.warn(`QR scan error: ${errorMessage}`);
+                    },
+                );
             } catch (error) {
                 console.error('Error initializing QR scanner:', error);
                 onError?.(error as Error);
@@ -235,11 +180,8 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                             d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
                         />
                     </svg>
-                    <p className="text-lg font-semibold">Camera Not Available</p>
-                    <p className="text-sm mt-2">
-                        Your device doesn&apos;t have a camera, access is restricted, or the camera API is not
-                        supported.
-                    </p>
+                    <p className="text-lg font-semibold">No Camera Available</p>
+                    <p className="text-sm mt-2">Your device doesn&apos;t have a camera or access is restricted.</p>
                 </div>
             </div>
         );
@@ -285,22 +227,6 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                     right: 0,
                     bottom: 0,
                     zIndex: 5, // Lower z-index so header can overlap
-                }}
-            />
-            {/* Add inline CSS for scanner video size control */}
-            <style
-                dangerouslySetInnerHTML={{
-                    __html: `
-                        /* Force the video element to have square aspect ratio on mobile */
-                        @media (max-width: 768px) {
-                            #${scannerDivId} video {
-                                aspect-ratio: 1/2 !important;
-                                height: auto !important;
-                                max-height: 100% !important;
-                                object-fit: cover !important;
-                            }
-                        }
-                    `,
                 }}
             />
         </div>
