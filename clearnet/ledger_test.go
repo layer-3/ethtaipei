@@ -47,11 +47,11 @@ func (m *MockWebsocketConn) WriteControl(messageType int, data []byte, deadline 
 	return nil
 }
 
-func (m *MockWebsocketConn) WriteJSON(v interface{}) error {
+func (m *MockWebsocketConn) WriteJSON(v any) error {
 	return nil
 }
 
-func (m *MockWebsocketConn) ReadJSON(v interface{}) error {
+func (m *MockWebsocketConn) ReadJSON(v any) error {
 	return nil
 }
 
@@ -362,7 +362,7 @@ func TestHandleHandleListOpenParticipants(t *testing.T) {
 	assert.NotNil(t, response)
 
 	// Extract the response data
-	var responseParams []interface{}
+	var responseParams []any
 	responseParams = response.Res.Params
 	require.NotEmpty(t, responseParams)
 

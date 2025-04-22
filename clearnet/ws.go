@@ -13,7 +13,7 @@ import (
 
 // WebSocketHandler defines the methods that must be implemented by a WebSocket handler
 type WebSocketHandler interface {
-	BroadcastMessage(message interface{})
+	BroadcastMessage(message any)
 }
 
 // UnifiedWSHandler manages WebSocket connections with authentication
@@ -52,8 +52,8 @@ func NewUnifiedWSHandler(node *centrifuge.Node, channelService *ChannelService, 
 
 // RegularMessage represents any message after authentication.
 type RegularMessage struct {
-	Req []interface{} `json:"req"` // Format: [requestId, "method", [args], timestamp]
-	Sig []string      `json:"sig"`
+	Req []any    `json:"req"` // Format: [requestId, "method", [args], timestamp]
+	Sig []string `json:"sig"`
 }
 
 // RPCWSMessage represents an RPC message sent over websocket.
@@ -159,7 +159,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			Req: RPCMessage{
 				Method:    method,
 				RequestID: uint64(requestID),
-				Params:    regularMsg.Req[2].([]interface{}),
+				Params:    regularMsg.Req[2].([]any),
 				Timestamp: uint64(time.Now().Unix()),
 			},
 			Sig: regularMsg.Sig,
@@ -243,7 +243,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			}
 
 			var sendReq SendMessageRequest
-			if args, ok := regularMsg.Req[2].([]interface{}); ok && len(args) > 0 {
+			if args, ok := regularMsg.Req[2].([]any); ok && len(args) > 0 {
 				argBytes, err := json.Marshal(args[0])
 				if err != nil {
 					sendErrorResponse(uint64(requestID), method, conn, "Invalid send message parameter format")
@@ -277,7 +277,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 					Res: RPCMessage{
 						RequestID: uint64(time.Now().UnixNano()), // Generate a unique request ID
 						Method:    "IncomingMessage",
-						Params: []any{map[string]interface{}{
+						Params: []any{map[string]any{
 							"channelId": sendReq.ChannelID,
 							"sender":    address,
 							"data":      sendReq.Data,
@@ -334,7 +334,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 // Helper function to send error responses.
 func sendErrorResponse(requestID uint64, method string, conn *websocket.Conn, errMsg string) {
-	response := CreateResponse(requestID, method, []any{map[string]interface{}{
+	response := CreateResponse(requestID, method, []any{map[string]any{
 		"error": errMsg,
 	}}, time.Now())
 	responseData, err := json.Marshal(response)
@@ -369,7 +369,7 @@ func sendErrorResponse(requestID uint64, method string, conn *websocket.Conn, er
 
 // BroadcastMessage sends a message to all connected clients
 // This is done in a non-blocking way to avoid hanging the handler
-func (h *UnifiedWSHandler) BroadcastMessage(message interface{}) {
+func (h *UnifiedWSHandler) BroadcastMessage(message any) {
 	log.Printf("Broadcasting message: %+v", message)
 
 	// Create a copy of the connections to avoid holding the lock for too long
@@ -395,7 +395,7 @@ func (h *UnifiedWSHandler) BroadcastMessage(message interface{}) {
 				log.Printf("Broadcasting to user: %s", userID)
 
 				// Format the message with the expected wrapper structure
-				msgWrapper := map[string]interface{}{
+				msgWrapper := map[string]any{
 					"channelId": "broadcast",
 					"sender":    "broker",
 					"data":      message,

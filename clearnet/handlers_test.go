@@ -283,7 +283,7 @@ func TestHandleListOpenParticipantsFunction(t *testing.T) {
 	assert.NotNil(t, response)
 
 	// Extract the response data
-	var responseParams []interface{}
+	var responseParams []any
 	responseParams = response.Res.Params
 	require.NotEmpty(t, responseParams)
 
