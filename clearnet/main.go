@@ -16,6 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -47,14 +49,32 @@ var (
 
 // setupDatabase initializes the database connection and performs migrations.
 func setupDatabase(dsn string) (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	var db *gorm.DB
+	var err error
+
+	// Determine which database driver to use based on DSN prefix
+	if dsn == "" {
+		dsn = "file:clearnet.db?cache=shared"
+		log.Println("Using SQLite database with default connection string")
+		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	} else if len(dsn) >= 4 && dsn[:4] == "file" || len(dsn) >= 6 && dsn[:6] == "sqlite" {
+		log.Println("Using SQLite database")
+		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	} else {
+		log.Println("Using PostgreSQL database")
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	// Auto-migrate the models.
+	log.Println("Running database migrations...")
 	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}); err != nil {
 		return nil, err
 	}
+	log.Println("Database migrations completed successfully")
 	return db, nil
 }
 
@@ -117,16 +137,29 @@ func startHTTPServer() {
 }
 
 func main() {
-	// Initialize the database.
-	dsn := os.Getenv("BROKER_DB_DSN")
-	if dsn == "" {
-		dsn = "file:broker.db?mode=memory&cache=shared"
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found")
 	}
 
-	log.Printf("Using database DSN: %s", dsn)
-	db, err := setupDatabase(dsn)
+	// Get database URL and driver from environment variables
+	dbURL := os.Getenv("DATABASE_URL")
+	dbDriver := os.Getenv("DATABASE_DRIVER")
+
+	// Set default connection string based on driver
+	if dbURL == "" {
+		switch dbDriver {
+		case "postgres":
+			dbURL = "postgres://postgres:postgres@localhost:5432/clearnet?sslmode=disable"
+		case "sqlite", "":
+			dbURL = "file:clearnet.db?cache=shared"
+		}
+	}
+
+	// Setup database
+	db, err := setupDatabase(dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to setup database: %v", err)
 	}
 
 	// Initialize Centrifuge node.

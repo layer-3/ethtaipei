@@ -12,8 +12,9 @@ import (
 
 // TestHandleSendMessage tests the message forwarding functionality in handlers.go
 func TestHandleMessageSending(t *testing.T) {
-	// Set up test database
-	db := setupTestDB(t)
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create a mock router
 	mockRouter := &MockRouter{}
@@ -92,8 +93,9 @@ func TestHandlePingFunction(t *testing.T) {
 
 // TestHandleVirtualChannelClosing tests the close channel handler functionality
 func TestHandleVirtualChannelClosing(t *testing.T) {
-	// Set up test database
-	db := setupTestDB(t)
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create ledger
 	ledger := NewLedger(db)
@@ -217,8 +219,9 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 
 // TestHandleListOpenParticipantsFunction tests the list available channels handler functionality
 func TestHandleListOpenParticipantsFunction(t *testing.T) {
-	// Set up test database
-	db := setupTestDB(t)
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	// Create channel service and ledger
 	channelService := NewChannelService(db)
