@@ -22,12 +22,16 @@ type CreateVirtualChannelParams struct {
 	ParticipantA       string       `json:"participant_a"`
 	ParticipantB       string       `json:"participant_b"`
 	InitialAllocations []Allocation `json:"allocations"`
+	Signers            []string     `json:"signers"`
+	// TODO: decice on the signature payload
+	ParticipantsSignatures []string `json:"participants_signatures"`
 }
 
 // CloseVirtualChannelParams represents parameters needed for virtual channel closure
 type CloseVirtualChannelParams struct {
 	ChannelID        string       `json:"channel_id"`
 	FinalAllocations []Allocation `json:"allocations"`
+	Signatures       []string     `json:"signatures"`
 }
 
 // CloseDirectChannelParams represents parameters needed for virtual channel closure
@@ -144,6 +148,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 			ParticipantA: virtualChannel.ParticipantA,
 			ParticipantB: virtualChannel.ParticipantB,
 			Status:       ChannelStatusOpen,
+			Signers:      virtualChannel.Signers,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -368,9 +373,8 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 	return rpcResponse, nil
 }
 
-// HandleCloseVirtualChannel closes a virtual channel and redistributes funds to participants
 func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
-	// Validate and parse parameters
+	// Extract parameters from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
@@ -415,7 +419,14 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 			return fmt.Errorf("channel is not open, current status: %s", virtualChannel.Status)
 		}
 
-		// 3. Find direct channels for both participants
+		// 3. Validate payload was signed by the virtual channel signers
+		if len(params.Signatures) != len(virtualChannel.Signers) {
+			return fmt.Errorf("unexpected number of signatures: %v instead of %v", len(params.Signatures), len(virtualChannel.Signers))
+		}
+
+		// TODO: validate that signatures matches the signers
+
+		// 4. Find direct channels for both participants
 		participantAChannel, err := getDirectChannelForParticipant(tx, virtualChannel.ParticipantA)
 		if err != nil {
 			return fmt.Errorf("failed to find direct channel for participant A: %w", err)
@@ -426,7 +437,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 			return fmt.Errorf("failed to find direct channel for participant B: %w", err)
 		}
 
-		// 6. Validate and calculate total allocated amounts
+		// 5. Validate and calculate total allocated amounts
 		totalAllocatedAmount := big.NewInt(0)
 		allocatedParticipants := make(map[string]bool)
 
