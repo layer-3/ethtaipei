@@ -70,9 +70,11 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 	}
 
 	// Auto-migrate the models.
+	log.Println("Running database migrations...")
 	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}); err != nil {
 		return nil, err
 	}
+	log.Println("Database migrations completed successfully")
 	return db, nil
 }
 
@@ -143,7 +145,7 @@ func main() {
 	// Get database URL and driver from environment variables
 	dbURL := os.Getenv("DATABASE_URL")
 	dbDriver := os.Getenv("DATABASE_DRIVER")
-	
+
 	// Set default connection string based on driver
 	if dbURL == "" {
 		switch dbDriver {
