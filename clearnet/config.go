@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// knownNetworks maps network name prefixes to their respective chain IDs.
+// Each prefix is used to find corresponding environment variables:
+// - {PREFIX}_INFURA_URL: The Infura endpoint URL for the network
+// - {PREFIX}_CUSTODY_CONTRACT_ADDRESS: The custody contract address
+var knownNetworks = map[string]string{
+	"POLYGON": "137",
+	"CELO":    "42220",
+	"BASE":    "8453",
+}
+
 // NetworkConfig represents configuration for a blockchain network
 type NetworkConfig struct {
 	Name           string
@@ -24,17 +34,8 @@ func LoadConfig() (Config, error) {
 		Networks: make(map[string]*NetworkConfig),
 	}
 
-	// Define known networks and their chain IDs
-	knownNetworks := map[string]string{
-		"POLYGON": "137",
-		"CELO":    "42220",
-		"BASE":    "8453",
-	}
-
-	// Get all environment variables
-	envs := os.Environ()
-
 	// Process each network
+	envs := os.Environ()
 	for network, chainID := range knownNetworks {
 		infuraURL := ""
 		custodyAddress := ""
