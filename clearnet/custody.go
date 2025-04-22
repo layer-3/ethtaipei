@@ -103,9 +103,9 @@ func (c *CustodyClientWrapper) GetCustody() *nitrolite.Custody {
 	return c.custody
 }
 
-func (c *CustodyClientWrapper) ListenEvents() {
+func (c *CustodyClientWrapper) ListenEvents(ctx context.Context) {
 	// TODO: store processed events in a database
-	ListenEvents(c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
+	ListenEvents(ctx, c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
 }
 
 // MultiNetworkCustodyWrapper manages custody clients across multiple networks
@@ -136,9 +136,9 @@ func (m *MultiNetworkCustodyWrapper) GetDefaultClient() *CustodyClientWrapper {
 }
 
 // ListenAllEvents initializes event listeners for all networks
-func (m *MultiNetworkCustodyWrapper) ListenAllEvents() {
+func (m *MultiNetworkCustodyWrapper) ListenAllEvents(ctx context.Context) {
 	for _, client := range m.clients {
-		go client.ListenEvents()
+		go client.ListenEvents(ctx)
 	}
 }
 

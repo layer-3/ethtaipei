@@ -103,7 +103,6 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 
 	log.Printf("Blockchain client initialized with address: %s", BrokerAddress)
 
-	go custodyClient.ListenEvents()
 	return custodyClient, nil
 }
 
@@ -162,7 +161,7 @@ func main() {
 	}
 
 	// Start listeners for all networks
-	multiNetworkCustody.ListenAllEvents()
+	multiNetworkCustody.ListenAllEvents(context.Background())
 
 	// Start the Centrifuge node.
 	if err := centrifugeNode.Run(); err != nil {
