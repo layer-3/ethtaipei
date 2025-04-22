@@ -34,6 +34,7 @@ func init() {
 type LogHandler func(l types.Log)
 
 func ListenEvents(
+	ctx context.Context,
 	client bind.ContractBackend,
 	subID string,
 	contractAddress common.Address,
@@ -55,7 +56,7 @@ func ListenEvents(
 			watchFQ := ethereum.FilterQuery{
 				Addresses: []common.Address{contractAddress},
 			}
-			eventSub, err := client.SubscribeFilterLogs(context.Background(), watchFQ, currentCh)
+			eventSub, err := client.SubscribeFilterLogs(ctx, watchFQ, currentCh)
 			if err != nil {
 				logger.Errorw("failed to subscribe on events", "error", err, "subID", subID, "networkID", networkID, "contractAddress", contractAddress.String())
 				backOffCount.Add(1)

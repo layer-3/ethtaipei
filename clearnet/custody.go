@@ -103,9 +103,43 @@ func (c *CustodyClientWrapper) GetCustody() *nitrolite.Custody {
 	return c.custody
 }
 
-func (c *CustodyClientWrapper) ListenEvents() {
+func (c *CustodyClientWrapper) ListenEvents(ctx context.Context) {
 	// TODO: store processed events in a database
-	ListenEvents(c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
+	ListenEvents(ctx, c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
+}
+
+// MultiNetworkCustodyWrapper manages custody clients across multiple networks
+type MultiNetworkCustodyWrapper struct {
+	clients        map[string]*CustodyClientWrapper
+	defaultChainID string
+}
+
+// NewMultiNetworkCustodyWrapper creates a new multi-network custody wrapper
+func NewMultiNetworkCustodyWrapper(clients map[string]*CustodyClientWrapper, defaultChainID string) *MultiNetworkCustodyWrapper {
+	return &MultiNetworkCustodyWrapper{
+		clients:        clients,
+		defaultChainID: defaultChainID,
+	}
+}
+
+// GetClient returns a client for the specified network ID
+func (m *MultiNetworkCustodyWrapper) GetClient(networkID string) *CustodyClientWrapper {
+	if client, ok := m.clients[networkID]; ok {
+		return client
+	}
+	return nil
+}
+
+// GetDefaultClient returns the default client
+func (m *MultiNetworkCustodyWrapper) GetDefaultClient() *CustodyClientWrapper {
+	return m.clients[m.defaultChainID]
+}
+
+// ListenAllEvents initializes event listeners for all networks
+func (m *MultiNetworkCustodyWrapper) ListenAllEvents(ctx context.Context) {
+	for _, client := range m.clients {
+		go client.ListenEvents(ctx)
+	}
 }
 
 func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
