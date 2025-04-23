@@ -21,8 +21,8 @@ import (
 type CreateVirtualChannelParams struct {
 	Participants       []string     `json:"participants"` // Participants signer addresses spacified when creating his direct channel.
 	InitialAllocations []Allocation `json:"allocations"`
-	Nonce              uint64       `json:"nonce"` // UnixNano timestamp
-	Signers            []string     `json:"signers"`
+	Nonce              uint64       `json:"nonce"`   // UnixNano timestamp
+	Signers            []string     `json:"signers"` // Participants agree on a set of signers required to close the channel.
 }
 
 // CloseVirtualChannelParams represents parameters needed for virtual channel closure
@@ -86,6 +86,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 		return nil, errors.New("invalid number of participants")
 	}
 
+	// Allocation should be specified for each participant even if it is zero.
 	if len(virtualChannel.InitialAllocations) != len(virtualChannel.Participants) {
 		return nil, errors.New("invalid allocations")
 	}
@@ -99,7 +100,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 		Participants: []common.Address{common.HexToAddress(participantA), common.HexToAddress(participantB)},
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    0, // Use placeholder values for virtual channels.
-		Nonce:        uint64(time.Now().UnixNano()),
+		Nonce:        uint64(virtualChannel.Nonce),
 	}
 	virtualChannelID := nitrolite.GetChannelID(nitroliteChannel)
 
@@ -408,7 +409,7 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 		}
 
 		// Validate that RPC message is signed by all and only virtual channel participants.
-		if err := validateSignatures(reqBytes, req.Sig, virtualChannelParticipants); err != nil {
+		if err := validateSignatures(reqBytes, req.Sig, virtualChannel.Signers); err != nil {
 			return err
 		}
 
