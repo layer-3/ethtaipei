@@ -140,8 +140,8 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 
 func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel, error) {
 	var directChannel DBChannel
-	if err := tx.Where("participant_a = ? AND participant_b = ?",
-		participant, BrokerAddress).First(&directChannel).Error; err != nil {
+	if err := tx.Where("participant_a = ? AND participant_b = ? AND status = ?",
+		participant, BrokerAddress, ChannelStatusOpen).Order("nonce DESC").First(&directChannel).Error; err != nil {
 		return nil, fmt.Errorf("no direct channel found for participant %s: %w", participant, err)
 	}
 	return &directChannel, nil

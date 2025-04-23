@@ -76,11 +76,6 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 
 	log.Printf("Parsed parameters: %+v\n", virtualChannel)
 
-	reqBytes, err := json.Marshal(req.Req)
-	if err != nil {
-		return nil, errors.New("error serializing auth message")
-	}
-
 	if len(virtualChannel.Participants) < 2 {
 		return nil, errors.New("invalid number of participants")
 	}
@@ -103,30 +98,29 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 	}
 	virtualChannelID := nitrolite.GetChannelID(nitroliteChannel)
 
+	reqBytes, err := json.Marshal(req.Req)
+	if err != nil {
+		return nil, errors.New("error serializing auth message")
+	}
+
 	// Use a transaction to ensure atomicity for the entire operation
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}
-
-		// Check that both participants have direct channels with the broker
-		for i, participant := range virtualChannel.Participants {
-			isValid, err := ValidateSignature(reqBytes, req.Sig[i], participant)
-			if err != nil || !isValid {
-				log.Printf("Signature verification failed: %v", err)
-				return errors.New("invalid signature")
-			}
-
-			// Find the direct channel where the participant is participantA and participantB is the broker
-			var directChannel DBChannel
-			if err := tx.Where("participant_a = ? AND participant_b = ?",
-				participant, BrokerAddress).First(&directChannel).Error; err != nil {
-				return fmt.Errorf("no direct channel found for participant %s: %w", participant, err)
-			}
-		}
 
 		for _, allocation := range virtualChannel.InitialAllocations {
 			participantChannel, err := getDirectChannelForParticipant(tx, allocation.Participant)
 			if err != nil {
 				return err
+			}
+
+			if allocation.Amount.Sign() < 0 {
+				return errors.New("invalid allocation")
+			}
+
+			if allocation.Amount.Sign() > 0 {
+				if err := validateSignature(reqBytes, req.Sig, allocation.Participant); err != nil {
+					return err
+				}
 			}
 
 			account := ledgerTx.Account(participantChannel.ChannelID, allocation.Participant)
@@ -407,9 +401,11 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 			return fmt.Errorf("unexpected number of signatures: %v instead of %v", len(req.Sig), len(virtualChannel.Signers))
 		}
 
-		// Validate that RPC message is signed by all and only virtual channel participants.
-		if err := validateSignatures(reqBytes, req.Sig, virtualChannel.Signers); err != nil {
-			return err
+		// Validate that RPC message is signed by the specified signers on channel creation.
+		for _, signer := range virtualChannel.Signers {
+			if err := validateSignature(reqBytes, req.Sig, signer); err != nil {
+				return err
+			}
 		}
 
 		// Process allocations
@@ -453,8 +449,6 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 			"status":     ChannelStatusClosed,
 			"updated_at": time.Now(),
 		}).Error
-
-		return nil
 	})
 
 	if err != nil {
@@ -480,6 +474,16 @@ func validateSignature(reqBytes []byte, signatures []string, signer string) erro
 	}
 	if !valid {
 		return fmt.Errorf("invalid or missing signature for participant: %s", signer)
+	}
+	return nil
+}
+
+// findAllocation retrieves the allocation for a specific participant
+func findAllocation(allocations []Allocation, participant string) *Allocation {
+	for _, alloc := range allocations {
+		if alloc.Participant == participant {
+			return &alloc
+		}
 	}
 	return nil
 }
