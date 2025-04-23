@@ -21,7 +21,6 @@ import (
 type CreateVirtualChannelParams struct {
 	Participants       []string     `json:"participants"` // Participants signer addresses spacified when creating his direct channel.
 	InitialAllocations []Allocation `json:"allocations"`
-	Nonce              uint64       `json:"nonce"`   // UnixNano timestamp
 	Signers            []string     `json:"signers"` // Participants agree on a set of signers required to close the channel.
 }
 
@@ -100,7 +99,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 		Participants: []common.Address{common.HexToAddress(participantA), common.HexToAddress(participantB)},
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    0, // Use placeholder values for virtual channels.
-		Nonce:        uint64(virtualChannel.Nonce),
+		Nonce:        req.Req.Timestamp,
 	}
 	virtualChannelID := nitrolite.GetChannelID(nitroliteChannel)
 
