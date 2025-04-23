@@ -21,7 +21,8 @@ import (
 type CreateVirtualChannelParams struct {
 	Participants       []string     `json:"participants"` // Participants signer addresses spacified when creating his direct channel.
 	InitialAllocations []Allocation `json:"allocations"`
-	// TODO: decide on additional fields in the body payload.
+	Nonce              uint64       `json:"nonce"` // UnixNano timestamp
+	Signers            []string     `json:"signers"`
 }
 
 // CloseVirtualChannelParams represents parameters needed for virtual channel closure
@@ -149,6 +150,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 			ParticipantA: participantA,
 			ParticipantB: participantB,
 			Status:       ChannelStatusOpen,
+			Signers:      virtualChannel.Signers,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -399,6 +401,12 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 		}
 
 		virtualChannelParticipants := []string{virtualChannel.ParticipantA, virtualChannel.ParticipantB}
+
+		// Validate payload was signed by the virtual channel signers
+		if len(req.Sig) != len(virtualChannel.Signers) {
+			return fmt.Errorf("unexpected number of signatures: %v instead of %v", len(req.Sig), len(virtualChannel.Signers))
+		}
+
 		// Validate that RPC message is signed by all and only virtual channel participants.
 		if err := validateSignatures(reqBytes, req.Sig, virtualChannelParticipants); err != nil {
 			return err

@@ -13,6 +13,7 @@ type DBVirtualChannel struct {
 	ParticipantB string        `gorm:"column:participant_b;not null"`
 	Nonce        uint64        `gorm:"column:nonce;not null"`
 	Status       ChannelStatus `gorm:"column:status;not null"`
+	Signers      []string      `gorm:"column:signers"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
