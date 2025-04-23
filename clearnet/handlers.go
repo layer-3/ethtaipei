@@ -19,19 +19,15 @@ import (
 
 // CreateVirtualChannelParams represents parameters needed for virtual channel creation
 type CreateVirtualChannelParams struct {
-	ParticipantA       string       `json:"participant_a"`
-	ParticipantB       string       `json:"participant_b"`
+	Participants       []string     `json:"participants"` // Participants signer addresses spacified when creating his direct channel.
 	InitialAllocations []Allocation `json:"allocations"`
-	Signers            []string     `json:"signers"`
-	// TODO: decice on the signature payload
-	ParticipantsSignatures []string `json:"participants_signatures"`
+	// TODO: decide on additional fields in the body payload.
 }
 
 // CloseVirtualChannelParams represents parameters needed for virtual channel closure
 type CloseVirtualChannelParams struct {
 	ChannelID        string       `json:"channel_id"`
 	FinalAllocations []Allocation `json:"allocations"`
-	Signatures       []string     `json:"signatures"`
 }
 
 // CloseDirectChannelParams represents parameters needed for virtual channel closure
@@ -68,33 +64,38 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 	}
 
 	// Parse the parameters
-	var params CreateVirtualChannelParams
+	var virtualChannel CreateVirtualChannelParams
 	paramsJSON, err := json.Marshal(req.Req.Params[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	if err := json.Unmarshal(paramsJSON, &params); err != nil {
+	if err := json.Unmarshal(paramsJSON, &virtualChannel); err != nil {
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
 
-	log.Printf("Parsed parameters: %+v\n", params)
+	log.Printf("Parsed parameters: %+v\n", virtualChannel)
 
-	// TODO: verify signatures
-	virtualChannel := params
-
-	// Validate required parameters
-	if virtualChannel.ParticipantA == "" || virtualChannel.ParticipantB == "" {
-		return nil, errors.New("missing required parameters: participantA, participantB")
+	reqBytes, err := json.Marshal(req.Req)
+	if err != nil {
+		return nil, errors.New("error serializing auth message")
 	}
 
-	// Convert to common.Address
-	participantA := common.HexToAddress(virtualChannel.ParticipantA)
-	participantB := common.HexToAddress(virtualChannel.ParticipantB)
+	if len(virtualChannel.Participants) < 2 {
+		return nil, errors.New("invalid number of participants")
+	}
 
-	// Generate a unique channel ID for the virtual channel
+	if len(virtualChannel.InitialAllocations) != len(virtualChannel.Participants) {
+		return nil, errors.New("invalid allocations")
+	}
+
+	// TODO: allow having more than 2 participants on the database level.
+	participantA := virtualChannel.Participants[0]
+	participantB := virtualChannel.Participants[1]
+
+	// Generate a unique channel ID for the virtual channel (TODO: rethink channel ID generation)
 	nitroliteChannel := nitrolite.Channel{
-		Participants: []common.Address{participantA, participantB},
+		Participants: []common.Address{common.HexToAddress(participantA), common.HexToAddress(participantB)},
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    0, // Use placeholder values for virtual channels.
 		Nonce:        uint64(time.Now().UnixNano()),
@@ -105,8 +106,14 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}
 
-		// 1. Check that both participants have direct channels with the broker
-		for _, participant := range []string{virtualChannel.ParticipantA, virtualChannel.ParticipantB} {
+		// Check that both participants have direct channels with the broker
+		for i, participant := range virtualChannel.Participants {
+			isValid, err := ValidateSignature(reqBytes, req.Sig[i], participant)
+			if err != nil || !isValid {
+				log.Printf("Signature verification failed: %v", err)
+				return errors.New("invalid signature")
+			}
+
 			// Find the direct channel where the participant is participantA and participantB is the broker
 			var directChannel DBChannel
 			if err := tx.Where("participant_a = ? AND participant_b = ?",
@@ -122,12 +129,6 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 			}
 
 			account := ledgerTx.Account(participantChannel.ChannelID, allocation.Participant)
-
-			fmt.Println("Participant channel ID ", participantChannel.ChannelID)
-			fmt.Println("Participant ", allocation.Participant)
-			fmt.Println("Allocation Info: ", allocation.Amount.Int64())
-			fmt.Println("Amount ", allocation.Amount.Int64())
-
 			balance, err := account.Balance(allocation.TokenAddress)
 			if err != nil {
 				return fmt.Errorf("failed to check participant A balance: %w", err)
@@ -135,20 +136,19 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 			if balance < allocation.Amount.Int64() {
 				return errors.New("insufficient funds")
 			}
-			fmt.Println("Balance ", allocation.Amount.Int64())
+
 			toAccount := ledgerTx.Account(virtualChannelID.Hex(), allocation.Participant)
 			if err := account.Transfer(toAccount, allocation.TokenAddress, allocation.Amount.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds from participant A: %w", err)
 			}
 		}
 
-		// 3. Record the virtual channel creation in state
+		// Record the virtual channel creation in state
 		virtualChannelDB := &DBVirtualChannel{
 			ChannelID:    virtualChannelID.Hex(),
-			ParticipantA: virtualChannel.ParticipantA,
-			ParticipantB: virtualChannel.ParticipantB,
+			ParticipantA: participantA,
+			ParticipantB: participantB,
 			Status:       ChannelStatusOpen,
-			Signers:      virtualChannel.Signers,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -170,19 +170,8 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 		Status:    string(ChannelStatusOpen),
 	}
 
-	// Create the RPC response
 	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
-}
-
-// Helper function to get the direct channel for a participant
-func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel, error) {
-	var directChannel DBChannel
-	if err := tx.Where("participant_a = ? AND participant_b = ?",
-		participant, BrokerAddress).First(&directChannel).Error; err != nil {
-		return nil, fmt.Errorf("no direct channel found for participant %s: %w", participant, err)
-	}
-	return &directChannel, nil
 }
 
 // PublicMessageRequest represents a request to broadcast a message to all participants
@@ -389,143 +378,73 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
 
-	// Log the parsed parameters for debugging
-	log.Printf("Parsed allocations: %+v", params.FinalAllocations)
-
-	// Validate required parameters
-	if params.ChannelID == "" {
-		return nil, errors.New("missing required parameters: channelId")
+	if params.ChannelID == "" || len(params.FinalAllocations) == 0 {
+		return nil, errors.New("missing required parameters: channelId or allocations")
 	}
 
-	if len(params.FinalAllocations) == 0 {
-		return nil, errors.New("missing required parameter: allocations")
+	reqBytes, err := json.Marshal(req.Req)
+	if err != nil {
+		return nil, errors.New("error serializing auth message")
 	}
 
-	// Use a transaction to ensure atomicity for the entire operation
+	// Perform atomic transaction
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}
 
-		// 1. Find the virtual channel
+		// Fetch and validate the virtual channel
 		var virtualChannel DBVirtualChannel
-		if err := tx.Where("channel_id = ?", params.ChannelID).First(&virtualChannel).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("virtual channel not found")
-			}
-			return fmt.Errorf("failed to find virtual channel: %w", err)
+		if err := tx.Where("channel_id = ? AND status = ?", params.ChannelID, ChannelStatusOpen).Order("nonce DESC").
+			First(&virtualChannel).Error; err != nil {
+			return fmt.Errorf("virtual channel not found or not open: %w", err)
 		}
 
-		// 2. Check if the channel is open
-		if virtualChannel.Status != ChannelStatusOpen {
-			return fmt.Errorf("channel is not open, current status: %s", virtualChannel.Status)
+		virtualChannelParticipants := []string{virtualChannel.ParticipantA, virtualChannel.ParticipantB}
+		// Validate that RPC message is signed by all and only virtual channel participants.
+		if err := validateSignatures(reqBytes, req.Sig, virtualChannelParticipants); err != nil {
+			return err
 		}
 
-		// 3. Validate payload was signed by the virtual channel signers
-		if len(params.Signatures) != len(virtualChannel.Signers) {
-			return fmt.Errorf("unexpected number of signatures: %v instead of %v", len(params.Signatures), len(virtualChannel.Signers))
-		}
-
-		// TODO: validate that signatures matches the signers
-
-		// 4. Find direct channels for both participants
-		participantAChannel, err := getDirectChannelForParticipant(tx, virtualChannel.ParticipantA)
-		if err != nil {
-			return fmt.Errorf("failed to find direct channel for participant A: %w", err)
-		}
-
-		participantBChannel, err := getDirectChannelForParticipant(tx, virtualChannel.ParticipantB)
-		if err != nil {
-			return fmt.Errorf("failed to find direct channel for participant B: %w", err)
-		}
-
-		// 5. Validate and calculate total allocated amounts
-		totalAllocatedAmount := big.NewInt(0)
-		allocatedParticipants := make(map[string]bool)
-
-		for _, allocation := range params.FinalAllocations {
-			if allocation.Participant == "" || allocation.Amount == nil {
-				return errors.New("invalid allocation: missing participant or amount")
+		// Process allocations
+		totalVirtualChannelBalance, sumAllocations := int64(0), int64(0)
+		for _, participant := range virtualChannelParticipants {
+			allocation := findAllocation(params.FinalAllocations, participant)
+			if allocation == nil || allocation.Amount == nil || allocation.Amount.Sign() < 0 {
+				return errors.New("invalid allocation")
 			}
 
-			if allocation.Amount.Sign() < 0 {
-				return errors.New("invalid allocation: amount cannot be negative")
-			}
-
-			totalAllocatedAmount = totalAllocatedAmount.Add(totalAllocatedAmount, allocation.Amount)
-			allocatedParticipants[allocation.Participant] = true
-		}
-
-		// 8. Check that we're only allocating to the virtual channel participants
-		if len(allocatedParticipants) > 2 {
-			return errors.New("allocations include more than the two channel participants")
-		}
-
-		if !allocatedParticipants[virtualChannel.ParticipantA] && !allocatedParticipants[virtualChannel.ParticipantB] {
-			return errors.New("allocations do not include any of the channel participants")
-		}
-
-		// 9. Transfer funds back to direct channels according to allocations
-		for _, allocation := range params.FinalAllocations {
-			// Skip zero allocations
-			if allocation.Amount.Sign() == 0 {
-				continue
-			}
-
-			// Check which participant we're dealing with
-			var directChannel *DBChannel
-			if allocation.Participant == virtualChannel.ParticipantA {
-				directChannel = participantAChannel
-			} else if allocation.Participant == virtualChannel.ParticipantB {
-				directChannel = participantBChannel
-			} else {
-				return fmt.Errorf("invalid participant in allocation: %s", allocation.Participant)
-			}
-
-			// Get source and destination accounts
-			fromAccount := ledgerTx.Account(virtualChannel.ChannelID, allocation.Participant)
-			toAccount := ledgerTx.Account(directChannel.ChannelID, allocation.Participant)
-
-			// Check if participant has enough funds in the virtual channel
-			participantBalance, err := fromAccount.Balance(allocation.TokenAddress)
+			// Adjust balances
+			virtualBalance := ledgerTx.Account(virtualChannel.ChannelID, participant)
+			participantBalance, err := virtualBalance.Balance(allocation.TokenAddress)
 			if err != nil {
-				return fmt.Errorf("failed to check balance for %s: %w", allocation.Participant, err)
+				return fmt.Errorf("failed to check balance for %s: %w", participant, err)
+			}
+			totalVirtualChannelBalance += participantBalance
+
+			if err := virtualBalance.Record(allocation.TokenAddress, -participantBalance); err != nil {
+				return fmt.Errorf("failed to adjust virtual balance for %s: %w", participant, err)
 			}
 
-			// If not enough funds, we need to handle the "payment" from the other participant
-			if participantBalance < allocation.Amount.Int64() {
-				// This is a redistribution to this participant - we first need to adjust the other participant's record
-				diff := allocation.Amount.Int64() - participantBalance
-
-				// Determine the other participant
-				otherParticipant := virtualChannel.ParticipantA
-				if allocation.Participant == virtualChannel.ParticipantA {
-					otherParticipant = virtualChannel.ParticipantB
-				}
-
-				// Record a transfer from other participant to this participant within the virtual channel
-				// This simulates the final settlement agreed upon by the participants
-				transferAccount := ledgerTx.Account(virtualChannel.ChannelID, otherParticipant)
-				if err := transferAccount.Record(allocation.TokenAddress, -diff); err != nil {
-					return fmt.Errorf("failed to adjust balance for %s: %w", otherParticipant, err)
-				}
-
-				if err := fromAccount.Record(allocation.TokenAddress, diff); err != nil {
-					return fmt.Errorf("failed to adjust balance for %s: %w", allocation.Participant, err)
-				}
+			directChannel, err := getDirectChannelForParticipant(tx, participant)
+			if err != nil {
+				return fmt.Errorf("failed to find direct channel for %s: %w", participant, err)
 			}
 
-			// Now transfer funds from virtual channel to direct channel
-			if err := fromAccount.Transfer(toAccount, allocation.TokenAddress, allocation.Amount.Int64()); err != nil {
-				return fmt.Errorf("failed to transfer funds for %s: %w", allocation.Participant, err)
+			toAccount := ledgerTx.Account(directChannel.ChannelID, participant)
+			if err := toAccount.Record(allocation.TokenAddress, allocation.Amount.Int64()); err != nil {
+				return fmt.Errorf("failed to adjust direct balance for %s: %w", participant, err)
 			}
+			sumAllocations += allocation.Amount.Int64()
 		}
 
-		// 10. Mark the virtual channel as closed
-		if err := tx.Model(&virtualChannel).Updates(map[string]any{
-			"status":     "closed",
+		if sumAllocations != totalVirtualChannelBalance {
+			return errors.New("allocation mismatch with virtual channel balance")
+		}
+
+		// Close the virtual channel
+		return tx.Model(&virtualChannel).Updates(map[string]any{
+			"status":     ChannelStatusClosed,
 			"updated_at": time.Now(),
-		}).Error; err != nil {
-			return fmt.Errorf("failed to update virtual channel status: %w", err)
-		}
+		}).Error
 
 		return nil
 	})
@@ -534,15 +453,12 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, e
 		return nil, err
 	}
 
-	// Create a response
+	// Create response
 	response := &ChannelResponse{
 		ChannelID: params.ChannelID,
 		Status:    string(ChannelStatusClosed),
 	}
-
-	// Create the RPC response
-	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
-	return rpcResponse, nil
+	return CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now()), nil
 }
 
 // validateSignature checks if signer's signature is present in a list of signatures.

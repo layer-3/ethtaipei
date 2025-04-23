@@ -138,6 +138,15 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 	return nil
 }
 
+func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel, error) {
+	var directChannel DBChannel
+	if err := tx.Where("participant_a = ? AND participant_b = ?",
+		participant, BrokerAddress).First(&directChannel).Error; err != nil {
+		return nil, fmt.Errorf("no direct channel found for participant %s: %w", participant, err)
+	}
+	return &directChannel, nil
+}
+
 // CheckExistingChannels checks if there is an existing open channel on the same network between participant A and B
 func (s *ChannelService) CheckExistingChannels(participantA, participantB, networkID string) (*DBChannel, error) {
 	var channel DBChannel
