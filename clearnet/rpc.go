@@ -77,14 +77,14 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 type RPCMessage struct {
 	Req        RPCData      `json:"req"`
 	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
-	Allocation []Allocation `json:"allocation,omitempty"`
+	Allocation []Allocation `json:"out,omitempty"`
 	Sig        []string     `json:"sig"`
 }
 
 // Allocation represents a token allocation of a participant
 type Allocation struct {
-	Participant  string   `json:"participant"`
-	TokenAddress string   `json:"token_address"`
+	Participant  string   `json:"destination"`
+	TokenAddress string   `json:"token"`
 	Amount       *big.Int `json:"amount,string"`
 }
 

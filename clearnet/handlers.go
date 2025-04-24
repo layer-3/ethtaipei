@@ -30,6 +30,12 @@ type CloseVirtualChannelParams struct {
 	FinalAllocations []Allocation `json:"allocations"`
 }
 
+// VirtualChannelResponse represents response data for channel operations
+type VirtualChannelResponse struct {
+	ChannelID string `json:"channel_id"`
+	Status    string `json:"status"`
+}
+
 // CloseDirectChannelParams represents parameters needed for virtual channel closure
 type CloseDirectChannelParams struct {
 	ChannelID        string `json:"channel_id"`
@@ -48,12 +54,6 @@ type CloseSignature struct {
 	V uint8  `json:"v,string"`
 	R string `json:"r,string"`
 	S string `json:"s,string"`
-}
-
-// ChannelResponse represents response data for channel operations
-type ChannelResponse struct {
-	ChannelID string `json:"channel_id"`
-	Status    string `json:"status"`
 }
 
 // HandleCreateVirtualChannel creates a virtual channel between two participants
@@ -161,7 +161,7 @@ func HandleCreateVirtualChannel(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, 
 	}
 
 	// Create a response
-	response := &ChannelResponse{
+	response := &VirtualChannelResponse{
 		ChannelID: virtualChannelID.Hex(),
 		Status:    string(ChannelStatusOpen),
 	}
@@ -176,7 +176,7 @@ type PublicMessageRequest struct {
 }
 
 // getVCRecipients handles sending a message through a virtual channel
-func getVCRecipients(address, virtualChannelID string, req *RPCMessage, ledger *Ledger) ([]string, error) {
+func getVCRecipients(address, virtualChannelID string, ledger *Ledger) ([]string, error) {
 	// Validate required fields.
 	if virtualChannelID == "" {
 		return nil, errors.New("missing required field: channelId")
@@ -453,7 +453,7 @@ func HandleCloseVirtualChannel(req *RPCMessage, ledger *Ledger) (*RPCResponse, e
 	}
 
 	// Create response
-	response := &ChannelResponse{
+	response := &VirtualChannelResponse{
 		ChannelID: params.ChannelID,
 		Status:    string(ChannelStatusClosed),
 	}
