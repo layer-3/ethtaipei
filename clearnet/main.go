@@ -42,8 +42,6 @@ type AuthResponse struct {
 var (
 	channelService *ChannelService
 	ledger         *Ledger
-	router         *Router
-	messageRouter  RouterInterface
 	centrifugeNode *centrifuge.Node
 )
 
@@ -171,8 +169,6 @@ func main() {
 	// Initialize global services.
 	channelService = NewChannelService(db)
 	ledger = NewLedger(db)
-	router = NewRouter(centrifugeNode)
-	messageRouter = NewRouter(centrifugeNode)
 
 	// Retrieve the private key.
 	privateKeyHex := os.Getenv("BROKER_PRIVATE_KEY")
@@ -201,7 +197,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, messageRouter, multiNetworkCustody.GetDefaultClient())
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, multiNetworkCustody.GetDefaultClient())
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Start the HTTP server.

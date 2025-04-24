@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -22,7 +23,6 @@ type UnifiedWSHandler struct {
 	node           *centrifuge.Node
 	channelService *ChannelService
 	ledger         *Ledger
-	messageRouter  RouterInterface
 	upgrader       websocket.Upgrader
 	connections    map[string]*websocket.Conn
 	connectionsMu  sync.RWMutex
@@ -34,14 +34,12 @@ func NewUnifiedWSHandler(
 	node *centrifuge.Node,
 	channelService *ChannelService,
 	ledger *Ledger,
-	messageRouter RouterInterface,
 	custodyWrapper *CustodyClientWrapper,
 ) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
 		node:           node,
 		channelService: channelService,
 		ledger:         ledger,
-		messageRouter:  messageRouter,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -55,12 +53,6 @@ func NewUnifiedWSHandler(
 }
 
 // --- Message Structures ---
-
-// RegularMessage represents any message after authentication.
-type RegularMessage struct {
-	Req []any    `json:"req"` // Format: [requestId, "method", [args], timestamp]
-	Sig []string `json:"sig"`
-}
 
 // --- Connection Handling ---
 
@@ -127,53 +119,31 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			break
 		}
 
-		var regularMsg RegularMessage
-		if err := json.Unmarshal(message, &regularMsg); err != nil {
+		var rpcRequest RPCRequest
+		if err := json.Unmarshal(message, &rpcRequest); err != nil {
 			sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
 		}
 
-		if len(regularMsg.Req) < 4 || len(regularMsg.Sig) == 0 {
-			sendErrorResponse(0, "error", conn, "Invalid message format")
-			continue
-		}
-
-		method, ok := regularMsg.Req[1].(string)
-		if !ok || method == "" {
-			sendErrorResponse(0, "error", conn, "Missing method in message")
-			continue
-		}
-
-		requestID, _ := regularMsg.Req[0].(float64)
-
-		// Build RPC request object.
-		rpcRequest := RPCRequest{
-			Req: RPCMessage{
-				Method:    method,
-				RequestID: uint64(requestID),
-				Params:    regularMsg.Req[2].([]any),
-				Timestamp: uint64(time.Now().Unix()),
-			},
-			Sig: regularMsg.Sig,
-		}
-
-		// Validate the signature for the message
-		reqBytes, err := json.Marshal(regularMsg.Req)
-		if err != nil {
-			log.Printf("Error serializing request for validation: %v", err)
-			sendErrorResponse(uint64(requestID), method, conn, "Error validating signature")
+		if rpcRequest.ChannelID != "" {
+			handlerErr := forwardMessage(&rpcRequest, address, h)
+			if handlerErr != nil {
+				log.Printf("Error forwarding message: %v", handlerErr)
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
+				continue
+			}
 			continue
 		}
 
 		var rpcResponse = &RPCResponse{}
 		var handlerErr error
 
-		switch method {
+		switch rpcRequest.Req.Method {
 		case "ping":
 			rpcResponse, handlerErr = HandlePing(&rpcRequest)
 			if handlerErr != nil {
 				log.Printf("Error handling Ping: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to process ping: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to process ping: "+handlerErr.Error())
 				continue
 			}
 
@@ -181,15 +151,15 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleGetConfig(&rpcRequest)
 			if handlerErr != nil {
 				log.Printf("Error handling GetConfig: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to get config: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get config: "+handlerErr.Error())
 				continue
 			}
 
 		case "CreateVirtualChannel":
-			rpcResponse, handlerErr = HandleCreateVirtualChannel(nil, &rpcRequest, h.ledger, h.messageRouter)
+			rpcResponse, handlerErr = HandleCreateVirtualChannel(&rpcRequest, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling CreateVirtualChannel: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to create virtual channel: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual channel: "+handlerErr.Error())
 				continue
 			}
 
@@ -197,15 +167,15 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleListOpenParticipants(&rpcRequest, h.channelService, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling HandleListOpenParticipants: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to list available channels: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
 				continue
 			}
 
 		case "CloseVirtualChannel":
-			rpcResponse, handlerErr = HandleCloseVirtualChannel(&rpcRequest, h.ledger, h.messageRouter)
+			rpcResponse, handlerErr = HandleCloseVirtualChannel(&rpcRequest, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling CloseVirtualChannel: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to close virtual channel: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close virtual channel: "+handlerErr.Error())
 				continue
 			}
 
@@ -213,7 +183,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleCloseDirectChannel(&rpcRequest, h.ledger, h.custodyWrapper)
 			if handlerErr != nil {
 				log.Printf("Error handling CloseDirectChannel: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to close direct channel: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close direct channel: "+handlerErr.Error())
 				continue
 			}
 
@@ -221,86 +191,15 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleBroadcastMessage(address, &rpcRequest, h.ledger, h)
 			if handlerErr != nil {
 				log.Printf("Error handling BroadcastMessage: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to send public message: "+handlerErr.Error())
+				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
 				continue
 			}
-
-		case "SendMessage":
-			// Validate the signature
-			isValid, err := ValidateSignature(reqBytes, regularMsg.Sig[0], address)
-			if err != nil || !isValid {
-				log.Printf("Signature validation failed: %v, valid: %v", err, isValid)
-				sendErrorResponse(uint64(requestID), method, conn, "Invalid signature")
-				continue
-			}
-
-			var sendReq SendMessageRequest
-			if args, ok := regularMsg.Req[2].([]any); ok && len(args) > 0 {
-				argBytes, err := json.Marshal(args[0])
-				if err != nil {
-					sendErrorResponse(uint64(requestID), method, conn, "Invalid send message parameter format")
-					continue
-				}
-				if err := json.Unmarshal(argBytes, &sendReq); err != nil {
-					sendErrorResponse(uint64(requestID), method, conn, "Invalid send message parameter content")
-					continue
-				}
-			} else {
-				sendErrorResponse(uint64(requestID), method, conn, "Missing send message parameters")
-				continue
-			}
-
-			sendTo, handlerErr := HandleSendMessage(address, h.node, &rpcRequest, h.messageRouter, h.ledger)
-			if handlerErr != nil {
-				log.Printf("Error handling SendMessage: %v", handlerErr)
-				sendErrorResponse(uint64(requestID), method, conn, "Failed to send message: "+handlerErr.Error())
-				continue
-			}
-
-			// No response sent back to sender - broker just acts as a proxy
-
-			// --- NEW: Look up the recipient connection and forward the message.
-			h.connectionsMu.RLock()
-			recipientConn, exists := h.connections[sendTo]
-			h.connectionsMu.RUnlock()
-			if exists {
-				// Package the forwarded message in standard RPC format
-				incomingRPC := RPCResponse{
-					Res: RPCMessage{
-						RequestID: uint64(time.Now().UnixNano()), // Generate a unique request ID
-						Method:    "IncomingMessage",
-						Params: []any{map[string]any{
-							"channelId": sendReq.ChannelID,
-							"sender":    address,
-							"data":      sendReq.Data,
-						}},
-						Timestamp: uint64(time.Now().Unix()),
-					},
-					Sig: []string{"broker-signature"}, // Standard signature placeholder
-				}
-				msg, _ := json.Marshal(incomingRPC)
-
-				// Use NextWriter for safer message delivery
-				w, err := recipientConn.NextWriter(websocket.TextMessage)
-				if err != nil {
-					log.Printf("Error getting writer for forwarded message: %v", err)
-				} else {
-					if _, err := w.Write(msg); err != nil {
-						log.Printf("Error writing forwarded message: %v", err)
-					}
-					w.Close()
-				}
-			} else {
-				log.Printf("Recipient %s not connected, cannot forward message", sendTo)
-			}
-			continue
-
 		default:
-			sendErrorResponse(uint64(requestID), method, conn, "Unsupported method: "+method)
+			sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Unsupported method")
 			continue
 		}
 
-		// For methods other than SendMessage, send back the RPC response.
+		// For broker methods, send back the RPC response.
 		rpcResponse.Sig = []string{"server-signature"}
 		wsResponseData, _ := json.Marshal(rpcResponse)
 
@@ -322,6 +221,64 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 	}
+}
+
+func forwardMessage(rpcRequest *RPCRequest, fromAddress string, h *UnifiedWSHandler) error {
+	// Validate the signature for the message
+	reqBytes, err := json.Marshal(rpcRequest.Req)
+	if err != nil {
+		log.Printf("Error serializing request for validation: %v", err)
+		return errors.New("Error validating signature")
+	}
+
+	// Validate the signature
+	err = validateSignature(reqBytes, rpcRequest.Sig, fromAddress)
+	if err != nil {
+		log.Printf("Signature validation failed: %v", err)
+		return errors.New("Invalid signature")
+	}
+
+	sendTo, handlerErr := HandleSendMessage(fromAddress, rpcRequest.ChannelID, rpcRequest, h.ledger)
+	if handlerErr != nil {
+		log.Printf("Error handling SendMessage: %v", handlerErr)
+		return errors.New("Failed to send message: " + handlerErr.Error())
+	}
+
+	// No response sent back to sender - broker just acts as a proxy
+
+	// Iterate over all recipients in a virtual channel and send the message
+	for _, recipient := range sendTo {
+		h.connectionsMu.RLock()
+		recipientConn, exists := h.connections[recipient]
+		h.connectionsMu.RUnlock()
+		if exists {
+			msg, _ := json.Marshal(rpcRequest)
+
+			// Use NextWriter for safer message delivery
+			w, err := recipientConn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				log.Printf("Error getting writer for forwarded message to %s: %v", recipient, err)
+				continue
+			}
+
+			if _, err := w.Write(msg); err != nil {
+				log.Printf("Error writing forwarded message to %s: %v", recipient, err)
+				w.Close()
+				continue
+			}
+
+			if err := w.Close(); err != nil {
+				log.Printf("Error closing writer for forwarded message to %s: %v", recipient, err)
+				continue
+			}
+
+			log.Printf("Successfully forwarded message to %s", recipient)
+		} else {
+			log.Printf("Recipient %s not connected", recipient)
+			continue
+		}
+	}
+	return nil
 }
 
 // Helper function to send error responses.

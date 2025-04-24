@@ -172,67 +172,6 @@ func setupTestDB(t testing.TB) (*gorm.DB, func()) {
 	return db, cleanup
 }
 
-// TestHandleSendMessage tests the message forwarding functionality
-func TestHandleSendMessage(t *testing.T) {
-	// Set up test database with cleanup
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	// Create a mock router
-	mockRouter := &MockRouter{}
-
-	// Create a ledger
-	ledger := NewLedger(db)
-
-	// Create virtual channel and participants
-	channelID := "0xVirtualChannel"
-	sender := "0xSender"
-	recipient := "0xRecipient"
-
-	// Insert virtual channel into database for the test
-	virtualChannel := DBVirtualChannel{
-		ChannelID:    channelID,
-		ParticipantA: sender,
-		ParticipantB: recipient,
-		Status:       "open",
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	err := db.Create(&virtualChannel).Error
-	require.NoError(t, err)
-
-	// Create message parameters with new SendMessageRequest format
-	msgData := json.RawMessage(`{"message":"Hello, world!"}`)
-
-	sendReq := SendMessageRequest{
-		ChannelID: channelID,
-		Data:      msgData,
-	}
-
-	// Marshal to JSON
-	paramsJSON, err := json.Marshal(sendReq)
-	require.NoError(t, err)
-
-	// Create RPC request
-	rpcRequest := &RPCRequest{
-		Req: RPCMessage{
-			RequestID: 1,
-			Method:    "SendMessage",
-			Params:    []any{json.RawMessage(paramsJSON)},
-			Timestamp: uint64(time.Now().Unix()),
-		},
-		Sig: []string{"dummy-signature"},
-	}
-
-	// Call HandleSendMessage with proper parameters
-	recipientAddr, err := HandleSendMessage(sender, nil, rpcRequest, mockRouter, ledger)
-	require.NoError(t, err)
-
-	// Verify the response - recipientAddr should match the recipient
-	assert.Equal(t, recipient, recipientAddr)
-}
-
 // TestHandlePing tests the ping handler functionality
 func TestHandlePing(t *testing.T) {
 	// Test case 1: Simple ping with no parameters
@@ -261,9 +200,6 @@ func TestHandleCloseChannel(t *testing.T) {
 
 	// Create ledger
 	ledger := NewLedger(db)
-
-	// Create mock router
-	mockRouter := &MockRouter{}
 
 	// Create token address
 	tokenAddress := "0xToken123"
@@ -344,7 +280,7 @@ func TestHandleCloseChannel(t *testing.T) {
 	}
 
 	// Call the handler
-	resp, err := HandleCloseVirtualChannel(req, ledger, mockRouter)
+	resp, err := HandleCloseVirtualChannel(req, ledger)
 	require.NoError(t, err)
 
 	// Verify response
@@ -492,41 +428,4 @@ func TestHandleHandleListOpenParticipants(t *testing.T) {
 	response2, err := HandleListOpenParticipants(rpcRequest2, channelService, ledger)
 	require.NoError(t, err)
 	assert.NotNil(t, response2)
-}
-
-// MockRouter implements the RouterInterface for testing
-type MockRouter struct {
-	routes map[string]map[string]string
-}
-
-func (r *MockRouter) AddRoute(from, to, channelID string) error {
-	if r.routes == nil {
-		r.routes = make(map[string]map[string]string)
-	}
-
-	if _, exists := r.routes[from]; !exists {
-		r.routes[from] = make(map[string]string)
-	}
-
-	r.routes[from][to] = channelID
-	return nil
-}
-
-func (r *MockRouter) GetRoute(from, to string) (string, bool) {
-	if r.routes == nil {
-		return "", false
-	}
-
-	if routes, exists := r.routes[from]; exists {
-		if channelID, routeExists := routes[to]; routeExists {
-			return channelID, true
-		}
-	}
-
-	return "", false
-}
-
-func (r *MockRouter) ForwardMessage(from, to string, message []byte, channelID ...string) error {
-	// No-op for testing
-	return nil
 }
