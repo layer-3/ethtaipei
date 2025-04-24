@@ -264,7 +264,7 @@ func HandleListOpenParticipants(req *RPCMessage, channelService *ChannelService,
 	return rpcResponse, nil
 }
 
-func HandleCloseDirectChannel(req *RPCMessage, ledger *Ledger, custodyWrapper *CustodyClientWrapper) (*RPCResponse, error) {
+func HandleCloseDirectChannel(req *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
@@ -328,7 +328,10 @@ func HandleCloseDirectChannel(req *RPCMessage, ledger *Ledger, custodyWrapper *C
 	}
 
 	fmt.Printf("State hash: %s\n", crypto.Keccak256Hash(encodedState).Hex())
-	sig, err := custodyWrapper.SignEncodedState(encodedState)
+	sig, err := signer.NitroSign(encodedState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign state: %w", err)
+	}
 
 	response := CloseDirectChannelResponse{
 		ChannelID:        channel.ChannelID,
@@ -353,6 +356,7 @@ func HandleCloseDirectChannel(req *RPCMessage, ledger *Ledger, custodyWrapper *C
 	return rpcResponse, nil
 }
 
+// HandleCloseVirtualChannel closes a virtual channel and redistributes funds to participants
 func HandleCloseVirtualChannel(req *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
 	// Extract parameters from the request
 	if len(req.Req.Params) < 1 {
@@ -559,7 +563,7 @@ func HandlePing(req *RPCMessage) (*RPCResponse, error) {
 }
 
 // HandleAuthenticate handles the authentication process
-func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error) {
+func HandleAuthenticate(signer *Signer, conn *websocket.Conn, authMessage []byte) (string, error) {
 	// Parse the authentication message
 	var authMsg RPCMessage
 	if err := json.Unmarshal(authMessage, &authMsg); err != nil {
@@ -597,6 +601,22 @@ func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error
 
 	// Get the address from the public key
 	address := common.HexToAddress(addr)
+
+	// Send auth success confirmation.
+	response := CreateResponse(0, "auth", []any{map[string]any{
+		"address": address,
+		"success": true,
+	}}, time.Now())
+
+	byteData, _ := json.Marshal(response.Res)
+	signature, _ := signer.Sign(byteData)
+	response.Sig = []string{hexutil.Encode(signature)}
+
+	responseData, _ := json.Marshal(response)
+	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
+		log.Printf("Error sending auth success: %v", err)
+		return "", err
+	}
 
 	return address.Hex(), nil
 }

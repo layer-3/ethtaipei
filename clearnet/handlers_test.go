@@ -75,6 +75,7 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 		ChannelID:    virtualChannelID,
 		Participants: []string{participantA, participantB},
 		Status:       "open",
+		Signers:      []string{},
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

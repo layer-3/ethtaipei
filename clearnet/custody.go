@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"math/big"
@@ -27,7 +26,7 @@ type CustodyClientWrapper struct {
 	custodyAddr  common.Address
 	transactOpts *bind.TransactOpts
 	networkID    string
-	privateKey   *ecdsa.PrivateKey
+	signer       *Signer
 }
 
 // NewCustodyClientWrapper creates a new custody client wrapper
@@ -36,7 +35,7 @@ func NewCustodyClientWrapper(
 	custodyAddress common.Address,
 	transactOpts *bind.TransactOpts,
 	networkID string,
-	privateKey *ecdsa.PrivateKey,
+	signer *Signer,
 ) (*CustodyClientWrapper, error) {
 	custody, err := nitrolite.NewCustody(custodyAddress, client)
 	if err != nil {
@@ -49,19 +48,7 @@ func NewCustodyClientWrapper(
 		custodyAddr:  custodyAddress,
 		transactOpts: transactOpts,
 		networkID:    networkID,
-		privateKey:   privateKey,
-	}, nil
-}
-
-func (c *CustodyClientWrapper) SignEncodedState(encodedState []byte) (nitrolite.Signature, error) {
-	sig, err := nitrolite.Sign(encodedState, c.privateKey)
-	if err != nil {
-		return nitrolite.Signature{}, fmt.Errorf("failed to sign encoded state: %w", err)
-	}
-	return nitrolite.Signature{
-		V: sig.V,
-		R: sig.R,
-		S: sig.S,
+		signer:       signer,
 	}, nil
 }
 
@@ -73,7 +60,7 @@ func (c *CustodyClientWrapper) Join(channelID string, lastStateData []byte) erro
 	// The broker will always join as participant with index 1 (second participant)
 	index := big.NewInt(1)
 
-	sig, err := c.SignEncodedState(lastStateData)
+	sig, err := c.signer.NitroSign(lastStateData)
 	if err != nil {
 		return fmt.Errorf("failed to sign data: %w", err)
 	}

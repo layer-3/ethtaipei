@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/centrifugal/centrifuge"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/gorilla/websocket"
 )
 
@@ -21,23 +22,24 @@ type WebSocketHandler interface {
 // and subsequent communication.
 type UnifiedWSHandler struct {
 	node           *centrifuge.Node
+	signer         *Signer
 	channelService *ChannelService
 	ledger         *Ledger
 	upgrader       websocket.Upgrader
 	connections    map[string]*websocket.Conn
 	connectionsMu  sync.RWMutex
-	custodyWrapper *CustodyClientWrapper
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
 func NewUnifiedWSHandler(
 	node *centrifuge.Node,
+	signer *Signer,
 	channelService *ChannelService,
 	ledger *Ledger,
-	custodyWrapper *CustodyClientWrapper,
 ) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
 		node:           node,
+		signer:         signer,
 		channelService: channelService,
 		ledger:         ledger,
 		upgrader: websocket.Upgrader{
@@ -47,8 +49,7 @@ func NewUnifiedWSHandler(
 				return true // Allow all origins for testing; should be restricted in production
 			},
 		},
-		connections:    make(map[string]*websocket.Conn),
-		custodyWrapper: custodyWrapper,
+		connections: make(map[string]*websocket.Conn),
 	}
 }
 
@@ -72,26 +73,14 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	address, err := HandleAuthenticate(conn, message)
+	address, err := HandleAuthenticate(h.signer, conn, message)
 	if err != nil {
 		log.Printf("Authentication failed: %v", err)
-		sendErrorResponse(0, "error", conn, err.Error())
+		h.sendErrorResponse(0, "error", conn, err.Error())
 		return
 	}
 
 	log.Printf("Authentication successful for: %s", address)
-
-	// Send auth success confirmation.
-	response := CreateResponse(0, "auth", []any{map[string]any{
-		"address": address,
-		"success": true,
-	}}, time.Now())
-
-	responseData, _ := json.Marshal(response)
-	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
-		log.Printf("Error sending auth success: %v", err)
-		return
-	}
 
 	// Store connection.
 	h.connectionsMu.Lock()
@@ -121,7 +110,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 		var rpcRequest RPCMessage
 		if err := json.Unmarshal(message, &rpcRequest); err != nil {
-			sendErrorResponse(0, "error", conn, "Invalid message format")
+			h.sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
 		}
 
@@ -129,7 +118,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			handlerErr := forwardMessage(&rpcRequest, address, h)
 			if handlerErr != nil {
 				log.Printf("Error forwarding message: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
 				continue
 			}
 			continue
@@ -143,7 +132,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandlePing(&rpcRequest)
 			if handlerErr != nil {
 				log.Printf("Error handling Ping: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to process ping: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to process ping: "+handlerErr.Error())
 				continue
 			}
 
@@ -151,7 +140,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleGetConfig(&rpcRequest)
 			if handlerErr != nil {
 				log.Printf("Error handling GetConfig: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get config: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get config: "+handlerErr.Error())
 				continue
 			}
 
@@ -159,7 +148,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleCreateVirtualChannel(&rpcRequest, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling CreateVirtualChannel: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual channel: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual channel: "+handlerErr.Error())
 				continue
 			}
 
@@ -167,7 +156,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleListOpenParticipants(&rpcRequest, h.channelService, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling HandleListOpenParticipants: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
 				continue
 			}
 
@@ -175,15 +164,15 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleCloseVirtualChannel(&rpcRequest, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling CloseVirtualChannel: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close virtual channel: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close virtual channel: "+handlerErr.Error())
 				continue
 			}
 
 		case "CloseDirectChannel":
-			rpcResponse, handlerErr = HandleCloseDirectChannel(&rpcRequest, h.ledger, h.custodyWrapper)
+			rpcResponse, handlerErr = HandleCloseDirectChannel(&rpcRequest, h.ledger, h.signer)
 			if handlerErr != nil {
 				log.Printf("Error handling CloseDirectChannel: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close direct channel: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close direct channel: "+handlerErr.Error())
 				continue
 			}
 
@@ -191,16 +180,18 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			rpcResponse, handlerErr = HandleBroadcastMessage(address, &rpcRequest, h.ledger, h)
 			if handlerErr != nil {
 				log.Printf("Error handling BroadcastMessage: %v", handlerErr)
-				sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
 				continue
 			}
 		default:
-			sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Unsupported method")
+			h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Unsupported method")
 			continue
 		}
 
-		// For broker methods, send back the RPC response.
-		rpcResponse.Sig = []string{"server-signature"}
+		// For broker methods, send back a signed RPC response.
+		byteData, _ := json.Marshal(rpcResponse.Res)
+		signature, _ := h.signer.Sign(byteData)
+		rpcResponse.Sig = []string{hexutil.Encode(signature)}
 		wsResponseData, _ := json.Marshal(rpcResponse)
 
 		// Use NextWriter for safer message delivery
@@ -282,10 +273,15 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 }
 
 // Helper function to send error responses.
-func sendErrorResponse(requestID uint64, method string, conn *websocket.Conn, errMsg string) {
+func (h *UnifiedWSHandler) sendErrorResponse(requestID uint64, method string, conn *websocket.Conn, errMsg string) {
 	response := CreateResponse(requestID, method, []any{map[string]any{
 		"error": errMsg,
 	}}, time.Now())
+
+	byteData, _ := json.Marshal(response.Res)
+	signature, _ := h.signer.Sign(byteData)
+	response.Sig = []string{hexutil.Encode(signature)}
+
 	responseData, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("Error marshaling error response: %v", err)
