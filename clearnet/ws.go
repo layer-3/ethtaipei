@@ -62,20 +62,6 @@ type RegularMessage struct {
 	Sig []string `json:"sig"`
 }
 
-// RPCWSMessage represents an RPC message sent over websocket.
-type RPCWSMessage struct {
-	Type string          `json:"type"` // "rpc_request" or "rpc_response"
-	Data json.RawMessage `json:"data"` // RPCRequest or RPCResponse
-}
-
-// WSResponse represents a response sent back to the client.
-type WSResponse struct {
-	Success bool            `json:"success"`
-	Error   string          `json:"error,omitempty"`
-	Type    string          `json:"type,omitempty"`
-	Data    json.RawMessage `json:"data,omitempty"`
-}
-
 // --- Connection Handling ---
 
 // HandleConnection handles the WebSocket connection lifecycle.
@@ -104,11 +90,11 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	log.Printf("Authentication successful for: %s", address)
 
 	// Send auth success confirmation.
-	response := WSResponse{
-		Success: true,
-		Type:    "auth_success",
-		Data:    json.RawMessage(`{"address":"` + address + `"}`),
-	}
+	response := CreateResponse(0, "auth", []any{map[string]any{
+		"address": address,
+		"success": true,
+	}}, time.Now())
+
 	responseData, _ := json.Marshal(response)
 	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
 		log.Printf("Error sending auth success: %v", err)
