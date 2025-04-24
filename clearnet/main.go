@@ -85,7 +85,7 @@ func setupBlockchainClient(signer *Signer, infuraURL, custodyAddressStr, network
 	publicKey := signer.GetPublicKey()
 
 	// Derive broker's Ethereum address.
-	BrokerAddress := crypto.PubkeyToAddress(*publicKey).Hex()
+	BrokerAddress = crypto.PubkeyToAddress(*publicKey).Hex()
 
 	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID, signer)
 	if err != nil {
@@ -190,7 +190,7 @@ func main() {
 	log.Println("Server stopped")
 }
 
-// initBlockchainClients initializes blockchain clients based on environment variables
+// initBlockchainClients initializes blockchain clients for all configured networks
 func initBlockchainClients(signer *Signer) (map[string]*CustodyClientWrapper, error) {
 	config, err := LoadConfig()
 	if err != nil {

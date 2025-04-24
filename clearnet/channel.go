@@ -6,11 +6,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/erc7824/go-nitrolite"
-	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 )
 
+// ChannelStatus represents the current state of a channel (open or closed)
 type ChannelStatus string
 
 var (
@@ -33,31 +32,6 @@ type DBChannel struct {
 	Amount       int64         `gorm:"column:amount;not null"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-}
-
-// ToNitroChannel converts the channel to a nitrolite.Channel
-func (c *DBChannel) ToNitroChannel() (*nitrolite.Channel, error) {
-	participantA := common.HexToAddress(c.ParticipantA)
-	participantB := common.HexToAddress(c.ParticipantB)
-	adjudicator := common.HexToAddress(c.Adjudicator)
-
-	return &nitrolite.Channel{
-		Participants: []common.Address{participantA, participantB},
-		Adjudicator:  adjudicator,
-		Challenge:    c.Challenge,
-		Nonce:        c.Nonce,
-	}, nil
-}
-
-// FromNitroChannel updates the channel from a nitrolite.Channel
-func (c *DBChannel) FromNitroChannel(nc *nitrolite.Channel, channelID string, tokenAddress string) {
-	c.ChannelID = channelID
-	c.ParticipantA = nc.Participants[0].Hex()
-	c.ParticipantB = nc.Participants[1].Hex()
-	c.Adjudicator = nc.Adjudicator.Hex()
-	c.Challenge = nc.Challenge
-	c.Nonce = nc.Nonce
-	c.UpdatedAt = time.Now()
 }
 
 // TableName specifies the table name for the Channel model
@@ -138,6 +112,7 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 	return nil
 }
 
+// getDirectChannelForParticipant finds the direct channel between a participant and the broker
 func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel, error) {
 	var directChannel DBChannel
 	if err := tx.Where("participant_a = ? AND participant_b = ? AND status = ?",

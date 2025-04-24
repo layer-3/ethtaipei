@@ -86,10 +86,12 @@ func (c *CustodyClientWrapper) GetNetworkID() string {
 	return c.networkID
 }
 
+// GetCustody returns the underlying Custody contract instance
 func (c *CustodyClientWrapper) GetCustody() *nitrolite.Custody {
 	return c.custody
 }
 
+// ListenEvents initializes event listening for the custody contract
 func (c *CustodyClientWrapper) ListenEvents(ctx context.Context) {
 	// TODO: store processed events in a database
 	ListenEvents(ctx, c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
@@ -129,6 +131,7 @@ func (m *MultiNetworkCustodyWrapper) ListenAllEvents(ctx context.Context) {
 	}
 }
 
+// handleBlockChainEvent processes different event types received from the blockchain
 func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 	log.Printf("Received event: %+v\n", l)
 	eventID := l.Topics[0]
@@ -165,8 +168,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 
 		if existingOpenChannel != nil {
 			log.Printf("[ChannelCreated] An open direct channel with broker already exists: %s", existingOpenChannel.ChannelID)
-			// return // Do not return for debug reason
-			// TODO: uncomment
+			return
 		}
 
 		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
@@ -204,7 +206,6 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
 			channelID, c.networkID)
 
-		// TODO: Broker also needs to keep record for himself.
 		account := ledger.Account(channelID.Hex(), participantA)
 		fmt.Println("recording token address:", tokenAddress)
 		fmt.Println("recording token amount:", tokenAmount.Int64())
@@ -237,7 +238,6 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		// TODO: add broker accounting for direct channels.
 		account := ledger.Account(channelID.Hex(), openDirectChannel.ParticipantA)
 
 		err = ledger.db.Transaction(func(tx *gorm.DB) error {

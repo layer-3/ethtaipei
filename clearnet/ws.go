@@ -13,11 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// WebSocketHandler defines the methods that must be implemented by a WebSocket handler
-type WebSocketHandler interface {
-	BroadcastMessage(message any)
-}
-
 // UnifiedWSHandler manages WebSocket connections with authentication
 // and subsequent communication.
 type UnifiedWSHandler struct {
@@ -53,10 +48,6 @@ func NewUnifiedWSHandler(
 	}
 }
 
-// --- Message Structures ---
-
-// --- Connection Handling ---
-
 // HandleConnection handles the WebSocket connection lifecycle.
 func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	conn, err := h.upgrader.Upgrade(w, r, nil)
@@ -73,6 +64,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// TODO: add proper auth with signing a challenge.
 	address, err := HandleAuthenticate(h.signer, conn, message)
 	if err != nil {
 		log.Printf("Authentication failed: %v", err)
@@ -96,7 +88,6 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 	log.Printf("Participant authenticated: %s", address)
 
-	// Main loop for handling messages.
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -207,6 +198,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// forwardMessage forwards an RPC message to all recipients in a virtual channel
 func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHandler) error {
 	// Validate the signature for the message
 	reqBytes, err := json.Marshal(rpcRequest.Req)
@@ -265,7 +257,7 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 	return nil
 }
 
-// Helper function to send error responses.
+// sendErrorResponse creates and sends an error response to the client
 func (h *UnifiedWSHandler) sendErrorResponse(requestID uint64, method string, conn *websocket.Conn, errMsg string) {
 	response := CreateResponse(requestID, method, []any{map[string]any{
 		"error": errMsg,
@@ -305,6 +297,7 @@ func (h *UnifiedWSHandler) sendErrorResponse(requestID uint64, method string, co
 	conn.SetWriteDeadline(time.Time{})
 }
 
+// CloseAllConnections closes all open WebSocket connections during shutdown
 func (h *UnifiedWSHandler) CloseAllConnections() {
 	h.connectionsMu.RLock()
 	defer h.connectionsMu.RUnlock()

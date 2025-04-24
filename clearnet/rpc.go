@@ -73,7 +73,7 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// RPCMessage represents a request in the RPC protocol
+// RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
 	Req        RPCData      `json:"req"`
 	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
@@ -81,7 +81,7 @@ type RPCMessage struct {
 	Sig        []string     `json:"sig"`
 }
 
-// Allocation represents a token allocation of a participant
+// Allocation represents a token allocation for a specific participant
 type Allocation struct {
 	Participant  string   `json:"destination"`
 	TokenAddress string   `json:"token"`

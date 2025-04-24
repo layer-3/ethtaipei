@@ -33,6 +33,7 @@ func init() {
 
 type LogHandler func(l types.Log)
 
+// ListenEvents listens for blockchain events and processes them with the provided handler
 func ListenEvents(
 	ctx context.Context,
 	client bind.ContractBackend,
@@ -86,6 +87,7 @@ func ListenEvents(
 	}
 }
 
+// waitForBackOffTimeout implements exponential backoff between retries
 func waitForBackOffTimeout(backOffCount int) {
 	if backOffCount > maxBackOffCount {
 		logger.Fatalw("back off limit reached, exiting", "backOffCollisionCount", backOffCount)

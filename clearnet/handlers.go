@@ -250,6 +250,7 @@ func HandleListParticipants(rpc *RPCMessage, channelService *ChannelService, led
 	return rpcResponse, nil
 }
 
+// HandleCloseDirectChannel processes a request to close a direct payment channel
 func HandleCloseDirectChannel(req *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
 	if len(req.Req.Params) < 1 {
@@ -471,66 +472,10 @@ func findAllocation(allocations []Allocation, participant string) *Allocation {
 	return nil
 }
 
-// HandleBroadcastMessage broadcasts a message to all connected participants
-func HandleBroadcastMessage(address string, req *RPCMessage, ledger *Ledger, wsHandler WebSocketHandler) (*RPCResponse, error) {
-	// Extract the message parameter from the request
-	if len(req.Req.Params) < 1 {
-		return nil, errors.New("missing parameters")
-	}
-
-	// Parse the parameters
-	var params PublicMessageRequest
-	paramsJSON, err := json.Marshal(req.Req.Params[0])
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
-
-	if err := json.Unmarshal(paramsJSON, &params); err != nil {
-		return nil, fmt.Errorf("invalid parameters format: %w", err)
-	}
-
-	// Validate required parameters
-	if params.Message == "" {
-		return nil, errors.New("missing required parameter: message")
-	}
-
-	// Get the sender's available balance for creating virtual channels
-	var channel DBChannel
-
-	// Find the direct channel for the sender
-	if err := ledger.db.Where("participant_a = ? AND participant_b = ?",
-		address, BrokerAddress).First(&channel).Error; err == nil {
-	}
-
-	// Create the broadcast message in a format similar to direct messages
-	// The outer structure will be added by the BroadcastMessage method
-	broadcastMsg := map[string]any{
-		"type":          "public_message",
-		"senderAddress": address,
-		"content":       params.Message, // Match the "content" field used in SendMessage
-		"timestamp":     time.Now().Unix(),
-	}
-
-	// Broadcast the message to all connected participants
-	wsHandler.BroadcastMessage(broadcastMsg)
-
-	// Create the RPC response
-	response := map[string]any{
-		"status":  "sent",
-		"message": params.Message,
-	}
-
-	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
-	return rpcResponse, nil
-}
-
 // BrokerConfig represents the broker configuration information
 type BrokerConfig struct {
 	BrokerAddress string `json:"brokerAddress"`
 }
-
-// Global variable to track server start time
-var serverStartTime = time.Now()
 
 // HandleGetConfig returns the broker configuration
 func HandleGetConfig(req *RPCMessage) (*RPCResponse, error) {

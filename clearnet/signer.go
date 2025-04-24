@@ -8,10 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+// Signer handles signing operations using a private key
 type Signer struct {
 	privateKey *ecdsa.PrivateKey
 }
 
+// NewSigner creates a new signer from a hex-encoded private key
 func NewSigner(privateKeyHex string) (*Signer, error) {
 	if len(privateKeyHex) >= 2 && privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]
@@ -25,6 +27,7 @@ func NewSigner(privateKeyHex string) (*Signer, error) {
 	return &Signer{privateKey: privateKey}, nil
 }
 
+// Sign creates an ECDSA signature for the provided data
 func (s *Signer) Sign(data []byte) ([]byte, error) {
 	sig, err := nitrolite.Sign(data, s.privateKey)
 	if err != nil {
@@ -41,6 +44,7 @@ func (s *Signer) Sign(data []byte) ([]byte, error) {
 	return signature, nil
 }
 
+// NitroSign creates a signature for the provided state in nitrolite.Signature format
 func (s *Signer) NitroSign(encodedState []byte) (nitrolite.Signature, error) {
 	sig, err := nitrolite.Sign(encodedState, s.privateKey)
 	if err != nil {
@@ -53,10 +57,12 @@ func (s *Signer) NitroSign(encodedState []byte) (nitrolite.Signature, error) {
 	}, nil
 }
 
+// GetPublicKey returns the public key associated with the signer
 func (s *Signer) GetPublicKey() *ecdsa.PublicKey {
 	return s.privateKey.Public().(*ecdsa.PublicKey)
 }
 
+// GetPrivateKey returns the private key used by the signer
 func (s *Signer) GetPrivateKey() *ecdsa.PrivateKey {
 	return s.privateKey
 }
