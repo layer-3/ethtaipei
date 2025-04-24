@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"math/big"
@@ -23,20 +22,6 @@ import (
 )
 
 var BrokerAddress string
-
-// AuthRequest represents an authentication request.
-type AuthRequest struct {
-	PublicKey string `json:"pub_key"`
-	Signature string `json:"signature"`
-	Message   string `json:"message"`
-}
-
-// AuthResponse represents an authentication response.
-type AuthResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error,omitempty"`
-	UserID  string `json:"user_id,omitempty"`
-}
 
 // Global services.
 var (
@@ -77,17 +62,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 }
 
 // setupBlockchainClient initializes the Ethereum client and custody contract wrapper.
-func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkID string) (*CustodyClientWrapper, error) {
-	// Remove '0x' prefix if present.
-	if len(privateKeyHex) >= 2 && privateKeyHex[:2] == "0x" {
-		privateKeyHex = privateKeyHex[2:]
-	}
-
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key: %w", err)
-	}
-
+func setupBlockchainClient(signer *Signer, infuraURL, custodyAddressStr, networkID string) (*CustodyClientWrapper, error) {
 	custodyAddress := common.HexToAddress(custodyAddressStr)
 	client, err := ethclient.Dial(infuraURL)
 	if err != nil {
@@ -100,21 +75,19 @@ func setupBlockchainClient(privateKeyHex, infuraURL, custodyAddressStr, networkI
 	}
 
 	// Create auth options for transactions.
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(signer.GetPrivateKey(), chainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction signer: %w", err)
 	}
 	auth.GasPrice = big.NewInt(30000000000) // 20 gwei.
 	auth.GasLimit = uint64(3000000)
 
-	// Derive broker's Ethereum address.
-	publicKeyECDSA, ok := privateKey.Public().(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("error casting public key to ECDSA")
-	}
-	BrokerAddress = crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+	publicKey := signer.GetPublicKey()
 
-	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID, privateKey)
+	// Derive broker's Ethereum address.
+	BrokerAddress = crypto.PubkeyToAddress(*publicKey).Hex()
+
+	custodyClient, err := NewCustodyClientWrapper(client, custodyAddress, auth, networkID, signer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create custody client: %w", err)
 	}
@@ -166,10 +139,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize global services.
-	channelService = NewChannelService(db)
-	ledger = NewLedger(db)
-
 	// Retrieve the private key.
 	privateKeyHex := os.Getenv("BROKER_PRIVATE_KEY")
 	if privateKeyHex == "" {
@@ -177,8 +146,15 @@ func main() {
 	}
 	log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 
+	// Initialize global services.
+	channelService = NewChannelService(db)
+	ledger = NewLedger(db)
+	signer, err := NewSigner(privateKeyHex)
+	if err != nil {
+		log.Fatalf("failed to initialise signer: %v", err)
+	}
 	// Initialize blockchain clients
-	clients, err := initBlockchainClients(privateKeyHex)
+	clients, err := initBlockchainClients(signer)
 	if err != nil {
 		log.Fatalf("Failed to initialize blockchain clients: %v", err)
 	}
@@ -197,7 +173,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, channelService, ledger, multiNetworkCustody.GetDefaultClient())
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, signer, channelService, ledger)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Start the HTTP server.
@@ -214,8 +190,8 @@ func main() {
 	log.Println("Server stopped")
 }
 
-// initBlockchainClients initializes blockchain clients based on environment variables
-func initBlockchainClients(privateKeyHex string) (map[string]*CustodyClientWrapper, error) {
+// initBlockchainClients initializes blockchain clients for all configured networks
+func initBlockchainClients(signer *Signer) (map[string]*CustodyClientWrapper, error) {
 	config, err := LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
@@ -224,7 +200,7 @@ func initBlockchainClients(privateKeyHex string) (map[string]*CustodyClientWrapp
 	clients := make(map[string]*CustodyClientWrapper)
 
 	for name, network := range config.Networks {
-		client, err := setupBlockchainClient(privateKeyHex, network.InfuraURL, network.CustodyAddress, network.ChainID)
+		client, err := setupBlockchainClient(signer, network.InfuraURL, network.CustodyAddress, network.ChainID)
 		if err != nil {
 			log.Printf("Warning: Failed to initialize %s blockchain client: %v", name, err)
 			continue

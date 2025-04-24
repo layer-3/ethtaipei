@@ -13,9 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-// RPCMessage represents the common structure for both requests and responses
+// RPCData represents the common structure for both requests and responses
 // Format: [request_id, method, params, ts]
-type RPCMessage struct {
+type RPCData struct {
 	RequestID uint64
 	Method    string
 	Params    []any
@@ -23,7 +23,7 @@ type RPCMessage struct {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for RPCMessage
-func (m *RPCMessage) UnmarshalJSON(data []byte) error {
+func (m *RPCData) UnmarshalJSON(data []byte) error {
 	// Parse as raw JSON array first
 	var rawMsg []json.RawMessage
 	if err := json.Unmarshal(data, &rawMsg); err != nil {
@@ -63,7 +63,7 @@ func (m *RPCMessage) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface for RPCMessage
-func (m RPCMessage) MarshalJSON() ([]byte, error) {
+func (m RPCData) MarshalJSON() ([]byte, error) {
 	// Create array representation
 	return json.Marshal([]any{
 		m.RequestID,
@@ -73,31 +73,31 @@ func (m RPCMessage) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// RPCRequest represents a request in the RPC protocol
-type RPCRequest struct {
-	Req        RPCMessage   `json:"req"`
+// RPCMessage represents a complete message in the RPC protocol, including request data and signatures
+type RPCMessage struct {
+	Req        RPCData      `json:"req"`
 	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
-	Allocation []Allocation `json:"allocation,omitempty"`
+	Allocation []Allocation `json:"out,omitempty"`
 	Sig        []string     `json:"sig"`
 }
 
-// Allocation represents a token allocation of a participant
+// Allocation represents a token allocation for a specific participant
 type Allocation struct {
-	Participant  string   `json:"participant"`
-	TokenAddress string   `json:"token_address"`
+	Participant  string   `json:"destination"`
+	TokenAddress string   `json:"token"`
 	Amount       *big.Int `json:"amount,string"`
 }
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
-	Res       RPCMessage `json:"res"`
-	ChannelID string     `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
-	Sig       []string   `json:"sig"`
+	Res       RPCData  `json:"res"`
+	ChannelID string   `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
+	Sig       []string `json:"sig"`
 }
 
-// ParseRequest parses a JSON string into a RPCRequest
-func ParseRequest(data []byte) (*RPCRequest, error) {
-	var req RPCRequest
+// ParseRPCMessage parses a JSON string into a RPCRequest
+func ParseRPCMessage(data []byte) (*RPCMessage, error) {
+	var req RPCMessage
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, fmt.Errorf("failed to parse request: %w", err)
 	}
@@ -107,7 +107,7 @@ func ParseRequest(data []byte) (*RPCRequest, error) {
 // CreateResponse creates a response from a request with the given fields
 func CreateResponse(requestID uint64, method string, responseParams []any, newTimestamp time.Time) *RPCResponse {
 	return &RPCResponse{
-		Res: RPCMessage{
+		Res: RPCData{
 			RequestID: requestID,
 			Method:    method,
 			Params:    responseParams,
