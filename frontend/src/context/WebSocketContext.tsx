@@ -8,7 +8,7 @@ import {
     getAddressFromPublicKey,
     WebSocketClient,
 } from '@/websocket';
-import { Channel as NitroliteChannel } from '@erc7824/nitrolite/src';
+import { Channel as NitroliteChannel } from '@erc7824/nitrolite';
 import { Channel, WSStatus } from '@/types';
 import APP_CONFIG from '@/config/app';
 import { NitroliteStore } from '@/store';

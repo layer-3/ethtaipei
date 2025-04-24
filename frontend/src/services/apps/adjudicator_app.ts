@@ -1,5 +1,5 @@
 import APP_CONFIG from '@/config/app';
-import { AppLogic, Channel, State } from '@erc7824/nitrolite/src';
+import { AppLogic, Channel, State } from '@erc7824/nitrolite';
 import { Address, encodeAbiParameters, Hex, decodeAbiParameters } from 'viem';
 
 /**

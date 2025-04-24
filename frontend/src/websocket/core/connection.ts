@@ -1,5 +1,5 @@
 import { WSStatus, Channel } from '@/types';
-import { Channel as NitroliteChannel } from '@erc7824/nitrolite/src';
+import { Channel as NitroliteChannel } from '@erc7824/nitrolite';
 import { WebSocketReadyState, WebSocketClientOptions } from './types';
 import { WalletSigner, shortenPublicKey } from '../crypto';
 import { handleMessage } from './messageHandler';

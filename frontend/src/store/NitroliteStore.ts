@@ -1,5 +1,5 @@
 import { WalletSigner } from '@/websocket';
-import { NitroliteClient } from '@erc7824/nitrolite/src';
+import { NitroliteClient } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
 import { NitroliteState, ChannelId, AccountInfo, Participant } from './types'; // Added Participant
 import { SettingsStore, WalletStore } from './index';

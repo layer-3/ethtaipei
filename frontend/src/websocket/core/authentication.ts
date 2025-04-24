@@ -1,4 +1,4 @@
-import { NitroliteRPC } from '@erc7824/nitrolite/src';
+import { NitroliteRPC } from '@erc7824/nitrolite';
 import { WalletSigner } from '../crypto';
 
 /**

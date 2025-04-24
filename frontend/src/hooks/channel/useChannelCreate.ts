@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useSnapshot } from 'valtio';
 import { Address, Hex } from 'viem';
 import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
-import { State } from '@erc7824/nitrolite/src';
+import { State } from '@erc7824/nitrolite';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 // Define localStorage keys

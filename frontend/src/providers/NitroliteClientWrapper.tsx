@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { useSnapshot } from 'valtio';
 import { createPublicClient, createWalletClient, custom, Hex, http } from 'viem';
-import { ContractAddresses, NitroliteClient } from '@erc7824/nitrolite/src';
+import { ContractAddresses, NitroliteClient } from '@erc7824/nitrolite';
 
 import WalletStore from '@/store/WalletStore';
 import SettingsStore from '@/store/SettingsStore';
