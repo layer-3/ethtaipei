@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"time"
 
 	"github.com/erc7824/go-nitrolite"
@@ -74,14 +75,24 @@ func (m RPCMessage) MarshalJSON() ([]byte, error) {
 
 // RPCRequest represents a request in the RPC protocol
 type RPCRequest struct {
-	Req RPCMessage `json:"req"`
-	Sig []string   `json:"sig"`
+	Req        RPCMessage   `json:"req"`
+	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
+	Allocation []Allocation `json:"allocation,omitempty"`
+	Sig        []string     `json:"sig"`
+}
+
+// Allocation represents a token allocation of a participant
+type Allocation struct {
+	Participant  string   `json:"participant"`
+	TokenAddress string   `json:"token_address"`
+	Amount       *big.Int `json:"amount,string"`
 }
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
-	Res RPCMessage `json:"res"`
-	Sig []string   `json:"sig"`
+	Res       RPCMessage `json:"res"`
+	ChannelID string     `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
+	Sig       []string   `json:"sig"`
 }
 
 // ParseRequest parses a JSON string into a RPCRequest
@@ -91,15 +102,6 @@ func ParseRequest(data []byte) (*RPCRequest, error) {
 		return nil, fmt.Errorf("failed to parse request: %w", err)
 	}
 	return &req, nil
-}
-
-// ParseResponse parses a JSON string into a RPCResponse
-func ParseResponse(data []byte) (*RPCResponse, error) {
-	var res RPCResponse
-	if err := json.Unmarshal(data, &res); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &res, nil
 }
 
 // CreateResponse creates a response from a request with the given fields

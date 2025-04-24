@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/centrifugal/centrifuge"
 	"github.com/erc7824/go-nitrolite"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -17,13 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 )
-
-// Allocation represents a token allocation of a participant
-type Allocation struct {
-	Participant  string   `json:"participant"`
-	TokenAddress string   `json:"token_address"`
-	Amount       *big.Int `json:"amount,string"`
-}
 
 // CreateVirtualChannelParams represents parameters needed for virtual channel creation
 type CreateVirtualChannelParams struct {
@@ -65,7 +57,7 @@ type ChannelResponse struct {
 }
 
 // HandleCreateVirtualChannel creates a virtual channel between two participants
-func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledger *Ledger, router RouterInterface) (*RPCResponse, error) {
+func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
@@ -160,18 +152,6 @@ func HandleCreateVirtualChannel(client *centrifuge.Client, req *RPCRequest, ledg
 			return fmt.Errorf("failed to record virtual channel: %w", err)
 		}
 
-		// 4. Set up message routing between participants
-		if client != nil && router != nil {
-			// Set up two-way message forwarding between participants
-			if err := router.AddRoute(virtualChannelDB.ParticipantA, virtualChannelDB.ParticipantB, virtualChannelID.Hex()); err != nil {
-				return fmt.Errorf("failed to set up routing for participant A: %w", err)
-			}
-
-			if err := router.AddRoute(virtualChannelDB.ParticipantB, virtualChannelDB.ParticipantA, virtualChannelID.Hex()); err != nil {
-				return fmt.Errorf("failed to set up routing for participant B: %w", err)
-			}
-		}
-
 		return nil
 	})
 
@@ -200,41 +180,16 @@ func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel
 	return &directChannel, nil
 }
 
-type SendMessageRequest struct {
-	ChannelID string          `json:"channelId"`
-	Data      json.RawMessage `json:"data"`
-}
-
 // PublicMessageRequest represents a request to broadcast a message to all participants
 type PublicMessageRequest struct {
 	Message string `json:"message"`
 }
 
 // HandleSendMessage handles sending a message through a virtual channel
-func HandleSendMessage(address string, node *centrifuge.Node, req *RPCRequest, router RouterInterface, ledger *Ledger) (string, error) {
-	// Expect exactly one parameter in the request that is a JSON object matching SendMessageRequest.
-	if len(req.Req.Params) != 1 {
-		return "", errors.New("invalid parameters: expected a single JSON object with channelId and data")
-	}
-
-	// Convert the first parameter into JSON bytes.
-	paramBytes, err := json.Marshal(req.Req.Params[0])
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal parameter: %w", err)
-	}
-
-	// Parse the send message request.
-	var sendReq SendMessageRequest
-	if err := json.Unmarshal(paramBytes, &sendReq); err != nil {
-		return "", fmt.Errorf("failed to parse send message request: %w", err)
-	}
-
+func HandleSendMessage(address, virtualChannelID string, req *RPCRequest, ledger *Ledger) ([]string, error) {
 	// Validate required fields.
-	if strings.TrimSpace(sendReq.ChannelID) == "" {
-		return "", errors.New("missing required field: channelId")
-	}
-	if len(sendReq.Data) == 0 {
-		return "", errors.New("missing required field: data")
+	if virtualChannelID == "" {
+		return nil, errors.New("missing required field: channelId")
 	}
 
 	// Determine the sender from the request context
@@ -243,23 +198,18 @@ func HandleSendMessage(address string, node *centrifuge.Node, req *RPCRequest, r
 
 	// Query the database for the virtual channel
 	var virtualChannel DBVirtualChannel
-	if err := ledger.db.Where("channel_id = ?", sendReq.ChannelID).First(&virtualChannel).Error; err != nil {
-		return "", fmt.Errorf("failed to find virtual channel: %w", err)
+	if err := ledger.db.Where("channel_id = ?", virtualChannelID).First(&virtualChannel).Error; err != nil {
+		return nil, fmt.Errorf("failed to find virtual channel: %w", err)
 	}
 
 	// Determine the recipient (the participant that is not the sender)
-	var recipient string
+	var recipient []string
 	if virtualChannel.ParticipantA == sender {
-		recipient = virtualChannel.ParticipantB
+		recipient = append(recipient, virtualChannel.ParticipantB)
 	} else if virtualChannel.ParticipantB == sender {
-		recipient = virtualChannel.ParticipantA
+		recipient = append(recipient, virtualChannel.ParticipantA)
 	} else {
-		return "", errors.New("sender is not a participant in this channel")
-	}
-
-	// Forward the message through the router using the provided channel ID.
-	if err := router.ForwardMessage(sender, recipient, sendReq.Data, sendReq.ChannelID); err != nil {
-		return "", fmt.Errorf("failed to route message: %w", err)
+		return nil, errors.New("sender is not a participant in this channel")
 	}
 
 	// Just return the recipient, no response needed
@@ -419,9 +369,8 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 }
 
 // HandleCloseVirtualChannel closes a virtual channel and redistributes funds to participants
-// TODO: this will be triggered automatically when we receive an event from Blockchain.
-func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInterface) (*RPCResponse, error) {
-	// Extract parameters from the request
+func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
+	// Validate and parse parameters
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
@@ -567,12 +516,6 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 			return fmt.Errorf("failed to update virtual channel status: %w", err)
 		}
 
-		// 11. Remove message routing for this channel
-		if router != nil {
-			// We don't care if this fails since the routing will be cleared eventually
-			_ = removeRoutes(router, virtualChannel.ParticipantA, virtualChannel.ParticipantB, virtualChannel.ChannelID)
-		}
-
 		return nil
 	})
 
@@ -591,12 +534,18 @@ func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger, router RouterInt
 	return rpcResponse, nil
 }
 
-// Helper function to remove routes between participants
-func removeRoutes(router RouterInterface, participantA, participantB, channelID string) error {
-	// Since we don't have a direct "remove route" function, we'd need to implement it
-	// For now, we'll just log the action as the Router interface doesn't have this functionality
-	log.Printf("Removing message routes for channel %s between %s and %s",
-		channelID, participantA, participantB)
+// validateSignature checks if signer's signature is present in a list of signatures.
+func validateSignature(reqBytes []byte, signatures []string, signer string) error {
+	valid := false
+	for _, sig := range signatures {
+		if isValid, _ := ValidateSignature(reqBytes, sig, signer); isValid {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return fmt.Errorf("invalid or missing signature for participant: %s", signer)
+	}
 	return nil
 }
 
@@ -680,29 +629,17 @@ func HandlePing(req *RPCRequest) (*RPCResponse, error) {
 // HandleAuthenticate handles the authentication process
 func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error) {
 	// Parse the authentication message
-	var authMsg RegularMessage
+	var authMsg RPCRequest
 	if err := json.Unmarshal(authMessage, &authMsg); err != nil {
 		return "", errors.New("invalid authentication message format")
 	}
 
 	// Validate authentication message format
-	if len(authMsg.Req) < 4 || len(authMsg.Sig) == 0 {
+	if len(authMsg.Sig) == 0 {
 		return "", errors.New("invalid authentication message format")
 	}
 
-	// Extract method and ensure it's auth
-	method, ok := authMsg.Req[1].(string)
-	if !ok || method != "auth" {
-		return "", errors.New("first message must be an authentication message")
-	}
-
-	// Extract public key from req[2]
-	addrArr, ok := authMsg.Req[2].([]any)
-	if !ok || len(addrArr) == 0 {
-		return "", errors.New("missing public key in authentication message")
-	}
-
-	addr, ok := addrArr[0].(string)
+	addr, ok := authMsg.Req.Params[0].(string)
 	if !ok || addr == "" {
 		return "", errors.New("invalid public key format")
 	}
