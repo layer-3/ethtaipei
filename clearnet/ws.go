@@ -144,19 +144,19 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
+		case "list_participants":
+			rpcResponse, handlerErr = HandleListParticipants(&rpcRequest, h.channelService, h.ledger)
+			if handlerErr != nil {
+				log.Printf("Error handling HandleListOpenParticipants: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
+				continue
+			}
+
 		case "create_virtual_channel":
 			rpcResponse, handlerErr = HandleCreateVirtualChannel(&rpcRequest, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling CreateVirtualChannel: %v", handlerErr)
 				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual channel: "+handlerErr.Error())
-				continue
-			}
-
-		case "list_participants":
-			rpcResponse, handlerErr = HandleListOpenParticipants(&rpcRequest, h.channelService, h.ledger)
-			if handlerErr != nil {
-				log.Printf("Error handling HandleListOpenParticipants: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
 				continue
 			}
 

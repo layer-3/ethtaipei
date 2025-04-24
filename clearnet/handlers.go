@@ -207,12 +207,11 @@ type ChannelAvailabilityResponse struct {
 	Amount  int64  `json:"amount"`
 }
 
-// HandleListOpenParticipants returns a list of direct channels where virtual channels can be created
-func HandleListOpenParticipants(req *RPCMessage, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
-	// Extract token address from parameters if provided
+// HandleListParticipants returns a list of direct channels where virtual channels can be created
+func HandleListParticipants(rpc *RPCMessage, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
 	var tokenAddress string
-	if len(req.Req.Params) > 0 {
-		paramsJSON, err := json.Marshal(req.Req.Params[0])
+	if len(rpc.Req.Params) > 0 {
+		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 		if err == nil {
 			var params map[string]string
 			if err := json.Unmarshal(paramsJSON, &params); err == nil {
@@ -221,46 +220,33 @@ func HandleListOpenParticipants(req *RPCMessage, channelService *ChannelService,
 		}
 	}
 
-	// If no token address provided, use a default empty string
 	if tokenAddress == "" {
-		tokenAddress = ""
+		return nil, errors.New("missing token address")
 	}
 
-	// Find all direct channels where the broker is participant B
+	// Find all open direct channels where the broker is participant B
 	var channels []DBChannel
-	if err := channelService.db.Where("participant_b = ?", BrokerAddress).Find(&channels).Error; err != nil {
+	if err := channelService.db.Where("participant_b = ? AND status = ?", BrokerAddress, ChannelStatusOpen).Find(&channels).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch channels: %w", err)
 	}
-
-	fmt.Println("Foundbroker channels:", channels)
 
 	// Create a response list with participant addresses and available funds
 	var availableChannels []ChannelAvailabilityResponse
 	for _, channel := range channels {
-		// Get participant's balance in this channel
-		log.Printf("Checking balance for channel: %+v\n", channel)
 		account := ledger.Account(channel.ChannelID, channel.ParticipantA)
 		balance, err := account.Balance(tokenAddress)
 		if err != nil {
-			// Skip this channel if there's an error getting balance
 			continue
 		}
 
-		// Only include if the participant has available funds
-		if balance > 0 {
-			// Print debug info about the balance calculation
-			log.Printf("Participant %s has balance %d in channel %s",
-				channel.ParticipantA, balance, channel.ChannelID)
-
-			availableChannels = append(availableChannels, ChannelAvailabilityResponse{
-				Address: channel.ParticipantA,
-				Amount:  balance,
-			})
-		}
+		availableChannels = append(availableChannels, ChannelAvailabilityResponse{
+			Address: channel.ParticipantA,
+			Amount:  balance,
+		})
 	}
 
 	// Create the RPC response
-	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{availableChannels}, time.Now())
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{availableChannels}, time.Now())
 	return rpcResponse, nil
 }
 
