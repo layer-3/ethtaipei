@@ -73,8 +73,7 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 	virtualChannelID := "0xVirtualChannel123"
 	virtualChannel := &DBVirtualChannel{
 		ChannelID:    virtualChannelID,
-		ParticipantA: participantA,
-		ParticipantB: participantB,
+		Participants: []string{participantA, participantB},
 		Status:       "open",
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),

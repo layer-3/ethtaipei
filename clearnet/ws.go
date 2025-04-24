@@ -238,7 +238,7 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 		return errors.New("Invalid signature")
 	}
 
-	sendTo, handlerErr := HandleSendMessage(fromAddress, rpcRequest.ChannelID, rpcRequest, h.ledger)
+	sendTo, handlerErr := getVCRecipients(fromAddress, rpcRequest.ChannelID, rpcRequest, h.ledger)
 	if handlerErr != nil {
 		log.Printf("Error handling SendMessage: %v", handlerErr)
 		return errors.New("Failed to send message: " + handlerErr.Error())

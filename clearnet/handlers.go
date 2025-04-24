@@ -85,13 +85,14 @@ func HandleCreateVirtualChannel(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, 
 		return nil, errors.New("invalid allocations")
 	}
 
-	// TODO: allow having more than 2 participants on the database level.
-	participantA := virtualChannel.Participants[0]
-	participantB := virtualChannel.Participants[1]
+	var participantsAddresses []common.Address
+	for _, participant := range virtualChannel.Participants {
+		participantsAddresses = append(participantsAddresses, common.HexToAddress(participant))
+	}
 
 	// Generate a unique channel ID for the virtual channel (TODO: rethink channel ID generation)
 	nitroliteChannel := nitrolite.Channel{
-		Participants: []common.Address{common.HexToAddress(participantA), common.HexToAddress(participantB)},
+		Participants: participantsAddresses,
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    0, // Use placeholder values for virtual channels.
 		Nonce:        rpc.Req.Timestamp,
@@ -141,8 +142,7 @@ func HandleCreateVirtualChannel(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, 
 		// Record the virtual channel creation in state
 		virtualChannelDB := &DBVirtualChannel{
 			ChannelID:    virtualChannelID.Hex(),
-			ParticipantA: participantA,
-			ParticipantB: participantB,
+			Participants: virtualChannel.Participants,
 			Status:       ChannelStatusOpen,
 			Signers:      virtualChannel.Signers,
 			CreatedAt:    time.Now(),
@@ -175,16 +175,14 @@ type PublicMessageRequest struct {
 	Message string `json:"message"`
 }
 
-// HandleSendMessage handles sending a message through a virtual channel
-func HandleSendMessage(address, virtualChannelID string, req *RPCMessage, ledger *Ledger) ([]string, error) {
+// getVCRecipients handles sending a message through a virtual channel
+func getVCRecipients(address, virtualChannelID string, req *RPCMessage, ledger *Ledger) ([]string, error) {
 	// Validate required fields.
 	if virtualChannelID == "" {
 		return nil, errors.New("missing required field: channelId")
 	}
 
-	// Determine the sender from the request context
-	// For now, we'll use the request method as the sender ID
-	sender := address
+	// TODO: use cache, do not go to database in each request.
 
 	// Query the database for the virtual channel
 	var virtualChannel DBVirtualChannel
@@ -192,18 +190,15 @@ func HandleSendMessage(address, virtualChannelID string, req *RPCMessage, ledger
 		return nil, fmt.Errorf("failed to find virtual channel: %w", err)
 	}
 
-	// Determine the recipient (the participant that is not the sender)
-	var recipient []string
-	if virtualChannel.ParticipantA == sender {
-		recipient = append(recipient, virtualChannel.ParticipantB)
-	} else if virtualChannel.ParticipantB == sender {
-		recipient = append(recipient, virtualChannel.ParticipantA)
-	} else {
-		return nil, errors.New("sender is not a participant in this channel")
+	// Exclude the sender address from the participants to send to
+	var participants []string
+	for _, participant := range virtualChannel.Participants {
+		if participant != address {
+			participants = append(participants, participant)
+		}
 	}
 
-	// Just return the recipient, no response needed
-	return recipient, nil
+	return participants, nil
 }
 
 // ChannelAvailabilityResponse represents a participant's availability for virtual channels
@@ -394,8 +389,6 @@ func HandleCloseVirtualChannel(req *RPCMessage, ledger *Ledger) (*RPCResponse, e
 			return fmt.Errorf("virtual channel not found or not open: %w", err)
 		}
 
-		virtualChannelParticipants := []string{virtualChannel.ParticipantA, virtualChannel.ParticipantB}
-
 		// Validate payload was signed by the virtual channel signers
 		if len(req.Sig) != len(virtualChannel.Signers) {
 			return fmt.Errorf("unexpected number of signatures: %v instead of %v", len(req.Sig), len(virtualChannel.Signers))
@@ -410,7 +403,7 @@ func HandleCloseVirtualChannel(req *RPCMessage, ledger *Ledger) (*RPCResponse, e
 
 		// Process allocations
 		totalVirtualChannelBalance, sumAllocations := int64(0), int64(0)
-		for _, participant := range virtualChannelParticipants {
+		for _, participant := range virtualChannel.Participants {
 			allocation := findAllocation(params.FinalAllocations, participant)
 			if allocation == nil || allocation.Amount == nil || allocation.Amount.Sign() < 0 {
 				return errors.New("invalid allocation")
