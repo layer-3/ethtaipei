@@ -13,8 +13,8 @@ import (
 // TestHandlePingFunction tests the ping handler functionality in handlers.go
 func TestHandlePingFunction(t *testing.T) {
 	// Test case 1: Simple ping with no parameters
-	rpcRequest1 := &RPCRequest{
-		Req: RPCMessage{
+	rpcRequest1 := &RPCMessage{
+		Req: RPCData{
 			RequestID: 1,
 			Method:    "Ping",
 			Params:    []any{nil},
@@ -51,6 +51,8 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 		ChannelID:    "0xDirectChannelA",
 		ParticipantA: participantA,
 		ParticipantB: BrokerAddress,
+		Status:       ChannelStatusOpen,
+		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -60,6 +62,8 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 		ChannelID:    "0xDirectChannelB",
 		ParticipantA: participantB,
 		ParticipantB: BrokerAddress,
+		Status:       ChannelStatusOpen,
+		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -107,14 +111,14 @@ func TestHandleVirtualChannelClosing(t *testing.T) {
 	paramsJSON, err := json.Marshal(closeParams)
 	require.NoError(t, err)
 
-	req := &RPCRequest{
-		Req: RPCMessage{
+	req := &RPCMessage{
+		Req: RPCData{
 			RequestID: 1,
 			Method:    "CloseChannel",
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		Sig: []string{"dummy-signature"},
+		// Sig:        []string{"dummy-signature"},
 	}
 
 	// Call the handler
@@ -206,8 +210,8 @@ func TestHandleListOpenParticipantsFunction(t *testing.T) {
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	rpcRequest := &RPCRequest{
-		Req: RPCMessage{
+	rpcRequest := &RPCMessage{
+		Req: RPCData{
 			RequestID: 1,
 			Method:    "ListOpenParticipants",
 			Params:    []any{json.RawMessage(paramsJSON)},
@@ -252,8 +256,8 @@ func TestHandleListOpenParticipantsFunction(t *testing.T) {
 	assert.Empty(t, expectedAddresses, "Not all expected addresses were found in the response")
 
 	// Test with no token address parameter
-	rpcRequest2 := &RPCRequest{
-		Req: RPCMessage{
+	rpcRequest2 := &RPCMessage{
+		Req: RPCData{
 			RequestID: 2,
 			Method:    "ListOpenParticipants",
 			Params:    []any{},

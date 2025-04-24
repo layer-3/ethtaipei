@@ -57,15 +57,15 @@ type ChannelResponse struct {
 }
 
 // HandleCreateVirtualChannel creates a virtual channel between two participants
-func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
+func HandleCreateVirtualChannel(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
-	if len(req.Req.Params) < 1 {
+	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
 
 	// Parse the parameters
 	var virtualChannel CreateVirtualChannelParams
-	paramsJSON, err := json.Marshal(req.Req.Params[0])
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
@@ -94,11 +94,11 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 		Participants: []common.Address{common.HexToAddress(participantA), common.HexToAddress(participantB)},
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    0, // Use placeholder values for virtual channels.
-		Nonce:        req.Req.Timestamp,
+		Nonce:        rpc.Req.Timestamp,
 	}
 	virtualChannelID := nitrolite.GetChannelID(nitroliteChannel)
 
-	reqBytes, err := json.Marshal(req.Req)
+	reqBytes, err := json.Marshal(rpc.Req)
 	if err != nil {
 		return nil, errors.New("error serializing auth message")
 	}
@@ -118,7 +118,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 			}
 
 			if allocation.Amount.Sign() > 0 {
-				if err := validateSignature(reqBytes, req.Sig, allocation.Participant); err != nil {
+				if err := validateSignature(reqBytes, rpc.Sig, allocation.Participant); err != nil {
 					return err
 				}
 			}
@@ -166,7 +166,7 @@ func HandleCreateVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, 
 		Status:    string(ChannelStatusOpen),
 	}
 
-	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
 }
 
@@ -176,7 +176,7 @@ type PublicMessageRequest struct {
 }
 
 // HandleSendMessage handles sending a message through a virtual channel
-func HandleSendMessage(address, virtualChannelID string, req *RPCRequest, ledger *Ledger) ([]string, error) {
+func HandleSendMessage(address, virtualChannelID string, req *RPCMessage, ledger *Ledger) ([]string, error) {
 	// Validate required fields.
 	if virtualChannelID == "" {
 		return nil, errors.New("missing required field: channelId")
@@ -213,7 +213,7 @@ type ChannelAvailabilityResponse struct {
 }
 
 // HandleListOpenParticipants returns a list of direct channels where virtual channels can be created
-func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
+func HandleListOpenParticipants(req *RPCMessage, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
 	// Extract token address from parameters if provided
 	var tokenAddress string
 	if len(req.Req.Params) > 0 {
@@ -269,7 +269,7 @@ func HandleListOpenParticipants(req *RPCRequest, channelService *ChannelService,
 	return rpcResponse, nil
 }
 
-func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *CustodyClientWrapper) (*RPCResponse, error) {
+func HandleCloseDirectChannel(req *RPCMessage, ledger *Ledger, custodyWrapper *CustodyClientWrapper) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
@@ -358,7 +358,7 @@ func HandleCloseDirectChannel(req *RPCRequest, ledger *Ledger, custodyWrapper *C
 	return rpcResponse, nil
 }
 
-func HandleCloseVirtualChannel(req *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
+func HandleCloseVirtualChannel(req *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
 	// Extract parameters from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
@@ -489,7 +489,7 @@ func findAllocation(allocations []Allocation, participant string) *Allocation {
 }
 
 // HandleBroadcastMessage broadcasts a message to all connected participants
-func HandleBroadcastMessage(address string, req *RPCRequest, ledger *Ledger, wsHandler WebSocketHandler) (*RPCResponse, error) {
+func HandleBroadcastMessage(address string, req *RPCMessage, ledger *Ledger, wsHandler WebSocketHandler) (*RPCResponse, error) {
 	// Extract the message parameter from the request
 	if len(req.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
@@ -550,7 +550,7 @@ type BrokerConfig struct {
 var serverStartTime = time.Now()
 
 // HandleGetConfig returns the broker configuration
-func HandleGetConfig(req *RPCRequest) (*RPCResponse, error) {
+func HandleGetConfig(req *RPCMessage) (*RPCResponse, error) {
 	config := BrokerConfig{
 		BrokerAddress: BrokerAddress,
 	}
@@ -560,7 +560,7 @@ func HandleGetConfig(req *RPCRequest) (*RPCResponse, error) {
 }
 
 // HandlePing responds to a ping request with a pong response in RPC format
-func HandlePing(req *RPCRequest) (*RPCResponse, error) {
+func HandlePing(req *RPCMessage) (*RPCResponse, error) {
 	rpcResponse := CreateResponse(req.Req.RequestID, "pong", []any{}, time.Now())
 	return rpcResponse, nil
 }
@@ -568,7 +568,7 @@ func HandlePing(req *RPCRequest) (*RPCResponse, error) {
 // HandleAuthenticate handles the authentication process
 func HandleAuthenticate(conn *websocket.Conn, authMessage []byte) (string, error) {
 	// Parse the authentication message
-	var authMsg RPCRequest
+	var authMsg RPCMessage
 	if err := json.Unmarshal(authMessage, &authMsg); err != nil {
 		return "", errors.New("invalid authentication message format")
 	}

@@ -119,7 +119,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			break
 		}
 
-		var rpcRequest RPCRequest
+		var rpcRequest RPCMessage
 		if err := json.Unmarshal(message, &rpcRequest); err != nil {
 			sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
@@ -223,7 +223,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func forwardMessage(rpcRequest *RPCRequest, fromAddress string, h *UnifiedWSHandler) error {
+func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHandler) error {
 	// Validate the signature for the message
 	reqBytes, err := json.Marshal(rpcRequest.Req)
 	if err != nil {
@@ -352,7 +352,7 @@ func (h *UnifiedWSHandler) BroadcastMessage(message any) {
 
 				// Create a broadcast message in the format expected by the client
 				broadcastResp := RPCResponse{
-					Res: RPCMessage{
+					Res: RPCData{
 						RequestID: requestID,
 						Method:    "IncomingMessage", // Use the same format as direct messages for consistency
 						Params:    []any{msgWrapper},
