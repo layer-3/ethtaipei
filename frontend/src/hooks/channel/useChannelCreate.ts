@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useSnapshot } from 'valtio';
 import { Address, Hex } from 'viem';
 import { NitroliteStore, WalletStore, SettingsStore } from '@/store';
-import { Channel, State } from '@erc7824/nitrolite';
+import { State } from '@erc7824/nitrolite/src';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 
 // Define localStorage keys
@@ -47,17 +47,12 @@ export function useChannelCreate() {
         return { exists: false };
     }, [walletSnap.channelOpen, walletSnap.walletAddress]);
 
-    const saveChannelToStorage = useCallback((channel: Channel, state: State, channelId: string) => {
+    const saveChannelToStorage = useCallback((state: State, channelId: string) => {
         try {
-            const channelData = JSON.stringify(channel, (key, value) =>
-                typeof value === 'bigint' ? value.toString() + 'n' : value,
-            );
-
             const stateData = JSON.stringify(state, (key, value) =>
                 typeof value === 'bigint' ? value.toString() + 'n' : value,
             );
 
-            localStorage.setItem(STORAGE_KEYS.CHANNEL, channelData);
             localStorage.setItem(STORAGE_KEYS.CHANNEL_STATE, stateData);
             localStorage.setItem(STORAGE_KEYS.CHANNEL_ID, channelId);
 
@@ -90,9 +85,13 @@ export function useChannelCreate() {
                 try {
                     const amountBigInt = parseTokenUnits(tokenAddress, amount);
 
+                    console.log('Creating channel with amount:', amountBigInt);
+
                     const result = await NitroliteStore.state.client.createChannel({
-                        initialAllocationAmounts: [amountBigInt, 0n],
+                        initialAllocationAmounts: [amountBigInt, BigInt(0)],
                     });
+
+                    saveChannelToStorage(result.initialState, result.channelId);
 
                     WalletStore.setChannelOpen(true);
 

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { useSnapshot } from 'valtio';
 import { createPublicClient, createWalletClient, custom, Hex, http } from 'viem';
-import { ContractAddresses, NitroliteClient } from '@erc7824/nitrolite';
+import { ContractAddresses, NitroliteClient } from '@erc7824/nitrolite/src';
 
 import WalletStore from '@/store/WalletStore';
 import SettingsStore from '@/store/SettingsStore';
@@ -11,7 +11,7 @@ import NitroliteStore from '@/store/NitroliteStore';
 import APP_CONFIG from '@/config/app';
 
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { ethers, Wallet } from 'ethers';
+import { ethers } from 'ethers';
 import { createEthersSigner, generateKeyPair } from '@/websocket/crypto';
 
 const CRYPTO_KEYPAIR_KEY = 'crypto_keypair';
@@ -25,7 +25,7 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
     const { wallets } = useWallets();
     const { activeChain } = useSnapshot(SettingsStore.state);
 
-    const initializeKeys = useCallback(async (): Promise<{ keyPair: any; stateWalletClient: Wallet | null }> => {
+    const initializeKeys = useCallback(async (): Promise<{ keyPair: any; stateWalletClient: any | null }> => {
         try {
             let keyPair = null;
             const savedKeys = localStorage.getItem(CRYPTO_KEYPAIR_KEY);
@@ -45,9 +45,25 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
                 }
             }
 
-            const privateKeyHash = ethers.utils.keccak256(keyPair.privateKey);
-            const stateWalletClient = new ethers.Wallet(privateKeyHash);
             const signer = createEthersSigner(keyPair.privateKey);
+
+            const wallet = new ethers.Wallet(keyPair.privateKey);
+
+            const stateWalletClient = {
+                ...wallet,
+                account: {
+                    address: wallet.address,
+                },
+                signMessage: async ({ message: { raw } }: { message: { raw: string } }) => {
+                    const flatSignature = await wallet._signingKey().signDigest(raw);
+
+                    const signature = ethers.utils.joinSignature(flatSignature);
+
+                    return signature as Hex;
+                },
+            };
+
+            console.log(stateWalletClient);
 
             NitroliteStore.setStateSigner(signer);
 
@@ -107,6 +123,7 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
                 const client = new NitroliteClient({
                     // @ts-ignore
                     publicClient,
+                    // @ts-ignore
                     walletClient,
                     // @ts-ignore
                     stateWalletClient: stateWalletClient,

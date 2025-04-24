@@ -2,7 +2,7 @@ import { WalletSigner } from './crypto';
 import { WebSocketClientOptions } from './core/types';
 import { WebSocketConnection } from './core/connection';
 import { WSRequests } from './core/requests';
-import { Channel as NitroliteChannel } from '@erc7824/nitrolite';
+import { Channel as NitroliteChannel } from '@erc7824/nitrolite/src';
 
 /**
  * Client for WebSocket communication with signature-based authentication

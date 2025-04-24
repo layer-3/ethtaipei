@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Poppins, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import MiniKitProvider from '@/providers/minikit';
-import { NotificationInitializer } from '@/components/ui/NotificationInitializer';
+import ClientProviders from '@/providers/ClientProviders';
 
 const poppins = Poppins({
     weight: ['300', '400', '500', '600', '700'],
@@ -31,8 +31,9 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${poppins.variable} ${geistMono.variable} antialiased`}>
                 <MiniKitProvider>
-                    <NotificationInitializer />
-                    {children}
+                    <ClientProviders>
+                        {children}
+                    </ClientProviders>
                 </MiniKitProvider>
             </body>
         </html>

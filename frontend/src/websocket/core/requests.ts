@@ -1,4 +1,4 @@
-import { NitroliteRPC } from '@erc7824/nitrolite';
+import { NitroliteRPC } from '@erc7824/nitrolite/src';
 import { Channel } from '@/types';
 import { WebSocketConnection } from './connection';
 import { WalletSigner } from '../crypto';

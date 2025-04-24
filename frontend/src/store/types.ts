@@ -1,4 +1,4 @@
-import { NitroliteClient } from '@erc7824/nitrolite';
+import { NitroliteClient } from '@erc7824/nitrolite/src';
 import { WalletSigner } from '@/websocket';
 import { Address, Chain } from 'viem';
 

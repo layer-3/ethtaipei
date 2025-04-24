@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSnapshot } from 'valtio';
 import { WalletStore, SettingsStore, NitroliteStore, AppStore } from '@/store';
-import { useChannelCreate, useChannelClose } from '@/hooks/channel';
+import { useChannelClose } from '@/hooks/channel';
 import { useWebSocket } from '@/hooks/websocket';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 import APP_CONFIG from '@/config/app';
@@ -38,9 +38,6 @@ export function AccountInterface() {
         withdrawal: false,
     });
     const [localStorageAddress, setLocalStorageAddress] = useState<string>();
-
-    // Get channel hooks
-    const { handleDepositToChannel } = useChannelCreate();
 
     const { handleCloseChannel } = useChannelClose();
 
@@ -152,7 +149,10 @@ export function AccountInterface() {
             });
 
             // Call the challenge function with the channel ID and state from localStorage
-            await nitroSnap.client.challengeChannel(channelId, state);
+            await nitroSnap.client.challengeChannel({
+                channelId: channelId,
+                candidateState: state,
+            });
 
             // Refresh account info after challenging
             await Promise.all([getAccountInfo(), getParticipants()]);
@@ -180,13 +180,11 @@ export function AccountInterface() {
                 throw new Error('No channel ID found. Please create a channel first.');
             }
 
-            // Sample data based on the example in the DebugInterface
             const closeDirectChannelParams = {
                 channel_id: channelId,
                 funds_destination: walletSnap.walletAddress,
             };
 
-            // Send request to close the direct channel
             const response = await sendRequest('CloseDirectChannel', [closeDirectChannelParams]);
 
             await handleCloseChannel(response);
@@ -209,14 +207,12 @@ export function AccountInterface() {
 
         setLoading((prev) => ({ ...prev, withdrawal: true }));
         try {
-            const tokenAddress = APP_CONFIG.TOKENS[chainId];
-
             if (!nitroSnap.accountInfo?.available || nitroSnap.accountInfo.available <= 0n) {
                 console.warn('No funds to withdraw');
                 return;
             }
 
-            await nitroSnap.client.withdraw(tokenAddress, nitroSnap.accountInfo.available);
+            await nitroSnap.client.withdrawal(nitroSnap.accountInfo.available);
 
             await Promise.all([getAccountInfo(), getParticipants()]);
 
