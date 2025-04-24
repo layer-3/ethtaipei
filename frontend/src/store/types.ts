@@ -1,4 +1,4 @@
-import { ChannelContext, NitroliteClient } from '@erc7824/nitrolite';
+import { NitroliteClient } from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket';
 import { Address, Chain } from 'viem';
 
@@ -33,9 +33,9 @@ export type ChannelStatus =
 export type ChannelId = string;
 
 export interface AccountInfo {
-    deposited: bigint;
+    available: bigint;
     locked: bigint;
-    channelCount: number;
+    channelCount: bigint;
 }
 
 export interface Participant {
@@ -47,7 +47,6 @@ export type ParticipantsResponse = [[Participant]];
 
 export interface NitroliteState {
     client: NitroliteClient | null;
-    channelContext: ChannelContext<bigint> | null;
     status: ChannelStatus;
     stateSigner: WalletSigner | null;
     accountInfo: AccountInfo;

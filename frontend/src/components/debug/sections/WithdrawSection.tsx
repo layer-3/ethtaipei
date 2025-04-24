@@ -26,7 +26,7 @@ export const WithdrawSection: React.FC<WithdrawSectionProps> = ({
                 Your current withdrawable deposit: <span className="font-semibold">{currentDeposit}</span>
             </p>
             <p className="text-xs text-gray-500 mb-4">
-                Withdraw your deposited funds from the Nitro Adjudicator contract back to your wallet. This can only be
+                Withdraw your available funds from the Nitro Adjudicator contract back to your wallet. This can only be
                 done when no channels are active or locked.
             </p>
             <ActionButton onClick={onWithdraw} disabled={!canWithdraw || isLoading}>
@@ -52,7 +52,7 @@ const handleWithdraw = async () => {
 
   const tokenAddress = APP_CONFIG.TOKENS[chainId];
   // Get the raw BigInt deposit amount from accountInfo state
-  const depositAmountWei = accountInfo.deposited;
+  const depositAmountWei = accountInfo.available;
 
   // Check if there's anything to withdraw
   if (depositAmountWei <= 0n) {

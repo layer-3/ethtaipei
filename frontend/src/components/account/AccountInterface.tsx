@@ -70,8 +70,8 @@ export function AccountInterface() {
             availableBalance: nitroSnap.userAccountFromParticipants
                 ? formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount)
                 : 0,
-            deposited: nitroSnap.accountInfo?.deposited
-                ? formatTokenUnits(tokenConfig, nitroSnap.accountInfo?.deposited)
+            available: nitroSnap.accountInfo?.available
+                ? formatTokenUnits(tokenConfig, nitroSnap.accountInfo?.available)
                 : 0,
             locked: nitroSnap.accountInfo?.locked ? formatTokenUnits(tokenConfig, nitroSnap.accountInfo?.locked) : 0,
         };
@@ -211,12 +211,12 @@ export function AccountInterface() {
         try {
             const tokenAddress = APP_CONFIG.TOKENS[chainId];
 
-            if (!nitroSnap.accountInfo?.deposited || nitroSnap.accountInfo.deposited <= 0n) {
+            if (!nitroSnap.accountInfo?.available || nitroSnap.accountInfo.available <= 0n) {
                 console.warn('No funds to withdraw');
                 return;
             }
 
-            await nitroSnap.client.withdraw(tokenAddress, nitroSnap.accountInfo.deposited);
+            await nitroSnap.client.withdraw(tokenAddress, nitroSnap.accountInfo.available);
 
             await Promise.all([getAccountInfo(), getParticipants()]);
 
@@ -251,8 +251,7 @@ export function AccountInterface() {
                                 stroke="currentColor"
                                 strokeWidth="2"
                                 strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
+                                strokeLinejoin="round">
                                 <path d="M19 12H5M12 19l-7-7 7-7" />
                             </svg>
                         </Link>
@@ -269,8 +268,7 @@ export function AccountInterface() {
                         <button
                             onClick={refreshAccountInfo}
                             disabled={loading.refresh}
-                            className="text-sm px-3 py-1 bg-white text-black rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                            className="text-sm px-3 py-1 bg-white text-black rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {loading.refresh ? 'Refreshing...' : 'Refresh'}
                         </button>
                     </div>
@@ -282,10 +280,10 @@ export function AccountInterface() {
                             <div className="text-2xl font-bold text-black">$ {balances.availableBalance}</div>
                         </div>
 
-                        {/* Deposited Amount */}
+                        {/* available Amount */}
                         <div className="border border-gray-300 rounded-lg p-4">
-                            <div className="text-sm text-gray-800 mb-1">Total Deposited</div>
-                            <div className="text-2xl font-bold text-black">$ {balances.deposited}</div>
+                            <div className="text-sm text-gray-800 mb-1">Total available</div>
+                            <div className="text-2xl font-bold text-black">$ {balances.available}</div>
                         </div>
 
                         {/* Locked Amount */}
@@ -324,10 +322,9 @@ export function AccountInterface() {
                         onClick={handleWithdrawal}
                         disabled={
                             loading.withdrawal ||
-                            !nitroSnap.accountInfo?.deposited ||
-                            nitroSnap.accountInfo.deposited <= 0n
-                        }
-                    >
+                            !nitroSnap.accountInfo?.available ||
+                            nitroSnap.accountInfo.available <= 0n
+                        }>
                         {loading.withdrawal ? 'Processing...' : 'Withdrawal'}
                     </ActionButton>
                     <ActionButton onClick={handleChallenge} disabled={loading.challenge}>

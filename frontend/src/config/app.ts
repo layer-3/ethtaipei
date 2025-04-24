@@ -18,7 +18,7 @@ export const APP_CONFIG = {
         DEFAULT_GUEST: '0x3c93C321634a80FB3657CFAC707718A11cA57cBf',
         GUEST_KEY: '0xad1610e1e750ec26ed6a039d9661a965fd21a9e19e54076c84940400c75f6bbf',
         // Challenge period in seconds (1 day)
-        CHALLENGE_PERIOD: 1,
+        CHALLENGE_PERIOD: 1n,
         MAGIC_NUMBER_OPEN: BigInt(7877),
         MAGIC_NUMBER_CLOSE: BigInt(7879),
     },

@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
-import { Address } from 'viem';
 import { NitroliteStore, WalletStore } from '@/store';
-import APP_CONFIG from '@/config/app';
 import { AccountInfo } from '@/store/types';
 import { useResponseTracking } from '@/hooks/debug/useResponseTracking';
 import { useTransactionHistory } from '@/hooks/debug/useTransactionHistory';
@@ -26,10 +24,7 @@ export function useDebugAccount({ activeChainId, setAccountInfo }: UseDebugAccou
         if (!activeChainId || !walletSnap.walletAddress) return;
 
         try {
-            const response = await NitroliteStore.getAccountInfo(
-                walletSnap.walletAddress,
-                APP_CONFIG.TOKENS[activeChainId] as Address,
-            );
+            const response = await NitroliteStore.getAccountInfo();
 
             setResponse('accountInfo', response);
             addToHistory('accountInfo', 'success', 'Fetched account info successfully');

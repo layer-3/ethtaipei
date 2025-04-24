@@ -18,8 +18,7 @@ const StatusCard: React.FC<StatusCardProps> = ({ title, status, isActive, childr
             <span
                 className={`px-2 py-1 rounded-full text-xs ${
                     isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                }`}
-            >
+                }`}>
                 {status}
             </span>
         </div>
@@ -62,8 +61,7 @@ export const StatusDashboardSection: React.FC<StatusDashboardProps> = ({
                 <StatusCard
                     title="Channel Status"
                     status={accountInfo.channelCount > 0 ? 'Active' : 'Inactive'}
-                    isActive={accountInfo.channelCount > 0}
-                >
+                    isActive={accountInfo.channelCount > 0}>
                     <p>
                         <span className="text-gray-500">Open Channels:</span> {accountInfo.channelCount}
                     </p>
@@ -83,8 +81,7 @@ export const StatusDashboardSection: React.FC<StatusDashboardProps> = ({
                 <StatusCard
                     title="Virtual Channel"
                     status={virtualChannelId ? 'Active' : 'Inactive'}
-                    isActive={!!virtualChannelId}
-                >
+                    isActive={!!virtualChannelId}>
                     {virtualChannelId ? (
                         <>
                             <p className="truncate">
@@ -114,8 +111,7 @@ export const StatusDashboardSection: React.FC<StatusDashboardProps> = ({
                 <StatusCard
                     title="Network Status"
                     status={wsStatus.isConnected ? 'Connected' : 'Disconnected'}
-                    isActive={wsStatus.isConnected}
-                >
+                    isActive={wsStatus.isConnected}>
                     <p>
                         <span className="text-gray-500">WebSocket:</span> {wsStatus.status}
                     </p>
@@ -175,7 +171,7 @@ const wsStatus = { isConnected, status };
 // 3. Memoized Values:
 //    - useMemo to calculate 'currentDeposit' (formatted string)
 const currentDeposit = useMemo(() => {
-    // ... logic using accountInfo.deposited, settingsSnap.activeChain, formatTokenUnits ...
+    // ... logic using accountInfo.available, settingsSnap.activeChain, formatTokenUnits ...
 }, [/* dependencies */]);
 //    - useMemo to calculate 'currentLocked' (formatted string)
 const currentLocked = useMemo(() => {

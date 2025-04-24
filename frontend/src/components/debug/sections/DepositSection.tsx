@@ -24,7 +24,7 @@ export const DepositSection: React.FC<DepositSectionProps> = ({
         <section className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-xl font-semibold mb-4 pb-2 border-b">2. Deposit Funds</h2>
             <p className="text-sm text-gray-600 mb-2">
-                Your current deposited amount (available for channels):{' '}
+                Your current available amount (available for channels):{' '}
                 <span className="font-semibold">{currentDeposit}</span>
             </p>
             <ActionButton onClick={onOpenDeposit}>Open Deposit Modal</ActionButton>

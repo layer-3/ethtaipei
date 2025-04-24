@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
-import { Address } from 'viem';
 import { NitroliteStore, WalletStore } from '@/store';
-import APP_CONFIG from '@/config/app';
 import { useSnapshot } from 'valtio';
 
 /**
@@ -19,7 +17,7 @@ export function useGetAccountInfo({ activeChainId }: UseGetAccountInfoParams) {
         if (!activeChainId || !walletSnap.walletAddress) return;
 
         try {
-            await NitroliteStore.getAccountInfo(walletSnap.walletAddress, APP_CONFIG.TOKENS[activeChainId] as Address);
+            await NitroliteStore.getAccountInfo();
         } catch (error) {
             console.error('Error fetching account info:', error);
         }

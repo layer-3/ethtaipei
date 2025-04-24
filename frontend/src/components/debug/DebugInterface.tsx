@@ -52,7 +52,7 @@ export function DebugInterface() {
 
     // Local UI States
     const [accountInfo, setAccountInfo] = useState<AccountInfo>({
-        deposited: 0n,
+        available: 0n,
         locked: 0n,
         channelCount: 0,
     });
@@ -94,8 +94,8 @@ export function DebugInterface() {
         if (!chainId) return '0';
         const token = APP_CONFIG.TOKENS[chainId];
 
-        return token ? formatTokenUnits(token, accountInfo.deposited) : '0';
-    }, [walletSnap.connected, settingsSnap.activeChain, accountInfo.deposited]);
+        return token ? formatTokenUnits(token, accountInfo.available) : '0';
+    }, [walletSnap.connected, settingsSnap.activeChain, accountInfo.available]);
 
     const currentLocked = useMemo(() => {
         if (!walletSnap.connected) return '0';
@@ -376,7 +376,7 @@ export function DebugInterface() {
                                 return;
                             }
 
-                            await nitroSnap.client.withdraw(APP_CONFIG.TOKENS[chainId], accountInfo.deposited);
+                            await nitroSnap.client.withdraw(APP_CONFIG.TOKENS[chainId], accountInfo.available);
                             fetchAccountInfo();
                         }}
                         isLoading={loadingStates.withdrawal || false}

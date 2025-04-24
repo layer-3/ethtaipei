@@ -69,7 +69,7 @@ const onCreateChannelHandler = async () => {
 
   const tokenAddress = APP_CONFIG.TOKENS[chainId] as Address;
   // Get the raw BigInt deposit amount from accountInfo state
-  const depositAmountWei = accountInfo.deposited;
+  const depositAmountWei = accountInfo.available;
 
   if (depositAmountWei <= 0n) {
       console.warn('No deposit available to create channel');

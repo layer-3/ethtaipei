@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import APP_CONFIG from '@/config/app';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
-import { Allocation } from '@erc7824/nitrolite/dist/client/types';
 
 /**
  * Hook for opening a virtual channel.
@@ -18,7 +17,6 @@ export function useVirtualChannelOpen() {
             try {
                 const tokenAddress = APP_CONFIG.TOKENS[activeChainId];
                 const adjudicatorAddress = APP_CONFIG.ADJUDICATORS.dummy[activeChainId];
-                const challengePeriod = APP_CONFIG.CHANNEL.CHALLENGE_PERIOD;
 
                 if (!tokenAddress || !adjudicatorAddress) {
                     throw new Error('Invalid token address or adjudicator address');
