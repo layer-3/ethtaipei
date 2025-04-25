@@ -1,0 +1,37 @@
+name: Lint & Test
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "clearnet/**"
+  pull_request:
+    paths:
+      - "clearnet/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'clearnet/go.mod'
+        cache: true
+        cache-dependency-path: clearnet/go.sum
+
+    - name: Download Dependencies
+      working-directory: ./clearnet
+      run: go mod download
+
+    - name: Lint & Test
+      working-directory: ./clearnet
+      # NOTE: `go test` actually runs `go vet`
+      #       before attempting to run tests
+      run: go test -v -race -timeout=1m ./...
+
+    - name: Build
+      working-directory: ./clearnet
+      run: go build ./...
