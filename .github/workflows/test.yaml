@@ -6,9 +6,8 @@ on:
     paths:
       - "clearnet/**"
   pull_request:
-    branches: [ "master" ]
-    # paths:
-    #   - "clearnet/**"
+    paths:
+      - "clearnet/**"
 
 jobs:
   build:
