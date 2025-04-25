@@ -154,7 +154,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
-		if rpcRequest.ChannelID != "" {
+		if rpcRequest.AppID != "" {
 			handlerErr := forwardMessage(&rpcRequest, address, h)
 			if handlerErr != nil {
 				log.Printf("Error forwarding message: %v", handlerErr)
@@ -171,7 +171,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		case "ping":
 			rpcResponse, handlerErr = HandlePing(&rpcRequest)
 			if handlerErr != nil {
-				log.Printf("Error handling Ping: %v", handlerErr)
+				log.Printf("Error handling ping: %v", handlerErr)
 				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to process ping: "+handlerErr.Error())
 				continue
 			}
@@ -179,7 +179,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		case "get_config":
 			rpcResponse, handlerErr = HandleGetConfig(&rpcRequest)
 			if handlerErr != nil {
-				log.Printf("Error handling GetConfig: %v", handlerErr)
+				log.Printf("Error handling get_config: %v", handlerErr)
 				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get config: "+handlerErr.Error())
 				continue
 			}
@@ -187,31 +187,31 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		case "list_participants":
 			rpcResponse, handlerErr = HandleListParticipants(&rpcRequest, h.channelService, h.ledger)
 			if handlerErr != nil {
-				log.Printf("Error handling HandleListOpenParticipants: %v", handlerErr)
+				log.Printf("Error handling list_participants: %v", handlerErr)
 				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
 				continue
 			}
 
-		case "create_virtual_channel":
-			rpcResponse, handlerErr = HandleCreateVirtualChannel(&rpcRequest, h.ledger)
+		case "create_vapp":
+			rpcResponse, handlerErr = HandleCreateVApp(&rpcRequest, h.ledger)
 			if handlerErr != nil {
-				log.Printf("Error handling CreateVirtualChannel: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual channel: "+handlerErr.Error())
+				log.Printf("Error handling create_vapp: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual app: "+handlerErr.Error())
 				continue
 			}
 
-		case "close_virtual_channel":
-			rpcResponse, handlerErr = HandleCloseVirtualChannel(&rpcRequest, h.ledger)
+		case "close_vapp":
+			rpcResponse, handlerErr = HandleCloseVApp(&rpcRequest, h.ledger)
 			if handlerErr != nil {
-				log.Printf("Error handling CloseVirtualChannel: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close virtual channel: "+handlerErr.Error())
+				log.Printf("Error handling close_vapp: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close virtual app: "+handlerErr.Error())
 				continue
 			}
 
 		case "close_channel":
 			rpcResponse, handlerErr = HandleCloseDirectChannel(&rpcRequest, h.ledger, h.signer)
 			if handlerErr != nil {
-				log.Printf("Error handling CloseDirectChannel: %v", handlerErr)
+				log.Printf("Error handling close_channel: %v", handlerErr)
 				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close direct channel: "+handlerErr.Error())
 				continue
 			}
@@ -247,7 +247,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// forwardMessage forwards an RPC message to all recipients in a virtual channel
+// forwardMessage forwards an RPC message to all recipients in a virtual app
 func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHandler) error {
 	// Validate the signature for the message
 	reqBytes, err := json.Marshal(rpcRequest.Req)
@@ -263,7 +263,7 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 		return errors.New("Invalid signature")
 	}
 
-	sendTo, handlerErr := getVCRecipients(fromAddress, rpcRequest.ChannelID, h.ledger)
+	sendTo, handlerErr := getVCRecipients(fromAddress, rpcRequest.AppID, h.ledger)
 	if handlerErr != nil {
 		log.Printf("Error handling SendMessage: %v", handlerErr)
 		return errors.New("Failed to send message: " + handlerErr.Error())
@@ -271,7 +271,7 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 
 	// No response sent back to sender - broker just acts as a proxy
 
-	// Iterate over all recipients in a virtual channel and send the message
+	// Iterate over all recipients in a virtual app and send the message
 	for _, recipient := range sendTo {
 		h.connectionsMu.RLock()
 		recipientConn, exists := h.connections[recipient]

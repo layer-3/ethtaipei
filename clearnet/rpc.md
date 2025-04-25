@@ -10,9 +10,9 @@ This document describes the RPC (Remote Procedure Call) protocol used in the Cle
 | `verify` | Completes authentication with a challenge response |
 | `ping` | Simple connectivity check |
 | `get_config` | Retrieves broker configuration |
-| `list_participants` | Lists available participants for virtual channels |
-| `create_virtual_channel` | Creates a new virtual payment channel |
-| `close_virtual_channel` | Closes a virtual payment channel |
+| `list_participants` | Lists available participants for virtual applications |
+| `create_vapp` | Creates a new virtual application (payment channel) |
+| `close_vapp` | Closes a virtual application (payment channel) |
 | `close_channel` | Closes a direct payment channel |
 
 ## RPC Message Format
@@ -24,7 +24,7 @@ All messages exchanged between clients and the Clearnet broker follow a standard
 ```json
 {
   "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP],
-  "cid": "CHANNEL_ID",  // Optional: only for channel-specific messages
+  "app_id": "APP_ID",  // Optional: only for app-specific messages
   "out": [ALLOCATIONS], // Optional
   "sig": ["SIGNATURE"]  // Client's signature of the entire "req" object
 }
@@ -35,7 +35,7 @@ All messages exchanged between clients and the Clearnet broker follow a standard
 ```json
 {
   "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP],
-  "cid": "CHANNEL_ID",  // Optional: only for channel-specific messages
+  "app_id": "APP_ID",  // Optional: only for app-specific messages
   "out": [ALLOCATIONS], // Optional
   "sig": ["SIGNATURE"]  // Server's signature of the entire "res" object
 }
@@ -46,7 +46,7 @@ The structure breakdown:
 - `METHOD`: The name of the method being called (string)
 - `PARAMETERS`/`RESPONSE_DATA`: An array of parameters/response data (array)
 - `TIMESTAMP`: Unix timestamp of the request/response (uint64)
-- `CHANNEL_ID` (`cid`): Optional channel ID for virtual channel messages. If specified, the message is routed directly to participants in that virtual channel rather than being processed by the broker.
+- `APP_ID` (`app_id`): Optional application ID for virtual app messages. If specified, the message is routed directly to participants in that virtual app rather than being processed by the broker.
 - `ALLOCATIONS` (`out`): Optional token allocations for channel operations
 - `SIGNATURE`: Cryptographic signature of the message for authentication/verification
 
@@ -134,17 +134,17 @@ If authentication is successful, the server responds:
 }
 ```
 
-## Virtual Channel Management
+## Virtual Application Management
 
 ### List Available Participants
 
-Lists all participants with whom virtual channels can be created.
+Lists all participants with whom virtual applications can be created.
 
 **Request:**
 ```json
 {
   "req": [2, "list_participants", [{
-    "token_address": "0x1234567890abcdef..."
+    "token": "0x1234567890abcdef..."
   }], 1619123456789],
   "sig": ["0x9876fedcba..."]
 }
@@ -167,14 +167,14 @@ Lists all participants with whom virtual channels can be created.
 }
 ```
 
-### Create Virtual Channel
+### Create Virtual Application
 
-Creates a virtual payment channel between participants.
+Creates a virtual payment application between participants.
 
 **Request:**
 ```json
 {
-  "req": [3, "create_virtual_channel", [{
+  "req": [3, "create_vapp", [{
     "participants": [
       "0x1234567890abcdef...",
       "0x2345678901abcdef..."
@@ -203,23 +203,23 @@ Creates a virtual payment channel between participants.
 **Response:**
 ```json
 {
-  "res": [3, "create_virtual_channel", [{
-    "channel_id": "0x3456789012abcdef...",
+  "res": [3, "create_vapp", [{
+    "app_id": "0x3456789012abcdef...",
     "status": "open"
   }], 1619123456789],
   "sig": ["0xabcd1234..."]
 }
 ```
 
-### Close Virtual Channel
+### Close Virtual Application
 
-Closes a virtual payment channel and redistributes funds.
+Closes a virtual payment application and redistributes funds.
 
 **Request:**
 ```json
 {
-  "req": [4, "close_virtual_channel", [{
-    "channel_id": "0x3456789012abcdef...",
+  "req": [4, "close_vapp", [{
+    "app_id": "0x3456789012abcdef...",
     "allocations": [
       {
         "destination": "0x1234567890abcdef...",
@@ -240,8 +240,8 @@ Closes a virtual payment channel and redistributes funds.
 **Response:**
 ```json
 {
-  "res": [4, "close_virtual_channel", [{
-    "channel_id": "0x3456789012abcdef...",
+  "res": [4, "close_vapp", [{
+    "app_id": "0x3456789012abcdef...",
     "status": "closed"
   }], 1619123456789],
   "sig": ["0xabcd1234..."]
@@ -293,22 +293,22 @@ Closes a direct payment channel between a participant and the broker.
 
 ## Peer-to-Peer Messaging
 
-### Send Message in Virtual Channel
+### Send Message in Virtual Application
 
-Sends a message to all participants in a virtual channel.
+Sends a message to all participants in a virtual application.
 
 **Request:**
 ```json
 {
   "req": [6, "message", [{
-    "message": "Hello, channel participants!"
+    "message": "Hello, application participants!"
   }], 1619123456789],
-  "cid": "0x3456789012abcdef...", // Virtual channel ID
+  "app_id": "0x3456789012abcdef...", // Virtual application ID
   "sig": ["0x9876fedcba..."]
 }
 ```
 
-This message is not acknowledged by the broker but is instead forwarded to all other participants in the specified virtual channel.
+This message is not acknowledged by the broker but is instead forwarded to all other participants in the specified virtual application.
 
 ## Utility Methods
 

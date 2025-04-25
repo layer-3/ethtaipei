@@ -76,7 +76,7 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 // RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
 	Req        RPCData      `json:"req"`
-	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
+	AppID      string       `json:"app_id,omitempty"` // If cid is specified, message is sent to the virtual app.
 	Allocation []Allocation `json:"out,omitempty"`
 	Sig        []string     `json:"sig"`
 }
@@ -91,7 +91,7 @@ type Allocation struct {
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
 	Res        RPCData      `json:"res"`
-	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
+	AppID      string       `json:"app_id,omitempty"` // If cid is specified, message is sent to the virtual app.
 	Allocation []Allocation `json:"out,omitempty"`
 	Sig        []string     `json:"sig"`
 }

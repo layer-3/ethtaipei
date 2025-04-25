@@ -32,7 +32,7 @@ func setupTestSqlite(t testing.TB) *gorm.DB {
 	require.NoError(t, err)
 
 	// Auto migrate all required models
-	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{})
+	err = db.AutoMigrate(&Entry{}, &Channel{}, &VApp{})
 	require.NoError(t, err)
 
 	return db
@@ -73,7 +73,7 @@ func setupTestPostgres(ctx context.Context, t testing.TB) (*gorm.DB, testcontain
 	require.NoError(t, err)
 
 	// Auto migrate all required models
-	err = db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{})
+	err = db.AutoMigrate(&Entry{}, &Channel{}, &VApp{})
 	require.NoError(t, err)
 
 	return db, postgresContainer
@@ -130,8 +130,8 @@ func TestHandlePing(t *testing.T) {
 	require.Equal(t, "pong", response1.Res.Method)
 }
 
-// TestHandleCloseVirtualChannel tests the close virtual channel handler functionality
-func TestHandleCloseVirtualChannel(t *testing.T) {
+// TestHandleCloseVirtualApp tests the close virtual app handler functionality
+func TestHandleCloseVirtualApp(t *testing.T) {
 	// Set up test database with cleanup
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -147,7 +147,7 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 	participantB := "0xParticipantB"
 
 	// Create direct channels for both participants
-	channelA := &DBChannel{
+	channelA := &Channel{
 		ChannelID:    "0xDirectChannelA",
 		ParticipantA: participantA,
 		ParticipantB: BrokerAddress,
@@ -158,7 +158,7 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 	}
 	require.NoError(t, db.Create(channelA).Error)
 
-	channelB := &DBChannel{
+	channelB := &Channel{
 		ChannelID:    "0xDirectChannelB",
 		ParticipantA: participantB,
 		ParticipantB: BrokerAddress,
@@ -169,23 +169,24 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 	}
 	require.NoError(t, db.Create(channelB).Error)
 
-	// Create a virtual channel
-	virtualChannelID := "0xVirtualChannel123"
-	virtualChannel := &DBVirtualChannel{
-		ChannelID:    virtualChannelID,
+	// Create a virtual app
+	vAppID := "0xVApp123"
+	vApp := &VApp{
+		AppID:        vAppID,
 		Participants: []string{participantA, participantB},
 		Status:       ChannelStatusOpen,
+		Challenge:    60,
 		Signers:      []string{},
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	require.NoError(t, db.Create(virtualChannel).Error)
+	require.NoError(t, db.Create(vApp).Error)
 
-	// Add funds to the virtual channel
-	accountA := ledger.Account(virtualChannelID, participantA)
+	// Add funds to the virtual app
+	accountA := ledger.Account(vAppID, participantA)
 	require.NoError(t, accountA.Record(tokenAddress, 200))
 
-	accountB := ledger.Account(virtualChannelID, participantB)
+	accountB := ledger.Account(vAppID, participantB)
 	require.NoError(t, accountB.Record(tokenAddress, 300))
 
 	// Create allocation parameters for closing
@@ -202,8 +203,8 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 		},
 	}
 
-	closeParams := CloseVirtualChannelParams{
-		ChannelID:        virtualChannelID,
+	closeParams := CloseVAppParams{
+		AppID:            vAppID,
 		FinalAllocations: allocations,
 	}
 
@@ -214,7 +215,7 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 	req := &RPCMessage{
 		Req: RPCData{
 			RequestID: 1,
-			Method:    "close_virtual_channel",
+			Method:    "close_vapp",
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
@@ -222,16 +223,16 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 	}
 
 	// Call the handler
-	resp, err := HandleCloseVirtualChannel(req, ledger)
+	resp, err := HandleCloseVApp(req, ledger)
 	require.NoError(t, err)
 
 	// Verify response
-	assert.Equal(t, "close_virtual_channel", resp.Res.Method)
+	assert.Equal(t, "close_vapp", resp.Res.Method)
 	assert.Equal(t, uint64(1), resp.Res.RequestID)
 
 	// Check that channel is marked as closed
-	var updatedChannel DBVirtualChannel
-	require.NoError(t, db.Where("channel_id = ?", virtualChannelID).First(&updatedChannel).Error)
+	var updatedChannel VApp
+	require.NoError(t, db.Where("app_id = ?", vAppID).First(&updatedChannel).Error)
 	assert.Equal(t, ChannelStatusClosed, updatedChannel.Status)
 
 	// Check that funds were transferred back to direct channels according to allocations
@@ -245,13 +246,13 @@ func TestHandleCloseVirtualChannel(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceB)
 
-	// Check that virtual channel accounts are empty
-	virtualAccountA := ledger.Account(virtualChannelID, participantA)
+	// Check that virtual app accounts are empty
+	virtualAccountA := ledger.Account(vAppID, participantA)
 	virtualBalanceA, err := virtualAccountA.Balance(tokenAddress)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceA)
 
-	virtualAccountB := ledger.Account(virtualChannelID, participantB)
+	virtualAccountB := ledger.Account(vAppID, participantB)
 	virtualBalanceB, err := virtualAccountB.Balance(tokenAddress)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceB)
@@ -287,7 +288,7 @@ func TestHandleListParticipants(t *testing.T) {
 	// Insert channels and ledger entries for testing
 	for _, p := range participants {
 		// Create channel
-		channel := DBChannel{
+		channel := Channel{
 			ChannelID:    p.channelID,
 			ParticipantA: p.address,
 			ParticipantB: BrokerAddress,
@@ -308,7 +309,7 @@ func TestHandleListParticipants(t *testing.T) {
 
 	// Create RPC request with token address parameter
 	params := map[string]string{
-		"token_address": tokenAddress,
+		"token": tokenAddress,
 	}
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
@@ -334,7 +335,7 @@ func TestHandleListParticipants(t *testing.T) {
 	require.NotEmpty(t, responseParams)
 
 	// First parameter should be an array of ChannelAvailabilityResponse
-	channelsArray, ok := responseParams[0].([]ChannelAvailabilityResponse)
+	channelsArray, ok := responseParams[0].([]AvailabilityResponse)
 	require.True(t, ok, "Response should contain an array of ChannelAvailabilityResponse")
 
 	// We should have 4 channels with positive balances (excluding closed one)

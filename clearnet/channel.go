@@ -17,8 +17,8 @@ var (
 	ChannelStatusClosed ChannelStatus = "closed"
 )
 
-// DBChannel represents a state channel between participants
-type DBChannel struct {
+// Channel represents a state channel between participants
+type Channel struct {
 	ID           uint          `gorm:"primaryKey"`
 	ChannelID    string        `gorm:"column:channel_id;uniqueIndex;"`
 	ParticipantA string        `gorm:"column:participant_a;not null"`
@@ -28,14 +28,14 @@ type DBChannel struct {
 	Nonce        uint64        `gorm:"column:nonce;default:0"`
 	Adjudicator  string        `gorm:"column:adjudicator;not null"`
 	NetworkID    string        `gorm:"column:network_id;not null"`
-	TokenAddress string        `gorm:"column:token_address;not null"`
+	Token        string        `gorm:"column:token;not null"`
 	Amount       int64         `gorm:"column:amount;not null"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
 
 // TableName specifies the table name for the Channel model
-func (DBChannel) TableName() string {
+func (Channel) TableName() string {
 	return "channels"
 }
 
@@ -54,7 +54,7 @@ func NewChannelService(db *gorm.DB) *ChannelService {
 // CreateChannel creates a new channel in the database
 // For real channels, participantB is always the broker application
 func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uint64, adjudicator string, networkID string, tokenAddress string, amount int64) error {
-	channel := DBChannel{
+	channel := Channel{
 		ChannelID:    channelID,
 		ParticipantA: participantA,
 		ParticipantB: BrokerAddress, // Always use broker address for direct channels
@@ -62,7 +62,7 @@ func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uin
 		Status:       ChannelStatusOpen,
 		Nonce:        nonce,
 		Adjudicator:  adjudicator,
-		TokenAddress: tokenAddress,
+		Token:        tokenAddress,
 		Amount:       amount,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -77,8 +77,8 @@ func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uin
 }
 
 // GetChannelByID retrieves a channel by its ID
-func (s *ChannelService) GetChannelByID(channelID string) (*DBChannel, error) {
-	var channel DBChannel
+func (s *ChannelService) GetChannelByID(channelID string) (*Channel, error) {
+	var channel Channel
 	if err := s.db.Where("channel_id = ?", channelID).First(&channel).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // Channel not found
@@ -91,7 +91,7 @@ func (s *ChannelService) GetChannelByID(channelID string) (*DBChannel, error) {
 
 // CloseChannel closes a channel by updating its status to "closed"
 func CloseChannel(db *gorm.DB, channelID string) error {
-	var channel DBChannel
+	var channel Channel
 	result := db.Where("channel_id = ?", channelID).First(&channel)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -113,8 +113,8 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 }
 
 // getDirectChannelForParticipant finds the direct channel between a participant and the broker
-func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel, error) {
-	var directChannel DBChannel
+func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*Channel, error) {
+	var directChannel Channel
 	if err := tx.Where("participant_a = ? AND participant_b = ? AND status = ?",
 		participant, BrokerAddress, ChannelStatusOpen).Order("nonce DESC").First(&directChannel).Error; err != nil {
 		return nil, fmt.Errorf("no direct channel found for participant %s: %w", participant, err)
@@ -123,8 +123,8 @@ func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*DBChannel
 }
 
 // CheckExistingChannels checks if there is an existing open channel on the same network between participant A and B
-func (s *ChannelService) CheckExistingChannels(participantA, participantB, networkID string) (*DBChannel, error) {
-	var channel DBChannel
+func (s *ChannelService) CheckExistingChannels(participantA, participantB, networkID string) (*Channel, error) {
+	var channel Channel
 	err := s.db.Where("participant_a = ? AND participant_b = ? AND network_id = ? AND status = ?", participantA, participantB, networkID, ChannelStatusOpen).
 		First(&channel).Error
 	if err != nil {

@@ -11,13 +11,12 @@ import (
 // Entry represents a ledger entry in the database
 type Entry struct {
 	ID           uint   `gorm:"primaryKey"`
-	ChannelID    string `gorm:"column:channel_id;not null"`
-	Participant  string `gorm:"column:participant;not null"`
-	TokenAddress string `gorm:"column:token_address;not null"`
-	// NetworkID  string    `gorm:"column:network_id;not null"`
-	Credit    int64 `gorm:"column:credit;not null"`
-	Debit     int64 `gorm:"column:debit;not null"`
-	CreatedAt time.Time
+	AccountID    string `gorm:"column:account_id;not null"`
+	Beneficiary  string `gorm:"column:beneficiary;not null"`
+	Credit       int64  `gorm:"column:credit;not null"`
+	Debit        int64  `gorm:"column:debit;not null"`
+	TokenAddress string `gorm:"column:token;not null"`
+	CreatedAt    time.Time
 }
 
 // TableName specifies the table name for the Entry model
@@ -27,7 +26,7 @@ func (Entry) TableName() string {
 
 // Account represents an account in the ledger system
 type Account struct {
-	ChannelID   string
+	AccountID   string
 	Participant string
 	db          *gorm.DB
 }
@@ -47,7 +46,7 @@ func NewLedger(db *gorm.DB) *Ledger {
 // Account creates an Account instance for the given parameters
 func (l *Ledger) Account(channelID, participant string) *Account {
 	return &Account{
-		ChannelID:   channelID,
+		AccountID:   channelID,
 		Participant: participant,
 		db:          l.db,
 	}
@@ -58,8 +57,8 @@ func (a *Account) Balance(tokenAddress string) (int64, error) {
 	var creditSum, debitSum int64
 
 	err := a.db.Model(&Entry{}).
-		Where("channel_id = ? AND participant = ? AND token_address = ?",
-			a.ChannelID, a.Participant, tokenAddress).
+		Where("account_id = ? AND beneficiary = ? AND token = ?",
+			a.AccountID, a.Participant, tokenAddress).
 		Select("COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
 		Row().Scan(&creditSum, &debitSum)
 
@@ -80,9 +79,9 @@ func (a *Account) Balances() (map[string]int64, error) {
 
 	var results []BalanceResult
 	err := a.db.Model(&Entry{}).
-		Where("channel_id = ? AND participant = ?", a.ChannelID, a.Participant).
-		Select("token_address, COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
-		Group("token_address").
+		Where("account_id = ? AND beneficiary = ?", a.AccountID, a.Participant).
+		Select("token, COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
+		Group("token").
 		Scan(&results).Error
 
 	if err != nil {
@@ -101,8 +100,8 @@ func (a *Account) Balances() (map[string]int64, error) {
 // If amount > 0, it records a credit; if amount < 0, it records a debit
 func (a *Account) Record(tokenAddress string, amount int64) error {
 	entry := &Entry{
-		ChannelID:    a.ChannelID,
-		Participant:  a.Participant,
+		AccountID:    a.AccountID,
+		Beneficiary:  a.Participant,
 		TokenAddress: tokenAddress,
 		Credit:       0,
 		Debit:        0,
@@ -141,13 +140,13 @@ func (a *Account) Transfer(toAccount *Account, tokenAddress string, amount int64
 	return a.db.Transaction(func(tx *gorm.DB) error {
 		// Create a temporary account with transaction db
 		fromAccount := &Account{
-			ChannelID:   a.ChannelID,
+			AccountID:   a.AccountID,
 			Participant: a.Participant,
 			db:          tx,
 		}
 
 		toAccountTx := &Account{
-			ChannelID:   toAccount.ChannelID,
+			AccountID:   toAccount.AccountID,
 			Participant: toAccount.Participant,
 			db:          tx,
 		}

@@ -54,7 +54,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 
 	// Auto-migrate the models.
 	log.Println("Running database migrations...")
-	if err := db.AutoMigrate(&Entry{}, &DBChannel{}, &DBVirtualChannel{}); err != nil {
+	if err := db.AutoMigrate(&Entry{}, &Channel{}, &VApp{}); err != nil {
 		return nil, err
 	}
 	log.Println("Database migrations completed successfully")
