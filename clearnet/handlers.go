@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 )
@@ -493,54 +494,114 @@ func HandlePing(req *RPCMessage) (*RPCResponse, error) {
 	return rpcResponse, nil
 }
 
-// HandleAuthenticate handles the authentication process
-func HandleAuthenticate(signer *Signer, conn *websocket.Conn, authMessage []byte) (string, error) {
-	// Parse the authentication message
-	var authMsg RPCMessage
-	if err := json.Unmarshal(authMessage, &authMsg); err != nil {
-		return "", errors.New("invalid authentication message format")
+// AuthResponse represents the server's challenge response
+type AuthResponse struct {
+	ChallengeMessage uuid.UUID `json:"challenge_message"` // The message to sign
+	Token            string    `json:"token"`             // The challenge token
+}
+
+// AuthVerifyParams represents parameters for completing authentication
+type AuthVerifyParams struct {
+	Challenge uuid.UUID `json:"challenge"` // The challenge token
+	Address   string    `json:"address"`   // The client's address
+}
+
+// HandleAuthenticate initializes the authentication process by generating a challenge
+func HandleAuthenticate(signer *Signer, conn *websocket.Conn, rpc *RPCMessage, authManager *AuthManager) error {
+	// Parse the parameters
+	if len(rpc.Req.Params) < 1 {
+		return errors.New("missing parameters")
 	}
 
-	// Validate authentication message format
-	if len(authMsg.Sig) == 0 {
-		return "", errors.New("invalid authentication message format")
-	}
-
-	addr, ok := authMsg.Req.Params[0].(string)
+	addr, ok := rpc.Req.Params[0].(string)
 	if !ok || addr == "" {
-		return "", errors.New("invalid public key format")
+		return errors.New("invalid address")
 	}
 
-	// Make sure pubKey is in the full format with 0x prefix
+	// Generate a challenge for this address
+	token, err := authManager.GenerateChallenge(addr)
+	if err != nil {
+		log.Printf("Failed to generate challenge: %v", err)
+		return fmt.Errorf("failed to generate challenge: %w", err)
+	}
+
+	// Create challenge response
+	challengeRes := AuthResponse{
+		ChallengeMessage: token,
+	}
+
+	// Create RPC response with the challenge
+	response := CreateResponse(rpc.Req.RequestID, "challenge", []any{challengeRes}, time.Now())
+
+	// Sign the response with the server's key
+	resBytes, _ := json.Marshal(response.Res)
+	signature, _ := signer.Sign(resBytes)
+	response.Sig = []string{hexutil.Encode(signature)}
+
+	// Send the challenge response
+	responseData, _ := json.Marshal(response)
+	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
+		log.Printf("Error sending challenge: %v", err)
+		return fmt.Errorf("error sending challenge: %w", err)
+	}
+
+	return nil
+}
+
+// HandleVerifyAuth verifies an authentication response to a challenge
+func HandleVerifyAuth(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthManager, signer *Signer) (string, error) {
+	// Parse the authentication parameters
+	if len(rpc.Req.Params) < 1 {
+		return "", errors.New("missing parameters")
+	}
+
+	// Extract auth parameters
+	var authParams AuthVerifyParams
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
+	if err != nil {
+		return "", fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
+	if err := json.Unmarshal(paramsJSON, &authParams); err != nil {
+		return "", fmt.Errorf("invalid parameters format: %w", err)
+	}
+
+	// Ensure address has 0x prefix
+	addr := authParams.Address
 	if !strings.HasPrefix(addr, "0x") {
 		addr = "0x" + addr
 	}
 
-	// Authenticate using our signature validation utility
-	// Serialize the auth message request to JSON
-	reqBytes, err := json.Marshal(authMsg.Req)
+	// Validate the request signature
+	if len(rpc.Sig) == 0 {
+		return "", errors.New("missing signature in request")
+	}
+
+	reqBytes, err := json.Marshal(rpc.Req)
 	if err != nil {
 		return "", errors.New("error serializing auth message")
 	}
 
-	// Validate the signature
-	isValid, err := ValidateSignature(reqBytes, authMsg.Sig[0], addr)
+	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], addr)
 	if err != nil || !isValid {
-		log.Printf("Authentication signature verification failed: %v", err)
 		return "", errors.New("invalid signature")
 	}
 
-	// Get the address from the public key
-	address := common.HexToAddress(addr)
+	err = authManager.ValidateChallenge(authParams.Challenge, addr)
+	if err != nil {
+		log.Printf("Challenge verification failed: %v", err)
+		return "", err
+	}
 
-	// Send auth success confirmation.
-	response := CreateResponse(0, "auth", []any{map[string]any{
-		"address": address,
+	// Create success response following the RPC format
+	response := CreateResponse(rpc.Req.RequestID, "verify", []any{map[string]any{
+		"address": addr,
 		"success": true,
 	}}, time.Now())
 
-	byteData, _ := json.Marshal(response.Res)
-	signature, _ := signer.Sign(byteData)
+	// Sign the response with the server's key
+	resBytes, _ := json.Marshal(response.Res)
+	signature, _ := signer.Sign(resBytes)
 	response.Sig = []string{hexutil.Encode(signature)}
 
 	responseData, _ := json.Marshal(response)
@@ -549,5 +610,5 @@ func HandleAuthenticate(signer *Signer, conn *websocket.Conn, authMessage []byte
 		return "", err
 	}
 
-	return address.Hex(), nil
+	return addr, nil
 }

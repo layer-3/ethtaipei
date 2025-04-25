@@ -90,9 +90,10 @@ type Allocation struct {
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
-	Res       RPCData  `json:"res"`
-	ChannelID string   `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
-	Sig       []string `json:"sig"`
+	Res        RPCData      `json:"res"`
+	ChannelID  string       `json:"cid,omitempty"` // If cid is specified, message is sent to the virtual channel.
+	Allocation []Allocation `json:"out,omitempty"`
+	Sig        []string     `json:"sig"`
 }
 
 // ParseRPCMessage parses a JSON string into a RPCRequest
@@ -133,7 +134,6 @@ func ValidateSignature(message []byte, signature string, address string) (bool, 
 	copy(sig.S[:], sigBytes[32:64])
 	sig.V = sigBytes[64]
 
-	// Convert address to Ethereum address
 	ethAddress := common.HexToAddress(address)
 
 	// Use nitrolite.Verify to validate the signature

@@ -23,6 +23,7 @@ type UnifiedWSHandler struct {
 	upgrader       websocket.Upgrader
 	connections    map[string]*websocket.Conn
 	connectionsMu  sync.RWMutex
+	authManager    *AuthManager
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
@@ -45,6 +46,7 @@ func NewUnifiedWSHandler(
 			},
 		},
 		connections: make(map[string]*websocket.Conn),
+		authManager: NewAuthManager(),
 	}
 }
 
@@ -57,24 +59,61 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	}
 	defer conn.Close()
 
-	// Read first message for authentication.
-	_, message, err := conn.ReadMessage()
-	if err != nil {
-		log.Printf("Error reading initial message: %v", err)
-		return
-	}
+	// Wait for authentication to complete
+	var address string
+	var authenticated bool
 
-	// TODO: add proper auth with signing a challenge.
-	address, err := HandleAuthenticate(h.signer, conn, message)
-	if err != nil {
-		log.Printf("Authentication failed: %v", err)
-		h.sendErrorResponse(0, "error", conn, err.Error())
-		return
+	// Continue reading messages until authentication completes
+	for !authenticated {
+		// Read message
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Printf("Error reading message: %v", err)
+			return
+		}
+
+		// Parse the message
+		var rpcMsg RPCMessage
+		if err := json.Unmarshal(message, &rpcMsg); err != nil {
+			log.Printf("Invalid message format: %v", err)
+			h.sendErrorResponse(0, "error", conn, "Invalid message format")
+			return
+		}
+
+		// Handle message based on the method
+		switch rpcMsg.Req.Method {
+		case "auth":
+			// Client is initiating authentication
+			err := HandleAuthenticate(h.signer, conn, &rpcMsg, h.authManager)
+			if err != nil {
+				log.Printf("Auth initialization failed: %v", err)
+				h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, err.Error())
+			}
+			// Continue waiting for auth
+
+		case "verify":
+			// Client is responding to a challenge
+			authAddr, err := HandleVerifyAuth(conn, &rpcMsg, h.authManager, h.signer)
+			if err != nil {
+				log.Printf("Authentication verification failed: %v", err)
+				h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, err.Error())
+				continue
+			}
+
+			// Authentication successful
+			address = authAddr
+			authenticated = true
+
+		default:
+			// Reject any other messages before authentication
+			log.Printf("Unexpected message method during authentication: %s", rpcMsg.Req.Method)
+			h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, "Authentication required. Please send auth first.")
+		}
 	}
 
 	log.Printf("Authentication successful for: %s", address)
 
-	// Store connection.
+	// Store connection for authenticated user
 	h.connectionsMu.Lock()
 	h.connections[address] = conn
 	h.connectionsMu.Unlock()
@@ -98,6 +137,16 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			}
 			break
 		}
+
+		// Check if session is still valid
+		if !h.authManager.ValidateSession(address) {
+			log.Printf("Session expired for participant: %s", address)
+			h.sendErrorResponse(0, "error", conn, "Session expired. Please re-authenticate.")
+			break
+		}
+
+		// Update session activity timestamp
+		h.authManager.UpdateSession(address)
 
 		var rpcRequest RPCMessage
 		if err := json.Unmarshal(message, &rpcRequest); err != nil {
