@@ -75,10 +75,10 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 
 // RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
-	Req        RPCData      `json:"req"`
-	AppID      string       `json:"app_id,omitempty"` // If cid is specified, message is sent to the virtual app.
-	Allocation []Allocation `json:"out,omitempty"`
-	Sig        []string     `json:"sig"`
+	Req       RPCData  `json:"req"`
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
+	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	Sig       []string `json:"sig"`
 }
 
 // Allocation represents a token allocation for a specific participant
@@ -90,10 +90,10 @@ type Allocation struct {
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
-	Res        RPCData      `json:"res"`
-	AppID      string       `json:"app_id,omitempty"` // If cid is specified, message is sent to the virtual app.
-	Allocation []Allocation `json:"out,omitempty"`
-	Sig        []string     `json:"sig"`
+	Res       RPCData  `json:"res"`
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
+	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	Sig       []string `json:"sig"`
 }
 
 // ParseRPCMessage parses a JSON string into a RPCRequest

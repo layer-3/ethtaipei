@@ -1,42 +1,42 @@
 # Broker Protocol Specification
 
 ## Overview
-The ClearNet broker protocol is a system for managing payment channels and virtual payment channels between participants. It provides a secure, efficient way to conduct transactions off-chain while retaining the ability to settle on-chain when required.
+The ClearNet broker protocol is a system for managing payment channels and virtual applications between participants. It provides a secure, efficient way to conduct transactions off-chain while retaining the ability to settle on-chain when required.
 
 ## Protocol Flow
 
 ### 1. Blockchain Channels and Credit
-- The protocol accepts blockchain channels to credit participants' balances in a SQLite database ledger
+- The protocol accepts blockchain channels to credit participants' balances in the database ledger
 - Participants create on-chain channels through custody contracts (supported on multiple chains including Polygon and Celo)
 - Channel creation events from the blockchain are received through webhooks and processed by the `EventHandler`
 - These events credit participants' balances in the internal ledger system
 - Each participant has an `Account` in the ledger tied to their address, channel ID, and token address
 
-### 2. Virtual Channel Creation
-- After being credited from on-chain channels, participants can create "Virtual Channels" with other participants
-- Virtual channels allow participants to allocate a portion of their balance for peer-to-peer transactions without requiring on-chain operations
+### 2. Virtual Application Creation
+- After being credited from on-chain channels, participants can create virtual applications with other participants
+- Virtual applications allow participants to allocate a portion of their balance for peer-to-peer transactions without requiring on-chain operations
 - The broker validates that:
-  - Both participants have direct channels with the broker
-  - Both participants have sufficient funds in their respective accounts
+  - All participants have direct channels with the broker
+  - All participants have sufficient funds in their respective accounts
   - The requested allocation amounts are available
-- Participants must provide signatures to authorize channel creation, except when a participant's initial allocation is 0
-- The channel can designate specific signers who will have authority over channel closure
-- Funds are transferred from participants' direct channel accounts to the new virtual channel
+- Participants must provide signatures to authorize application creation
+- The application can designate specific signers who will have authority over application closure
+- Funds are transferred from participants' direct channel accounts to the new virtual application
 - The broker sets up message routing between participants
 
-### 3. Virtual Channel Operations
-- Participants send messages to each other through virtual channels using WebSocket connections
-- The broker maintains a real-time communication layer using Centrifuge for message routing
-- Virtual channels have versioning and expiration mechanisms to ensure security
-- Participants can update the state of their channel off-chain without requiring blockchain transactions
+### 3. Virtual Application Operations
+- Participants send messages to each other through virtual applications using WebSocket connections
+- The broker maintains a real-time communication layer for message routing
+- Virtual applications have versioning and expiration mechanisms to ensure security
+- Participants can update the state of their application off-chain without requiring blockchain transactions
 
-### 4. Virtual Channel Closure and Settlement
-- When participants wish to close a virtual channel, all designated signers must provide signatures to authorize the closure
-- The broker validates the signatures against the list of authorized signers registered during channel creation
+### 4. Virtual Application Closure and Settlement
+- When participants wish to close a virtual application, all designated signers must provide signatures to authorize the closure
+- The broker validates the signatures against the list of authorized signers registered during application creation
 - The broker validates the final allocation of funds between participants
-- The broker ensures the total allocated amount matches the total funds in the channel
-- Funds are transferred from the virtual channel back to the participants' direct channels according to the final allocations
-- The virtual channel is marked as closed and message routing is discontinued
+- The broker ensures the total allocated amount matches the total funds in the application
+- Funds are transferred from the virtual application back to the participants' direct channels according to the final allocations
+- The virtual application is marked as closed and message routing is discontinued
 - When participants wish to materialize their balances on-chain, they can request the broker to re-open or update on-chain channels
 - Settlement is only performed when requested by participants, allowing most transactions to remain off-chain
 
@@ -45,15 +45,15 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 ### Authentication and Authorization
 - All operations are authenticated using cryptographic signatures
 - The system uses ECDSA signatures compatible with Ethereum accounts
-- Virtual channels implement a multi-signature scheme:
-  - Channel creation requires signatures from participating parties (unless initial allocation is 0)
-  - Channel closure requires signatures from all designated signers
-  - The exact payload format for signatures is yet to be determined
-- Separating participants from signers allows for any authorization model required by the application:
-  - Can support m-of-n signature schemes
-  - Enables third-party authorization or arbitration
-  - Allows implementation of custom governance models
+- Virtual applications implement a multi-signature scheme:
+  - Application creation requires signatures from participating parties
+  - Application closure requires signatures from all designated signers
+- Weight-based quorum signatures are supported for application governance:
+  - Each signer can be assigned a weight
+  - A quorum threshold determines the minimum total weight required for valid decisions
+  - This enables flexible governance models (m-of-n, third-party arbitration, etc.)
 - The broker maintains persistent connections with participants through WebSockets
+- Authentication uses a challenge-response mechanism to verify address ownership
 
 ### Multi-Chain Support
 - The system supports multiple blockchain networks (currently Polygon and Celo)
@@ -63,11 +63,8 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 ## Benefits
 - Efficient, low-cost transactions by keeping most operations off-chain
 - Security guarantees of blockchain when needed
-- Participants can freely transact within their allocated funds in virtual channels
-- On-chain settlement only occurs when participants choose to materialize their balances# Clearnet RPC Protocol
-
-In Clearnet, brokers are defined as network nodes that form the clearnet network and act as message brokers.
-This document describes the ClearNet Broker RPC (Remote Procedure Call) protocol used in Clearnet WebSocket communication.
+- Participants can freely transact within their allocated funds in virtual applications
+- On-chain settlement only occurs when participants choose to materialize their balances
 
 ## API Endpoints
 
@@ -80,8 +77,8 @@ This document describes the ClearNet Broker RPC (Remote Procedure Call) protocol
 | `get_config` | Retrieves broker configuration |
 | `get_app_definition` | Retrieves application definition for a ledger account |
 | `get_ledger_balances` | Lists participants and their balances for a ledger account |
-| `create_application` | Creates a new virtual application on a ledger |
-| `close_application` | Closes a virtual application |
+| `create_app_session` | Creates a new virtual application on a ledger |
+| `close_app_session` | Closes a virtual application |
 | `close_channel` | Closes a direct payment channel |
 | `message` | Sends a message to all participants in a virtual application |
 
@@ -95,7 +92,7 @@ All messages exchanged between clients and Clearnet brokers follow this standard
 ```json
 {
   "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP],
-  "acc": "ACCOUNT_ID",  // Ledger account_id identifier, mandatory, channelId for Broker ledger channels, and AppId for Virtual Ledgers
+  "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
   "int": [INTENT], // Optional allocation intent change
   "sig": ["SIGNATURE"]  // Client's signature of the entire "req" object
 }
@@ -103,16 +100,16 @@ All messages exchanged between clients and Clearnet brokers follow this standard
 
 - The `acc` field serves as both the subject and destination pubsub topic for the message. There is a one-to-one mapping between topics and ledger accounts.
 - The `int` field can be omitted if there is no allocation change in this request.
-- The `sig` field contains the rpcHash signature, ensuring proof-of-history integrity. It can be omitted for requests that don't modify state.
+- The `sig` field contains the rpcHash signature, ensuring proof-of-history integrity.
 
 ### Response Message
 
 ```json
 {
   "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP],
-  "acc": "ACCOUNT_ID",  // Ledger account_id identifier, mandatory, channelId for Broker ledger channels, and AppId for Virtual Ledgers
-  "int": [INTENT], // Allocation intent change
-  "sig": ["SIGNATURE"]  // Server's signature of the entire "res" object
+  "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
+  "int": [INTENT],// Allocation intent change
+  "sig": ["SIGNATURE"]
 }
 ```
 
@@ -122,11 +119,11 @@ The structure breakdown:
 - `METHOD`: The name of the method being called (string)
 - `PARAMETERS`/`RESPONSE_DATA`: An array of parameters/response data (array)
 - `TIMESTAMP`: Unix timestamp of the request/response (uint64)
-- `ACCOUNT_ID` (`acc`): Ledger account identifier that serves as the destination pubsub topic for the message. This is mandatory and maps to channelId for Broker ledger channels and AppId for Virtual Ledgers.
+- `ACCOUNT_ID` (`acc`): Ledger account identifier that serves as the destination pubsub topic for the message
 - `INTENT` (`int`): Optional allocation intent change for token distributions between participants
-- `SIGNATURE`: Cryptographic signature of the message for authentication and verification of the message's integrity
+- `SIGNATURE`: Cryptographic signature of the message.
 
-## App definition
+## App Definition
 
 ```json
 {
@@ -211,8 +208,6 @@ The server verifies that:
 2. The challenge was issued for the claimed address
 3. The RPC message is signed by the address's private key
 
-This challenge-based approach ensures that the client owns the private key for the address they claim to have and prevents replay attacks since each challenge is unique to a specific address.
-
 ### 4. Authentication Success Response
 
 If authentication is successful, the server responds:
@@ -265,7 +260,7 @@ If authentication is successful, the server responds:
 }
 ```
 
-### Get participants balances
+### Get Ledger Balances
 
 Retrieves the balances of all participants in a specific ledger account.
 
@@ -302,14 +297,14 @@ Retrieves the balances of all participants in a specific ledger account.
 
 ### Create Virtual Application
 
-Creates a virtual payment application between participants.
+Creates a virtual application between participants.
 
 **Request:**
 
 ```json
 {
-  "req": [3, "create_application", [{
-    definition: {
+  "req": [3, "create_app_session", [{
+    "definition": {
       "protocol": "NitroRPC/0.2",
       "participants": [
         "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
@@ -319,17 +314,15 @@ Creates a virtual payment application between participants.
       "quorum": 100,
       "challenge": 86400,
       "nonce": 1
-    }
-    token: "0xChannelTokenAddress"
+    },
+    "token": "0xTokenAddress",
     "allocations": [100, 100], // Target funding
-    "channels": ["0xAlice-Bob", "0xCharlie-Bob",
-    ],
+    "channels": ["0xAlice-Bob", "0xCharlie-Bob"],
     "signers": [
       "0x1234567890abcdef...",
       "0x2345678901abcdef..."
     ]
   }], 1619123456789],
-  "acc": "0xHashOfvAppId",
   "int": [100, 100], // Initial funding intent from 0, 0
   "sig": ["0x9876fedcba..."]
 }
@@ -339,7 +332,7 @@ Creates a virtual payment application between participants.
 
 ```json
 {
-  "res": [3, "create_application", [{
+  "res": [3, "create_app_session", [{
     "app_id": "0x3456789012abcdef...",
     "status": "open"
   }], 1619123456789],
@@ -349,19 +342,18 @@ Creates a virtual payment application between participants.
 
 ### Close Virtual Application
 
-Closes a virtual payment application and redistributes funds.
+Closes a virtual application and redistributes funds.
 
 **Request:**
 
 ```json
 {
-  "req": [4, "close_application", [{
+  "req": [4, "close_app_session", [{
     "app_id": "0x3456789012abcdef...",
     "allocations": [0, 200]
   }], 1619123456789],
-  "acc": "0xHashOfvAppId",
-  "int": [0, 200], // Last Intent the winnings
-  "sig": ["0x9876fedcba...", "0x8765fedcba..."] // Signatures from all required signers
+  "int": [0, 200],
+  "sig": ["0x9876fedcba...", "0x8765fedcba..."]
 }
 ```
 
@@ -369,7 +361,7 @@ Closes a virtual payment application and redistributes funds.
 
 ```json
 {
-  "res": [4, "close_application", [{
+  "res": [4, "close_app_session", [{
     "app_id": "0x3456789012abcdef...",
     "status": "closed"
   }], 1619123456789],
@@ -412,7 +404,7 @@ Closes a direct channel between a participant and the broker.
       }
     ],
     "state_hash": "0xLedgerStateHash",
-    "hash_sig": [0xBrokerSignature]
+    "hash_sig": ["0xBrokerSignature"]
   }], 1619123456789],
   "sig": ["0xabcd1234..."]
 }
@@ -503,12 +495,12 @@ When an error occurs, the server responds with an error message:
 
 1. **Challenge Expiration**: Authentication challenges expire after 5 minutes
 2. **One-time Use**: Each challenge can only be used once
-3. **Rate Limiting**: The server limits the number of active challenges (max 1000)
+3. **Rate Limiting**: The server limits the number of active challenges
 4. **Signature Verification**: All RPC messages must be properly signed by the sender
 5. **Session Management**: Sessions expire after a configurable period (default 24 hours)
-6. **Address Binding**: Each challenge is stored with the address that requested it, creating a cryptographic binding between the address and the challenge
-7. **Random Challenge Strings**: Secure, random strings are used as challenge tokens to prevent guessing
-8. **Protocol Design**: The authentication flow requires proving knowledge of the private key through message signing
+6. **Address Binding**: Each challenge is stored with the address that requested it
+7. **Random Challenge Strings**: Secure, random strings are used as challenge tokens
+8. **Quorum Signatures**: Application closure requires signatures meeting or exceeding the quorum threshold
 
 ## Client Implementation Guidelines
 
@@ -534,4 +526,3 @@ When an error occurs, the server responds with an error message:
    - Verify all message signatures from the server before processing
    - Ensure your private key is securely stored and never exposed
    - Generate a fresh unique identifier client-side for each request ID
-

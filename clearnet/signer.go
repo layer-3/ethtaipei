@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/erc7824/go-nitrolite"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -65,4 +66,9 @@ func (s *Signer) GetPublicKey() *ecdsa.PublicKey {
 // GetPrivateKey returns the private key used by the signer
 func (s *Signer) GetPrivateKey() *ecdsa.PrivateKey {
 	return s.privateKey
+}
+
+// GetAddress returns the address derived from the signer's public key
+func (s *Signer) GetAddress() common.Address {
+	return crypto.PubkeyToAddress(*s.GetPublicKey())
 }

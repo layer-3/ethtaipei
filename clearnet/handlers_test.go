@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,6 +134,17 @@ func TestHandlePing(t *testing.T) {
 
 // TestHandleCloseVirtualApp tests the close virtual app handler functionality
 func TestHandleCloseVirtualApp(t *testing.T) {
+	raw, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatalf("could not generate secp256k1 key: %v", err)
+	}
+
+	signer := Signer{
+		privateKey: raw,
+	}
+	addr := signer.GetAddress()
+	participantA := addr.Hex()
+
 	// Set up test database with cleanup
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -143,7 +156,6 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 	tokenAddress := "0xToken123"
 
 	// Set up participants
-	participantA := "0xParticipantA"
 	participantB := "0xParticipantB"
 
 	// Create direct channels for both participants
@@ -152,6 +164,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		ParticipantA: participantA,
 		ParticipantB: BrokerAddress,
 		Status:       ChannelStatusOpen,
+		Token:        tokenAddress,
 		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -163,6 +176,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		ParticipantA: participantB,
 		ParticipantB: BrokerAddress,
 		Status:       ChannelStatusOpen,
+		Token:        tokenAddress,
 		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -176,18 +190,20 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		Participants: []string{participantA, participantB},
 		Status:       ChannelStatusOpen,
 		Challenge:    60,
-		Signers:      []string{},
+		Weights:      []int64{100, 20},
+		Token:        tokenAddress,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
+		Quorum:       100,
 	}
 	require.NoError(t, db.Create(vApp).Error)
 
 	// Add funds to the virtual app
-	accountA := ledger.Account(vAppID, participantA)
-	require.NoError(t, accountA.Record(tokenAddress, 200))
+	accountA := ledger.SelectBeneficiaryAccount(vAppID, participantA)
+	require.NoError(t, accountA.Record(200))
 
-	accountB := ledger.Account(vAppID, participantB)
-	require.NoError(t, accountB.Record(tokenAddress, 300))
+	accountB := ledger.SelectBeneficiaryAccount(vAppID, participantB)
+	require.NoError(t, accountB.Record(300))
 
 	// Create allocation parameters for closing
 	allocations := []Allocation{
@@ -203,7 +219,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		},
 	}
 
-	closeParams := CloseVAppParams{
+	closeParams := CloseApplicationParams{
 		AppID:            vAppID,
 		FinalAllocations: allocations,
 	}
@@ -215,19 +231,25 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 	req := &RPCMessage{
 		Req: RPCData{
 			RequestID: 1,
-			Method:    "close_vapp",
+			Method:    "close_app_session",
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
-		// Mocking signatures not needed for this test as we patch the validation
 	}
 
-	// Call the handler
-	resp, err := HandleCloseVApp(req, ledger)
+	paramsJSON, err = json.Marshal(req.Req)
+	require.NoError(t, err)
+
+	signed, err := signer.Sign(paramsJSON)
+	require.NoError(t, err)
+	req.Sig = []string{hexutil.Encode(signed)}
+
+	resp, err := HandleCloseApplication(req, ledger)
+	// FIXME: this test is inconsistent
 	require.NoError(t, err)
 
 	// Verify response
-	assert.Equal(t, "close_vapp", resp.Res.Method)
+	assert.Equal(t, "close_app_session", resp.Res.Method)
 	assert.Equal(t, uint64(1), resp.Res.RequestID)
 
 	// Check that channel is marked as closed
@@ -236,24 +258,24 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 	assert.Equal(t, ChannelStatusClosed, updatedChannel.Status)
 
 	// Check that funds were transferred back to direct channels according to allocations
-	directAccountA := ledger.Account(channelA.ChannelID, participantA)
-	balanceA, err := directAccountA.Balance(tokenAddress)
+	directAccountA := ledger.SelectBeneficiaryAccount(channelA.ChannelID, participantA)
+	balanceA, err := directAccountA.Balance()
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceA)
 
-	directAccountB := ledger.Account(channelB.ChannelID, participantB)
-	balanceB, err := directAccountB.Balance(tokenAddress)
+	directAccountB := ledger.SelectBeneficiaryAccount(channelB.ChannelID, participantB)
+	balanceB, err := directAccountB.Balance()
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceB)
 
 	// Check that virtual app accounts are empty
-	virtualAccountA := ledger.Account(vAppID, participantA)
-	virtualBalanceA, err := virtualAccountA.Balance(tokenAddress)
+	virtualAccountA := ledger.SelectBeneficiaryAccount(vAppID, participantA)
+	virtualBalanceA, err := virtualAccountA.Balance()
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceA)
 
-	virtualAccountB := ledger.Account(vAppID, participantB)
-	virtualBalanceB, err := virtualAccountB.Balance(tokenAddress)
+	virtualAccountB := ledger.SelectBeneficiaryAccount(vAppID, participantB)
+	virtualBalanceB, err := virtualAccountB.Balance()
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceB)
 }
@@ -268,9 +290,6 @@ func TestHandleListParticipants(t *testing.T) {
 	channelService := NewChannelService(db)
 	ledger := NewLedger(db)
 
-	// Create a token address
-	tokenAddress := "0xToken123"
-
 	// Create test direct channels with the broker
 	participants := []struct {
 		address        string
@@ -279,10 +298,6 @@ func TestHandleListParticipants(t *testing.T) {
 		status         ChannelStatus
 	}{
 		{"0xParticipant1", "0xChannel1", 1000, ChannelStatusOpen},
-		{"0xParticipant2", "0xChannel2", 2000, ChannelStatusOpen},
-		{"0xParticipant3", "0xChannel3", 0, ChannelStatusOpen},
-		{"0xParticipant4", "0xChannel4", 3000, ChannelStatusOpen},
-		{"0xParticipant5", "0xChannel5", 4000, ChannelStatusClosed}, // Closed channel
 	}
 
 	// Insert channels and ledger entries for testing
@@ -301,15 +316,15 @@ func TestHandleListParticipants(t *testing.T) {
 
 		// Add funds if needed
 		if p.initialBalance > 0 {
-			account := ledger.Account(p.channelID, p.address)
-			err = account.Record(tokenAddress, p.initialBalance)
+			account := ledger.SelectBeneficiaryAccount(p.channelID, p.address)
+			err = account.Record(p.initialBalance)
 			require.NoError(t, err)
 		}
 	}
 
 	// Create RPC request with token address parameter
 	params := map[string]string{
-		"token": tokenAddress,
+		"acc": "0xChannel1",
 	}
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
@@ -317,7 +332,7 @@ func TestHandleListParticipants(t *testing.T) {
 	rpcRequest := &RPCMessage{
 		Req: RPCData{
 			RequestID: 1,
-			Method:    "list_participants",
+			Method:    "get_ledger_balances",
 			Params:    []any{json.RawMessage(paramsJSON)},
 			Timestamp: uint64(time.Now().Unix()),
 		},
@@ -325,7 +340,7 @@ func TestHandleListParticipants(t *testing.T) {
 	}
 
 	// Use the test-specific handler instead of the actual one
-	response, err := HandleListParticipants(rpcRequest, channelService, ledger)
+	response, err := HandleGetLedgerBalances(rpcRequest, channelService, ledger)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 
@@ -335,18 +350,15 @@ func TestHandleListParticipants(t *testing.T) {
 	require.NotEmpty(t, responseParams)
 
 	// First parameter should be an array of ChannelAvailabilityResponse
-	channelsArray, ok := responseParams[0].([]AvailabilityResponse)
+	channelsArray, ok := responseParams[0].([]AvailableBalance)
 	require.True(t, ok, "Response should contain an array of ChannelAvailabilityResponse")
 
 	// We should have 4 channels with positive balances (excluding closed one)
-	assert.Equal(t, 4, len(channelsArray), "Should have 4 channels")
+	assert.Equal(t, 1, len(channelsArray), "Should have 4 channels")
 
 	// Check the contents of each channel response
 	expectedAddresses := map[string]int64{
 		"0xParticipant1": 1000,
-		"0xParticipant2": 2000,
-		"0xParticipant3": 0,
-		"0xParticipant4": 3000,
 	}
 
 	for _, ch := range channelsArray {
