@@ -94,6 +94,10 @@ func RecoverAddress(message []byte, signatureHex string) (string, error) {
 		return "", fmt.Errorf("invalid signature length: got %d, want 65", len(sig))
 	}
 
+	if sig[64] >= 27 {
+		sig[64] -= 27
+	}
+
 	msgHash := crypto.Keccak256Hash(message)
 
 	pubkey, err := crypto.SigToPub(msgHash.Bytes(), sig)
