@@ -216,6 +216,14 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
+		case "resize_channel":
+			rpcResponse, handlerErr = HandleResizeChannel(&rpcRequest, h.ledger, h.signer)
+			if handlerErr != nil {
+				log.Printf("Error handling resize_channel: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to resize channel: "+handlerErr.Error())
+				continue
+			}
+
 		case "close_channel":
 			rpcResponse, handlerErr = HandleCloseChannel(&rpcRequest, h.ledger, h.signer)
 			if handlerErr != nil {

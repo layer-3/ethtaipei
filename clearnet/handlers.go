@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/erc7824/go-nitrolite"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -687,4 +688,214 @@ func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthMa
 	}
 
 	return addr, nil
+}
+
+// ResizeChannelParams represents parameters needed for resizing a direct channel
+type ResizeChannelParams struct {
+	ChannelID         string   `json:"channel_id"`
+	ParticipantChange *big.Int `json:"participant_change"` // hum much user wants to deposit or withdraw.
+	FundsDestination  string   `json:"funds_destination"`
+}
+
+// ResizeChannelResponse represents the response for resizing a direct channel
+type ResizeChannelResponse struct {
+	ChannelID   string       `json:"channel_id"`
+	StateData   string       `json:"state_data"`
+	Allocations []Allocation `json:"allocations"`
+	StateHash   string       `json:"state_hash"`
+	HashSig     string       `json:"hash_sig"`
+}
+
+// HandleResizeChannel processes a request to resize a direct payment channel
+func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
+	// Extract the channel parameters from the request
+	if len(rpc.Req.Params) < 1 {
+		return nil, errors.New("missing parameters")
+	}
+
+	// Parse the parameters
+	var params ResizeChannelParams
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
+	if err := json.Unmarshal(paramsJSON, &params); err != nil {
+		return nil, fmt.Errorf("invalid parameters format: %w", err)
+	}
+
+	if params.ParticipantChange == nil {
+		return nil, errors.New("missing participant change amount")
+	}
+
+	// Retrieve the channel
+	channel, err := channelService.GetChannelByID(params.ChannelID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find channel: %w", err)
+	}
+
+	// Verify signature of participant A (user)
+	reqBytes, err := json.Marshal(rpc.Req)
+	if err != nil {
+		return nil, errors.New("error serializing auth message")
+	}
+
+	if err := validateSignature(reqBytes, rpc.Sig, channel.ParticipantA); err != nil {
+		return nil, err
+	}
+
+	// Get current account balance
+	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+	balance, err := account.Balance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
+	}
+
+	// Calculate the new channel amount
+	newAmount := new(big.Int).Add(big.NewInt(channel.Amount), params.ParticipantChange)
+	if newAmount.Sign() < 0 {
+		return nil, errors.New("channel amount cannot be negative")
+	}
+
+	brokerPart := channel.Amount - balance
+	brokerAllocation := int64(0)
+	if brokerPart < 0 {
+		brokerPart = 0
+	}
+
+	allocations := []Allocation{
+		{
+			Participant:  params.FundsDestination,
+			TokenAddress: channel.Token,
+			Amount:       big.NewInt(balance),
+		},
+		{
+			Participant:  channel.ParticipantB,
+			TokenAddress: channel.Token,
+			Amount:       big.NewInt(brokerAllocation),
+		},
+	}
+
+	change := params.ParticipantChange.Int64()
+	if change+balance < 0 {
+		return nil, errors.New("invalid resize amount")
+	}
+
+	intentions := []*big.Int{big.NewInt(change), big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
+
+	intentionType, err := abi.NewType("int256[]", "", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ABI type for intentions: %w", err)
+	}
+
+	intentionsArgs := abi.Arguments{
+		{Type: intentionType},
+	}
+
+	encodedIntentions, err := intentionsArgs.Pack(intentions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack intentions: %w", err)
+	}
+
+	// Encode the channel ID and state for signing
+	channelID := common.HexToHash(channel.ChannelID)
+	encodedState, err := EncodeState(channelID, encodedIntentions, allocations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode state: %w", err)
+	}
+
+	// Generate state hash and sign it
+	stateHash := crypto.Keccak256Hash(encodedState).Hex()
+	sig, err := signer.Sign(encodedState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign state: %w", err)
+	}
+
+	// TODO: update
+	// Update the channel amount and participant balance in the database
+	// err = ledger.db.Transaction(func(tx *gorm.DB) error {
+	// 	// Update channel amount
+	// 	if err := tx.Model(&Channel{}).Where("channel_id = ?", channel.ChannelID).
+	// 		Update("amount", newAmount.Int64()).Error; err != nil {
+	// 		return fmt.Errorf("failed to update channel amount: %w", err)
+	// 	}
+
+	// 	// Adjust the participant's balance if they're withdrawing funds
+	// 	if params.ParticipantChange.Sign() < 0 {
+	// 		ledgerTx := &Ledger{db: tx}
+	// 		accountTx := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+	// 		if err := accountTx.Record(params.ParticipantChange.Int64()); err != nil {
+	// 			return fmt.Errorf("failed to adjust participant balance: %w", err)
+	// 		}
+	// 	}
+
+	// 	return nil
+	// })
+
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// Create the response
+	response := ResizeChannelResponse{
+		ChannelID: channel.ChannelID,
+		StateData: hexutil.Encode(encodedIntentions),
+		StateHash: stateHash,
+		HashSig:   hexutil.Encode(sig),
+	}
+
+	// Convert allocations to the expected response format
+	for _, alloc := range allocations {
+		response.Allocations = append(response.Allocations, alloc)
+	}
+
+	// Create the RPC response
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
+	return rpcResponse, nil
+}
+
+// EncodeState encodes channel state into a byte array using channelID, state data, and allocations.
+func EncodeState(channelID common.Hash, stateData []byte, allocations []Allocation) ([]byte, error) {
+	allocationType, err := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
+		{
+			Name: "destination",
+			Type: "address",
+		},
+		{
+			Name: "token",
+			Type: "address",
+		},
+		{
+			Name: "amount",
+			Type: "uint256",
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var allocValues []any
+	for _, alloc := range allocations {
+		allocValues = append(allocValues, struct {
+			Destination common.Address
+			Token       common.Address
+			Amount      *big.Int
+		}{
+			Destination: common.HexToAddress(alloc.Participant),
+			Token:       common.HexToAddress(alloc.TokenAddress),
+			Amount:      alloc.Amount,
+		})
+	}
+
+	args := abi.Arguments{
+		{Type: abi.Type{T: abi.FixedBytesTy, Size: 32}}, // channelId
+		{Type: abi.Type{T: abi.BytesTy}},                // data
+		{Type: allocationType},                          // allocations as tuple[]
+	}
+
+	packed, err := args.Pack(channelID, stateData, allocations)
+	if err != nil {
+		return nil, err
+	}
+	return packed, nil
 }
