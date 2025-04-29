@@ -4,13 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
-
-	"github.com/erc7824/go-nitrolite"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // RPCData represents the common structure for both requests and responses
@@ -116,32 +111,4 @@ func CreateResponse(requestID uint64, method string, responseParams []any, newTi
 		},
 		Sig: []string{},
 	}
-}
-
-// ValidateSignature validates the signature of a message against the provided address
-// It returns true if the signature is valid, false otherwise
-// It can be used for any message that follows the RPC protocol
-func ValidateSignature(message []byte, signature string, address string) (bool, error) {
-	// Decode the signature from hex
-	sigBytes, err := hexutil.Decode(signature)
-	if err != nil || len(sigBytes) != 65 {
-		return false, errors.New("invalid signature format")
-	}
-
-	// Create a nitrolite.Signature from r, s, v components
-	var sig nitrolite.Signature
-	copy(sig.R[:], sigBytes[0:32])
-	copy(sig.S[:], sigBytes[32:64])
-	sig.V = sigBytes[64]
-
-	ethAddress := common.HexToAddress(address)
-
-	// Use nitrolite.Verify to validate the signature
-	isValid, err := nitrolite.Verify(message, sig, ethAddress)
-	if err != nil {
-		log.Printf("Signature verification error: %v", err)
-		return false, fmt.Errorf("signature verification error: %w", err)
-	}
-
-	return isValid, nil
 }

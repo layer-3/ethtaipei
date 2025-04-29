@@ -190,7 +190,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		Participants: []string{participantA, participantB},
 		Status:       ChannelStatusOpen,
 		Challenge:    60,
-		Weights:      []int64{100, 20},
+		Weights:      []int64{100, 0},
 		Token:        tokenAddress,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),

@@ -441,37 +441,30 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 			return fmt.Errorf("virtual app not found or not open: %w", err)
 		}
 
-		quorum := vApp.Quorum
-		weights := vApp.Weights
-		participants := vApp.Participants
-		signatures := req.Sig
-
-		totalWeight := 0
-		for i, weight := range weights {
-			present := false
-			// If the weight is zero client may not provide a signature for that participant.
-			// That messes up the order of the signatures, thats why we need to iterave.
-			for _, sig := range signatures {
-				fmt.Println("Validating signature for participant:", participants[i])
-				present, err = ValidateSignature(reqBytes, sig, participants[i])
-				if present {
-					present = true
-					break
-				}
-				if err != nil {
-					return fmt.Errorf("signature validation failed: %w", err)
-				}
-			}
-			if present {
-				fmt.Println("Signature valid for participant:", participants[i])
-				totalWeight += int(weight)
+		participantWeights := make(map[string]int64, len(vApp.Participants))
+		for i, addr := range vApp.Participants {
+			if i < len(vApp.Weights) {
+				participantWeights[strings.ToLower(addr)] = vApp.Weights[i]
 			}
 		}
 
-		if totalWeight < quorum {
-			return fmt.Errorf("quorum not met: %d/%d", totalWeight, quorum)
+		var totalWeight int64
+		for _, sigHex := range req.Sig {
+			recovered, err := RecoverAddress(reqBytes, sigHex)
+			if err != nil {
+				return err
+			}
+			if w, ok := participantWeights[strings.ToLower(recovered)]; ok && w > 0 {
+				totalWeight += w
+			}
 		}
-		fmt.Println("Quorum met:", totalWeight, "of", quorum)
+
+		if totalWeight < int64(vApp.Quorum) {
+			return fmt.Errorf("quorum not met: %d/%d", totalWeight, vApp.Quorum)
+		}
+
+		fmt.Println("Quorum met:", totalWeight, "of", vApp.Quorum)
+
 		// Process allocations
 		totalVirtualAppBalance, sumAllocations := int64(0), int64(0)
 		for _, participant := range vApp.Participants {
