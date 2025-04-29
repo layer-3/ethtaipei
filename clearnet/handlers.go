@@ -389,7 +389,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 
 	response := CloseChannelResponse{
 		ChannelID: channel.ChannelID,
-		Version:   big.NewInt(1), // TODO: get version from somewhere
+		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: stateDataStr,
 		StateHash: stateHash,
 		HashSig:   hexutil.Encode(sig),
@@ -754,12 +754,6 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
 
-	// Calculate the new channel amount
-	newAmount := new(big.Int).Add(big.NewInt(channel.Amount), params.ParticipantChange)
-	if newAmount.Sign() < 0 {
-		return nil, errors.New("channel amount cannot be negative")
-	}
-
 	brokerPart := channel.Amount - balance
 	brokerAllocation := int64(0)
 	if brokerPart < 0 {
@@ -814,35 +808,40 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, fmt.Errorf("failed to sign state: %w", err)
 	}
 
-	// TODO: update
-	// Update the channel amount and participant balance in the database
-	// err = ledger.db.Transaction(func(tx *gorm.DB) error {
-	// 	// Update channel amount
-	// 	if err := tx.Model(&Channel{}).Where("channel_id = ?", channel.ChannelID).
-	// 		Update("amount", newAmount.Int64()).Error; err != nil {
-	// 		return fmt.Errorf("failed to update channel amount: %w", err)
-	// 	}
+	// Calculate the new channel amount
+	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
+	if newAmount.Sign() < 0 {
+		return nil, errors.New("channel amount cannot be negative")
+	}
 
-	// 	// Adjust the participant's balance if they're withdrawing funds
-	// 	if params.ParticipantChange.Sign() < 0 {
-	// 		ledgerTx := &Ledger{db: tx}
-	// 		accountTx := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
-	// 		if err := accountTx.Record(params.ParticipantChange.Int64()); err != nil {
-	// 			return fmt.Errorf("failed to adjust participant balance: %w", err)
-	// 		}
-	// 	}
+	// TODO: call this on receiving channel resized confirmation event
+	// Before that block balance operations
+	err = ledger.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&Channel{}).Where("channel_id = ?", channel.ChannelID).
+			Updates(map[string]interface{}{
+				"amount":  newAmount.Int64(),
+				"version": gorm.Expr("version + ?", 1),
+			}).Error; err != nil {
+			return fmt.Errorf("failed to update channel amount and version: %w", err)
+		}
 
-	// 	return nil
-	// })
+		ledgerTx := &Ledger{db: tx}
+		accountTx := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+		if err := accountTx.Record(params.ParticipantChange.Int64()); err != nil {
+			return fmt.Errorf("failed to adjust participant balance: %w", err)
+		}
 
-	// if err != nil {
-	// 	return nil, err
-	// }
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the response
 	response := ResizeChannelResponse{
 		ChannelID:   channel.ChannelID,
-		Version:     big.NewInt(1), // TODO: get version from somewhere. where do we get if from?
+		Version:     big.NewInt(int64(channel.Version) + 1),
 		StateData:   hexutil.Encode(encodedIntentions),
 		StateHash:   stateHash,
 		Allocations: allocations,

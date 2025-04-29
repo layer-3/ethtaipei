@@ -26,6 +26,7 @@ type Channel struct {
 	Status       ChannelStatus `gorm:"column:status;not null;"`
 	Challenge    uint64        `gorm:"column:challenge;default:0"`
 	Nonce        uint64        `gorm:"column:nonce;default:0"`
+	Version      uint64        `gorm:"column:version;default:0"`
 	Adjudicator  string        `gorm:"column:adjudicator;not null"`
 	NetworkID    string        `gorm:"column:network_id;not null"`
 	Token        string        `gorm:"column:token;not null"`
@@ -104,6 +105,7 @@ func CloseChannel(db *gorm.DB, channelID string) error {
 	channel.Status = ChannelStatusClosed
 	channel.Amount = 0
 	channel.UpdatedAt = time.Now()
+	channel.Version++
 	if err := db.Save(&channel).Error; err != nil {
 		return fmt.Errorf("failed to close channel: %w", err)
 	}
