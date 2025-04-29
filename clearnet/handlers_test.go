@@ -34,7 +34,7 @@ func setupTestSqlite(t testing.TB) *gorm.DB {
 	require.NoError(t, err)
 
 	// Auto migrate all required models
-	err = db.AutoMigrate(&Entry{}, &Channel{}, &VApp{})
+	err = db.AutoMigrate(&Entry{}, &Channel{}, &VApp{}, &RPCMessageDB{})
 	require.NoError(t, err)
 
 	return db
@@ -75,7 +75,7 @@ func setupTestPostgres(ctx context.Context, t testing.TB) (*gorm.DB, testcontain
 	require.NoError(t, err)
 
 	// Auto migrate all required models
-	err = db.AutoMigrate(&Entry{}, &Channel{}, &VApp{})
+	err = db.AutoMigrate(&Entry{}, &Channel{}, &VApp{}, &RPCMessageDB{})
 	require.NoError(t, err)
 
 	return db, postgresContainer

@@ -16,14 +16,15 @@ import (
 // UnifiedWSHandler manages WebSocket connections with authentication
 // and subsequent communication.
 type UnifiedWSHandler struct {
-	node           *centrifuge.Node
-	signer         *Signer
-	channelService *ChannelService
-	ledger         *Ledger
-	upgrader       websocket.Upgrader
-	connections    map[string]*websocket.Conn
-	connectionsMu  sync.RWMutex
-	authManager    *AuthManager
+	node              *centrifuge.Node
+	signer            *Signer
+	channelService    *ChannelService
+	ledger            *Ledger
+	rpcMessageService *RPCMessageService
+	upgrader          websocket.Upgrader
+	connections       map[string]*websocket.Conn
+	connectionsMu     sync.RWMutex
+	authManager       *AuthManager
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
@@ -32,12 +33,14 @@ func NewUnifiedWSHandler(
 	signer *Signer,
 	channelService *ChannelService,
 	ledger *Ledger,
+	rpc *RPCMessageService,
 ) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
-		node:           node,
-		signer:         signer,
-		channelService: channelService,
-		ledger:         ledger,
+		node:              node,
+		signer:            signer,
+		channelService:    channelService,
+		ledger:            ledger,
+		rpcMessageService: rpc,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -154,6 +157,12 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
+		// Store the incoming RPC message
+		if err := h.rpcMessageService.StoreMessage(&rpcRequest); err != nil {
+			log.Printf("Failed to store RPC message: %v", err)
+			// continue processing even if storage fails
+		}
+
 		if rpcRequest.AccountID != "" {
 			handlerErr := forwardMessage(&rpcRequest, address, h)
 			if handlerErr != nil {
@@ -234,6 +243,12 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		signature, _ := h.signer.Sign(byteData)
 		rpcResponse.Sig = []string{hexutil.Encode(signature)}
 		wsResponseData, _ := json.Marshal(rpcResponse)
+
+		// Store the response RPC message
+		if err := h.rpcMessageService.StoreResponseMessage(&rpcRequest, rpcResponse); err != nil {
+			log.Printf("Failed to store RPC response: %v", err)
+			// continue processing even if storage fails
+		}
 
 		// Use NextWriter for safer message delivery
 		w, err := conn.NextWriter(websocket.TextMessage)
@@ -323,6 +338,21 @@ func (h *UnifiedWSHandler) sendErrorResponse(requestID uint64, method string, co
 	byteData, _ := json.Marshal(response.Res)
 	signature, _ := h.signer.Sign(byteData)
 	response.Sig = []string{hexutil.Encode(signature)}
+
+	// Store the error response
+	request := &RPCMessage{
+		Req: RPCData{
+			RequestID: requestID,
+			Method:    method,
+			Params:    []any{},
+			Timestamp: uint64(time.Now().Unix()),
+		},
+		Sig: []string{},
+	}
+	if err := h.rpcMessageService.StoreResponseMessage(request, response); err != nil {
+		log.Printf("Failed to store error response: %v", err)
+		// continue processing even if storage fails
+	}
 
 	responseData, err := json.Marshal(response)
 	if err != nil {

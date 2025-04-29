@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build/Test Commands
+- Check compilation: `go vet`
 - Build: `go build`
 - Run: `go run .`
 - Test all: `go test ./...`
