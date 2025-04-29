@@ -12,6 +12,8 @@ const STORAGE_KEYS = {
     CHANNEL_ID: 'nitrolite_channel_id',
 };
 
+const EMPTY_STATE_DATA = '0x';
+
 export function useChannelCreate() {
     const { activeChain } = useSnapshot(SettingsStore.state);
     const walletSnap = useSnapshot(WalletStore.state);
@@ -85,10 +87,9 @@ export function useChannelCreate() {
                 try {
                     const amountBigInt = parseTokenUnits(tokenAddress, amount);
 
-                    console.log('Creating channel with amount:', amountBigInt);
-
                     const result = await NitroliteStore.state.client.createChannel({
                         initialAllocationAmounts: [amountBigInt, BigInt(0)],
+                        stateData: EMPTY_STATE_DATA,
                     });
 
                     saveChannelToStorage(result.initialState, result.channelId);

@@ -58,6 +58,33 @@ export function useChannelClose() {
         async (finalState: any) => {
             try {
                 const brokerState = finalState[0];
+                // [
+                //     1745936620448,
+                //     "close_channel",
+                //     [
+                //         {
+                //             "channel_id": "0x11abc5846528f88cc07d399ee5fd9f7070c59597bcfab11faf04427cf062a322",
+                //             "state_data": "0x0000000000000000000000000000000000000000000000000000000000001ec7",
+                //             "allocations": [
+                //                 {
+                //                     "destination": "0x0000000000000000000000000000000000000000",
+                //                     "token": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                //                     "amount": 1000
+                //                 },
+                //                 {
+                //                     "destination": "0x3c93C321634a80FB3657CFAC707718A11cA57cBf",
+                //                     "token": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                //                     "amount": 0
+                //                 }
+                //             ],
+                //             "state_hash": "0xef98465e106969cf27b30ee7696eb758b59094b647526535498b17dd308b2b16",
+                //             "hash_sig": "0x96c116e9c82022284017c23bd68549af0794c94567ce8d98e3e6ba55c4c877e252cd7b384b240f8ae2b852d9f7f4f2180d83d2b4aa3ca4835b33ac9931b5ffea00"
+                //         }
+                //     ],
+                //     1745936616
+                // ]
+
+                console.log('finalState:', brokerState);
 
                 await NitroliteStore.state.client.closeChannel({
                     finalState: {

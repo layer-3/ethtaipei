@@ -27,16 +27,18 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
 
     const chainId = settingsSnap.activeChain?.id;
 
-    const { sendRequest, isConnected, connect } = useWebSocket();
+    const { sendRequest, isConnected } = useWebSocket();
     const { amount, handleAmountChange } = useAmountInput();
+
     const { processPayment, processingError } = usePaymentFlow({
         isConnected,
+        signer: nitroSnap.stateSigner,
         sendRequest,
     });
 
     const { getParticipants } = useGetParticipants({
-        wsProps: { isConnected, connect, sendRequest },
-        activeChainId: chainId,
+        signer: nitroSnap.stateSigner,
+        sendRequest,
     });
 
     const [step, setStep] = useState<SendStep>('scan');

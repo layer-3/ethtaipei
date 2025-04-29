@@ -16,6 +16,8 @@ import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import { ActionButton } from '../ui/ActionButton';
 import { Hex } from 'viem';
+import { createCloseChannelMessage } from '@erc7824/nitrolite';
+import { WalletSigner } from '@/websocket';
 
 export function AccountInterface() {
     const walletSnap = useSnapshot(WalletStore.state);
@@ -27,7 +29,7 @@ export function AccountInterface() {
     const chainId = settingsSnap.activeChain?.id;
     const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
 
-    const { isConnected, sendRequest, connect } = useWebSocket();
+    const { isConnected, sendRequest } = useWebSocket();
 
     const [loading, setLoading] = useState<{ [key: string]: boolean }>({
         deposit: false,
@@ -46,10 +48,9 @@ export function AccountInterface() {
         activeChainId: settingsSnap.activeChain?.id,
     });
 
-    // Get participants info
     const { getParticipants } = useGetParticipants({
-        wsProps: { isConnected, connect, sendRequest },
-        activeChainId: chainId,
+        signer: nitroSnap.stateSigner,
+        sendRequest,
     });
 
     const handleOpenDeposit = useCallback(() => {
@@ -152,6 +153,7 @@ export function AccountInterface() {
             await nitroSnap.client.challengeChannel({
                 channelId: channelId,
                 candidateState: state,
+                proofStates: state,
             });
 
             // Refresh account info after challenging
@@ -166,6 +168,8 @@ export function AccountInterface() {
     }, [isConnected, walletSnap.walletAddress, nitroSnap.client, getAccountInfo, getParticipants]);
 
     const closeChannel = useCallback(async () => {
+        const signer: WalletSigner = nitroSnap.stateSigner;
+
         if (!isConnected || !walletSnap.walletAddress) {
             console.error('WebSocket not connected or wallet not connected');
             return;
@@ -180,12 +184,15 @@ export function AccountInterface() {
                 throw new Error('No channel ID found. Please create a channel first.');
             }
 
-            const closeDirectChannelParams = {
-                channel_id: channelId,
-                funds_destination: walletSnap.walletAddress,
-            };
+            if (!nitroSnap.stateSigner) {
+                throw new Error('State signer not initialized. Please create a channel first.');
+            }
 
-            const response = await sendRequest('CloseDirectChannel', [closeDirectChannelParams]);
+            const fundDestination = walletSnap.walletAddress;
+
+            const closeChannelMessage = await createCloseChannelMessage(signer.sign, channelId as Hex, fundDestination);
+
+            const response = await sendRequest(closeChannelMessage);
 
             await handleCloseChannel(response);
 

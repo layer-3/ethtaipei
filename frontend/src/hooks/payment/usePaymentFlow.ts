@@ -1,11 +1,14 @@
 /* eslint-disable padding-line-between-statements */
 import { useCallback, useState } from 'react';
-import { useVirtualChannelOpen, useVirtualChannelClose } from '@/hooks/channel';
-import { Address } from 'viem';
+import { useCreateApplicationSession, useCloseApplicationSession } from '@/hooks/channel';
+import { Address, Hex } from 'viem';
+import { WalletSigner } from '@/websocket';
+import APP_CONFIG from '@/config/app';
 
 interface PaymentFlowOptions {
     isConnected: boolean;
-    sendRequest: (method: string, payload: string) => Promise<any>;
+    signer: WalletSigner;
+    sendRequest: (payload: string) => Promise<any>;
 }
 
 interface PaymentResult {
@@ -13,10 +16,10 @@ interface PaymentResult {
     error?: string;
 }
 
-export function usePaymentFlow({ isConnected, sendRequest }: PaymentFlowOptions) {
+export function usePaymentFlow({ isConnected, signer, sendRequest }: PaymentFlowOptions) {
     const [processingError, setProcessingError] = useState<string | null>(null);
-    const { openVirtualChannel } = useVirtualChannelOpen();
-    const { closeVirtualChannel } = useVirtualChannelClose();
+    const { createApplicationSession } = useCreateApplicationSession();
+    const { closeApplicationSession } = useCloseApplicationSession();
 
     const checkRequirements = (chainId?: number, participantA?: string, participantB?: Address) => {
         if (!isConnected) {
@@ -45,43 +48,57 @@ export function usePaymentFlow({ isConnected, sendRequest }: PaymentFlowOptions)
             setProcessingError(null);
 
             const check = checkRequirements(chainId, participantA, participantB);
+            const tokenAddress = APP_CONFIG.TOKENS[chainId] as Hex;
 
             if (!check.valid) {
                 return { success: false, error: check.error };
             }
 
-            try {
-                console.log('Opening virtual channel with:', { participantA, participantB, amount, chainId });
+            if (!tokenAddress) {
+                const errorMessage = 'Invalid token address for the active chain.';
+                setProcessingError(errorMessage);
+                return { success: false, error: errorMessage };
+            }
 
-                const openResult = await openVirtualChannel(sendRequest, participantA, participantB, amount, chainId);
+            console.log('signer', signer);
+
+            try {
+                const openResult = await createApplicationSession(
+                    signer,
+                    sendRequest,
+                    participantA,
+                    participantB,
+                    amount,
+                    tokenAddress,
+                );
 
                 if (!openResult.success) {
                     const error = openResult.error || 'Failed to open virtual channel';
                     throw new Error(error);
                 }
 
-                const virtualChannelId = localStorage.getItem('virtual_channel_id');
+                const appId = localStorage.getItem('app_id');
 
-                if (!virtualChannelId) {
+                if (!appId) {
                     throw new Error('Failed to open virtual channel.');
                 }
-
-                console.log('Virtual channel opened, ID:', virtualChannelId);
 
                 const allocations = {
                     participantA: '0',
                     participantB: amount,
                 };
 
-                console.log('Closing virtual channel with allocations:', allocations);
-
-                const closeResult = await closeVirtualChannel(
+                //    signer: WalletSigner, // Pass the WalletSigner object which includes the sign method
+                //     sendRawMessage: (signedMessage: string) => Promise<any>, // Function to send the pre-signed message string
+                //     appId: AccountID, // The ID of the application to close
+                //     finalAllocationStr: string[], // Final allocation amounts as strings
+                //     tokenAddress: Hex, // Address of the token used in the app (for parsing units)
+                const closeResult = await closeApplicationSession(
+                    signer,
                     sendRequest,
-                    participantA,
-                    participantB,
-                    allocations.participantA,
-                    allocations.participantB,
-                    chainId,
+                    appId as Hex,
+                    [allocations.participantA, allocations.participantB],
+                    tokenAddress,
                 );
 
                 if (!closeResult || !closeResult.success) {
@@ -101,7 +118,7 @@ export function usePaymentFlow({ isConnected, sendRequest }: PaymentFlowOptions)
                 return { success: false, error: errorMessage };
             }
         },
-        [isConnected, sendRequest, openVirtualChannel, closeVirtualChannel],
+        [isConnected, signer, sendRequest, createApplicationSession, closeApplicationSession],
     );
 
     return {

@@ -1,5 +1,4 @@
-import { NitroliteRPC } from '@erc7824/nitrolite';
-import { Channel } from '@/types';
+import { createPingMessage, NitroliteRPCMessage } from '@erc7824/nitrolite';
 import { WebSocketConnection } from './connection';
 import { WalletSigner } from '../crypto';
 import MessageService from '../services/MessageService';
@@ -14,111 +13,11 @@ export class WSRequests {
     ) {}
 
     /**
-     * Sends a request to the server
+     * Helper method to send a pre-signed, stringified request message.
+     * Handles request tracking and timeouts.
      */
-    async sendRequest(method: string, params: unknown[] = []): Promise<unknown> {
-        if (!this.connection.isConnected) {
-            const errorMsg = 'WebSocket not connected';
-
-            MessageService.error(errorMsg);
-            throw new Error(errorMsg);
-        }
-
-        MessageService.system(`Sending request: ${method}`);
-        return this.sendSignedRequest(NitroliteRPC.createRequest(method, params));
-    }
-
-    /**
-     * Subscribes to a channel
-     */
-    async subscribe(channel: Channel | string): Promise<void> {
-        if (!this.connection.isConnected) {
-            const errorMsg = 'WebSocket not connected';
-
-            MessageService.error(errorMsg);
-            throw new Error(errorMsg);
-        }
-
-        MessageService.system(`Subscribing to channel: ${channel}`);
-
-        // Convert Nitrolite Channel to string if needed
-        const channelString = typeof channel === 'string' ? channel : String(channel);
-        const request = NitroliteRPC.createRequest('subscribe', [channelString]);
-
-        await this.sendSignedRequest(request);
-        if (
-            typeof channel === 'string' &&
-            (channel === 'public' || channel === 'game' || channel === 'trade' || channel === 'private')
-        ) {
-            this.connection.setCurrentChannel(channel as Channel);
-        }
-    }
-
-    /**
-     * Publishes a message to the specified channel
-     */
-    async publishMessage(message: string, channelOverride?: Channel): Promise<void> {
-        if (!this.connection.isConnected) {
-            const errorMsg = 'WebSocket not connected';
-
-            MessageService.error(errorMsg);
-            throw new Error(errorMsg);
-        }
-
-        const channel = channelOverride || this.connection.currentSubscribedChannel;
-
-        if (!channel) {
-            const errorMsg = 'No channel specified and not subscribed to any channel';
-
-            MessageService.error(errorMsg);
-            throw new Error(errorMsg);
-        }
-
-        const shortenedKey = this.connection.getShortenedPublicKey();
-
-        MessageService.sent(message, shortenedKey);
-
-        const request = NitroliteRPC.createRequest('publish', [channel, message, shortenedKey]);
-
-        await this.sendRequestDirect(await NitroliteRPC.signMessage(request, this.signer.sign));
-    }
-
-    /**
-     * Sends a ping request to the server
-     */
-    async ping(): Promise<unknown> {
-        MessageService.system('Sending ping request');
-        return this.sendSignedRequest(NitroliteRPC.createRequest('ping', []));
-    }
-
-    /**
-     * Sends multiple requests in batch
-     */
-    async sendBatch(requests: { method: string; params: unknown[] }[]): Promise<unknown[]> {
-        MessageService.system(`Sending batch of ${requests.length} requests`);
-        return Promise.all(requests.map((req) => this.sendRequest(req.method, req.params)));
-    }
-
-    /**
-     * Helper method to sign and send a request
-     */
-    private async sendSignedRequest(request: unknown): Promise<unknown> {
-        try {
-            const signedRequest = await NitroliteRPC.signMessage(request, this.signer.sign);
-
-            return this.sendRequestDirect(signedRequest);
-        } catch (error) {
-            const errorMsg = `Signing request failed: ${error instanceof Error ? error.message : String(error)}`;
-
-            MessageService.error(errorMsg);
-            throw new Error(errorMsg);
-        }
-    }
-
-    /**
-     * Helper method to send a pre-constructed request
-     */
-    private async sendRequestDirect(signedRequest: unknown): Promise<unknown> {
+    async sendRequest(signedRequest: string): Promise<unknown> {
+        // Parameter is now string
         if (!this.connection.isConnected || !this.connection.webSocket) {
             const errorMsg = 'WebSocket not connected';
 
@@ -130,29 +29,38 @@ export class WSRequests {
         const timeout = this.connection.getRequestTimeout();
         const ws = this.connection.webSocket;
 
-        return new Promise((resolve, reject) => {
-            // Safely check format of signedRequest
+        let requestId: number;
+        let method: string = 'unknown';
+
+        try {
+            // Parse the stringified JSON to extract request ID and method
+            const parsedRequest: NitroliteRPCMessage = JSON.parse(signedRequest);
+
             if (
-                typeof signedRequest !== 'object' ||
-                !signedRequest ||
-                !('req' in signedRequest) ||
-                !Array.isArray(signedRequest.req) ||
-                signedRequest.req.length === 0 ||
-                typeof signedRequest.req[0] !== 'number'
+                !parsedRequest ||
+                !parsedRequest.req ||
+                !Array.isArray(parsedRequest.req) ||
+                parsedRequest.req.length < 2 || // Need at least ID and method
+                typeof parsedRequest.req[0] !== 'number' ||
+                typeof parsedRequest.req[1] !== 'string'
             ) {
-                throw new Error('Invalid request format');
+                throw new Error('Invalid request format in signed message string');
             }
+            requestId = parsedRequest.req[0];
+            method = parsedRequest.req[1];
+        } catch (parseError) {
+            const errorMsg = `Failed to parse signed request string: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
 
-            const requestId = signedRequest.req[0];
-            const method =
-                Array.isArray(signedRequest.req) && signedRequest.req.length > 1
-                    ? String(signedRequest.req[1])
-                    : 'unknown';
+            MessageService.error(errorMsg);
+            console.error('Invalid request string:', signedRequest); // Log the problematic string
+            throw new Error(errorMsg);
+        }
 
+        return new Promise((resolve, reject) => {
             const requestTimeout = setTimeout(() => {
                 if (pendingRequests.has(requestId)) {
                     pendingRequests.delete(requestId);
-                    const timeoutMsg = `Request timeout: ${method}`;
+                    const timeoutMsg = `Request timeout: ${method} (ID: ${requestId})`;
 
                     MessageService.error(timeoutMsg);
                     reject(new Error(timeoutMsg));
@@ -171,16 +79,24 @@ export class WSRequests {
             });
 
             try {
-                ws.send(JSON.stringify(signedRequest));
+                ws.send(signedRequest);
             } catch (error) {
                 clearTimeout(requestTimeout);
                 pendingRequests.delete(requestId);
-
                 const errorMsg = `Failed to send message: ${error instanceof Error ? error.message : String(error)}`;
 
                 MessageService.error(errorMsg);
                 reject(new Error(errorMsg));
             }
         });
+    }
+
+    /**
+     * Sends a ping request to the server
+     */
+    async ping(): Promise<unknown> {
+        MessageService.system('Sending ping request');
+
+        return this.sendRequest(await createPingMessage(this.signer.sign));
     }
 }

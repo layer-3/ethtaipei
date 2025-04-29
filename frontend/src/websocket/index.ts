@@ -68,20 +68,11 @@ export class WebSocketClient {
     }
 
     // Forward request methods
-    sendRequest(method: string, params: unknown[] = []) {
-        return this.requests.sendRequest(method, params);
-    }
-    subscribe(channel: import('@/types').Channel | string) {
-        return this.requests.subscribe(channel);
-    }
-    publishMessage(message: string, channelOverride?: import('@/types').Channel) {
-        return this.requests.publishMessage(message, channelOverride);
+    sendRequest(signedRequest: string) {
+        return this.requests.sendRequest(signedRequest);
     }
     ping() {
         return this.requests.ping();
-    }
-    sendBatch(requests: { method: string; params: unknown[] }[]) {
-        return this.requests.sendBatch(requests);
     }
 }
 

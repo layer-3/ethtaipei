@@ -14,21 +14,14 @@ function HomePage() {
     const appSnap = useSnapshot(AppStore.state);
     const nitroliteSnapshot = useSnapshot(NitroliteStore.state);
     const walletSnap = useSnapshot(WalletStore.state);
-    const settingsSnap = useSnapshot(SettingsStore.state);
     const { login, ready } = usePrivy();
 
-    // WebSocket for participants data
-    const { isConnected, connect, sendRequest } = useWebSocket();
+    const { isConnected, sendRequest } = useWebSocket();
 
-    // Get participants data using our hook
     const { getParticipants } = useGetParticipants({
-        wsProps: { isConnected, connect, sendRequest },
-        activeChainId: settingsSnap.activeChain?.id,
+        signer: nitroliteSnapshot.stateSigner,
+        sendRequest,
     });
-
-    const handleOpenDeposit = useCallback(() => {
-        AppStore.openDeposit();
-    }, []);
 
     const handleCloseDeposit = useCallback(() => {
         AppStore.closeDeposit();
@@ -48,10 +41,6 @@ function HomePage() {
         }
     }, [nitroliteSnapshot, walletSnap.walletAddress, ready, login]);
 
-    const handleOpenCloseChannel = useCallback(() => {
-        AppStore.openCloseChannel();
-    }, []);
-
     useEffect(() => {
         fetchAssets();
     }, []);
@@ -70,7 +59,7 @@ function HomePage() {
     return (
         <div className="min-h-screen flex flex-col">
             <main className="min-h-screen bg-white text-gray-900 px-4 md:px-8 lg:px-12 pt-4 flex flex-col pb-40">
-                <MainHeader onOpenDeposit={handleOpenDeposit} onOpenCloseChannel={handleOpenCloseChannel} />
+                <MainHeader />
 
                 <div className="max-w-7xl mx-auto w-full mt-2 md:mt-4 lg:mt-6">
                     <YuzuxSection onOpenYuzux={handleOpenYuzux} />

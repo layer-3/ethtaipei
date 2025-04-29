@@ -1,41 +1,16 @@
 import { useSnapshot } from 'valtio';
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { WalletStore, NitroliteStore, SettingsStore } from '@/store';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 import APP_CONFIG from '@/config/app';
-import { useWebSocket } from '@/hooks/websocket';
-import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 
-interface MainHeaderProps {
-    onOpenDeposit: () => void;
-    onOpenCloseChannel: () => void;
-}
-
-export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
+export function MainHeader() {
     const walletSnap = useSnapshot(WalletStore.state);
     const nitroSnap = useSnapshot(NitroliteStore.state);
     const settingsSnap = useSnapshot(SettingsStore.state);
     const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
-
-    // WebSocket for participants data
-    const { isConnected, connect, sendRequest } = useWebSocket();
-
-    // Get participants data using our hook
-    const { getParticipants } = useGetParticipants({
-        wsProps: { isConnected, connect, sendRequest },
-        activeChainId: settingsSnap.activeChain?.id,
-    });
-
-    // Fetch participants data when connected
-    useEffect(() => {
-        if (walletSnap.connected && isConnected && settingsSnap.activeChain?.id) {
-            // Get participants to update balance
-            getParticipants();
-        }
-    }, [walletSnap.connected, isConnected, settingsSnap.activeChain?.id, getParticipants]);
 
     const formattedBalance = (() => {
         if (!nitroSnap.userAccountFromParticipants || !settingsSnap.activeChain?.id) {
@@ -80,8 +55,7 @@ export function MainHeader({ onOpenDeposit }: MainHeaderProps) {
                                     strokeWidth="2"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
-                                    className="w-4 h-4 md:w-5 md:h-5 text-gray-600"
-                                >
+                                    className="w-4 h-4 md:w-5 md:h-5 text-gray-600">
                                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                                     <circle cx="12" cy="7" r="4" />
                                 </svg>

@@ -1,60 +1,100 @@
-import { NitroliteRPC } from '@erc7824/nitrolite';
+import { createAuthRequestMessage, createAuthVerifyMessage } from '@erc7824/nitrolite'; // Added createAuthVerifyMessage
 import { WalletSigner } from '../crypto';
 
 /**
- * Authenticates with the WebSocket server
+ * Authenticates with the WebSocket server using a challenge-response flow.
  *
  * @param ws - The WebSocket connection
  * @param signer - The signer to use for authentication
- * @param timeout - Timeout in milliseconds
+ * @param timeout - Timeout in milliseconds for the entire process
  * @returns A Promise that resolves when authenticated
  */
 export async function authenticate(ws: WebSocket, signer: WalletSigner, timeout: number): Promise<void> {
     if (!ws) throw new Error('WebSocket not connected');
 
-    const authRequest = NitroliteRPC.createRequest('auth', [signer.address]);
-    const signedAuthRequest = await NitroliteRPC.signMessage(authRequest, signer.sign);
+    const authRequest = await createAuthRequestMessage(signer.sign, signer.address);
+
+    console.log('Sending authRequest:', signer);
+    ws.send(authRequest);
 
     return new Promise((resolve, reject) => {
         if (!ws) return reject(new Error('WebSocket not connected'));
 
-        const authTimeout = setTimeout(() => {
-            ws.removeEventListener('message', handleAuthResponse);
-            reject(new Error('Authentication timeout'));
-        }, timeout);
+        let authTimeoutId: NodeJS.Timeout | null = null;
 
-        const handleAuthResponse = (event: MessageEvent) => {
+        const cleanup = () => {
+            if (authTimeoutId) {
+                clearTimeout(authTimeoutId);
+                authTimeoutId = null;
+            }
+            ws.removeEventListener('message', handleAuthResponse);
+        };
+
+        const resetTimeout = () => {
+            if (authTimeoutId) {
+                clearTimeout(authTimeoutId);
+            }
+            authTimeoutId = setTimeout(() => {
+                cleanup();
+                reject(new Error('Authentication timeout'));
+            }, timeout);
+        };
+
+        const handleAuthResponse = async (event: MessageEvent) => {
             let response;
 
             try {
                 response = JSON.parse(event.data);
+                console.log('Received auth message:', response);
             } catch (error) {
                 console.error('Error parsing auth response:', error);
                 console.log('Raw auth message:', event.data);
-                return; // Continue waiting for valid responses
+                // Don't reject yet, maybe the next message is valid
+                return;
             }
 
             try {
-                if ((response.res && response.res[1] === 'auth') || response.type === 'auth_success') {
-                    clearTimeout(authTimeout);
-                    ws.removeEventListener('message', handleAuthResponse);
-                    resolve();
-                } else if ((response.err && response.err[1]) || response.type === 'auth_error') {
-                    clearTimeout(authTimeout);
-                    ws.removeEventListener('message', handleAuthResponse);
-                    const errorMsg = response.err ? response.err[2] : response.error || 'Authentication failed';
+                // Check for challenge response: [<id>, "auth_challenge", [{challenge_message: "..."}], <ts>]
+                if (response.res && response.res[1] === 'auth_challenge') {
+                    console.log('Received auth_challenge, preparing auth_verify...');
+                    resetTimeout(); // Reset timeout while we process and send verify
 
-                    reject(new Error(errorMsg));
+                    // 2. Create and send verification message
+                    const authVerify = await createAuthVerifyMessage(
+                        signer.sign,
+                        event.data, // Pass the raw challenge response string/object
+                        signer.address,
+                    );
+
+                    console.log('Sending authVerify:', authVerify);
+                    ws.send(authVerify);
+                    // Keep listening for the final success/error
+                }
+                // Check for success response: [<id>, "auth", ...] or { type: "auth_verify" }
+                else if (response.res && response.res[1] === 'auth_verify') {
+                    console.log('Authentication successful');
+                    cleanup();
+                    resolve();
+                }
+                // Check for error response: [<id>, ...] or { type: "error" }
+                else if (response.err && response.err[1] === 'error') {
+                    const errorMsg = response.err ? response.err[1] : response.error || 'Authentication failed';
+
+                    console.error('Authentication failed:', errorMsg);
+                    cleanup();
+                    reject(new Error(String(errorMsg)));
+                } else {
+                    console.warn('Received unexpected auth message structure:', response);
+                    // Keep listening if it wasn't a final success/error
                 }
             } catch (error) {
                 console.error('Error handling auth response:', error);
-                clearTimeout(authTimeout);
-                ws.removeEventListener('message', handleAuthResponse);
+                cleanup();
                 reject(new Error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`));
             }
         };
 
         ws.addEventListener('message', handleAuthResponse);
-        ws.send(JSON.stringify(signedAuthRequest));
+        resetTimeout(); // Start the initial timeout
     });
 }

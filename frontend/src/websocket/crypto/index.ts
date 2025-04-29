@@ -1,5 +1,6 @@
 import { Hex } from 'viem';
 import { ethers } from 'ethers';
+import { MessageSigner, RequestData, ResponsePayload } from '@erc7824/nitrolite';
 
 /**
  * Interface for a cryptographic keypair
@@ -20,9 +21,9 @@ export interface WalletSigner {
     /** Public key in hexadecimal format */
     publicKey: string;
     /** Optional Ethereum address derived from the public key */
-    address?: string;
+    address?: Hex;
     /** Function to sign a message and return a hex signature */
-    sign: (message: string, isContract?: boolean) => Promise<[Hex]>;
+    sign: MessageSigner;
 }
 
 /**
@@ -63,25 +64,17 @@ export const createEthersSigner = (privateKey: string): WalletSigner => {
 
         return {
             publicKey: wallet.publicKey,
-            address: wallet.address,
-            sign: async (message: string, isContract?: boolean): Promise<[Hex]> => {
+            address: wallet.address as Hex,
+            sign: async (payload: RequestData | ResponsePayload): Promise<Hex> => {
                 try {
-                    if (isContract) {
-                        const flatSignature = await wallet._signingKey().signDigest(message);
-                        // Format signature as hex string
-                        const signature = ethers.utils.joinSignature(flatSignature);
+                    const messageBytes = ethers.utils.arrayify(ethers.utils.id(JSON.stringify(payload)));
 
-                        return [signature as Hex];
-                    } else {
-                        const messageBytes = ethers.utils.arrayify(ethers.utils.id(message));
+                    // Sign the hash directly without EIP-191 prefix
+                    const flatSignature = await wallet._signingKey().signDigest(messageBytes);
+                    // Format signature as hex string
+                    const signature = ethers.utils.joinSignature(flatSignature);
 
-                        // Sign the hash directly without EIP-191 prefix
-                        const flatSignature = await wallet._signingKey().signDigest(messageBytes);
-                        // Format signature as hex string
-                        const signature = ethers.utils.joinSignature(flatSignature);
-
-                        return [signature as Hex];
-                    }
+                    return signature as Hex;
                 } catch (error) {
                     console.error('Error signing message:', error);
                     throw error;

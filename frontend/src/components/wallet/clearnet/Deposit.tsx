@@ -192,7 +192,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             const formattedValue = numericValue.toString();
 
             await handleDepositToChannel(tokenAddress as Address, formattedValue);
-            await handleCreateChannel(tokenAddress as Address, '0.001');
+            await handleCreateChannel(tokenAddress as Address, formattedValue);
 
             // Success! Set status
             setTransactionStatus('success');
