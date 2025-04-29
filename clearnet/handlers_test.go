@@ -400,3 +400,131 @@ func TestHandleGetConfig(t *testing.T) {
 
 	assert.Equal(t, BrokerAddress, configMap.BrokerAddress)
 }
+
+// TestHandleCreateVirtualApp tests the create virtual app handler functionality
+func TestHandleCreateVirtualApp(t *testing.T) {
+	// Generate two distinct signers/participants
+	rawA, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	signerA := Signer{privateKey: rawA}
+	addrA := signerA.GetAddress().Hex()
+
+	rawB, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	signerB := Signer{privateKey: rawB}
+	addrB := signerB.GetAddress().Hex()
+
+	// Set up test database with cleanup
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Create direct channels for both participants
+	tokenAddress := "0xTokenXYZ"
+	channelA := &Channel{
+		ChannelID:    "0xDirectChannelA",
+		ParticipantA: addrA,
+		ParticipantB: BrokerAddress,
+		Status:       ChannelStatusOpen,
+		Token:        tokenAddress,
+		Nonce:        1,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	require.NoError(t, db.Create(channelA).Error)
+
+	channelB := &Channel{
+		ChannelID:    "0xDirectChannelB",
+		ParticipantA: addrB,
+		ParticipantB: BrokerAddress,
+		Status:       ChannelStatusOpen,
+		Token:        tokenAddress,
+		Nonce:        1,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	require.NoError(t, db.Create(channelB).Error)
+
+	// Create ledger and fund direct channels
+	ledger := NewLedger(db)
+	acctA := ledger.SelectBeneficiaryAccount(channelA.ChannelID, addrA)
+	require.NoError(t, acctA.Record(100))
+	acctB := ledger.SelectBeneficiaryAccount(channelB.ChannelID, addrB)
+	require.NoError(t, acctB.Record(200))
+
+	// Build CreateApplicationParams
+	createParams := CreateApplicationParams{
+		Definition: AppDefinition{
+			Protocol:     "test-proto",
+			Participants: []string{addrA, addrB},
+			Weights:      []int64{1, 1},
+			Quorum:       2,
+			Challenge:    60,
+		},
+		Token:       tokenAddress,
+		Allocations: []int64{100, 200},
+	}
+	paramsJSON, err := json.Marshal(createParams)
+	require.NoError(t, err)
+
+	// Construct RPCMessage and sign it with both participants
+	rpcReq := &RPCMessage{
+		Req: RPCData{
+			RequestID: 42,
+			Method:    "create_app_session",
+			Params:    []any{json.RawMessage(paramsJSON)},
+			Timestamp: uint64(time.Now().Unix()),
+		},
+	}
+	// Serialize for signing
+	reqBytes, err := json.Marshal(rpcReq.Req)
+	require.NoError(t, err)
+	sigA, err := signerA.Sign(reqBytes)
+	require.NoError(t, err)
+	sigB, err := signerB.Sign(reqBytes)
+	require.NoError(t, err)
+	rpcReq.Sig = []string{hexutil.Encode(sigA), hexutil.Encode(sigB)}
+
+	// Invoke handler
+	resp, err := HandleCreateApplication(rpcReq, ledger)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// Validate RPC response
+	assert.Equal(t, rpcReq.Req.Method, resp.Res.Method)
+	assert.Equal(t, uint64(42), resp.Res.RequestID)
+
+	// Extract the AppResponse
+	params := resp.Res.Params
+	require.Len(t, params, 1)
+	require.IsType(t, &AppResponse{}, params[0])
+	appRespPtr := params[0].(*AppResponse)
+	appResp := *appRespPtr
+
+	assert.Equal(t, string(ChannelStatusOpen), appResp.Status)
+
+	// Verify the VApp record exists
+	var vApp VApp
+	require.NoError(t, db.
+		Where("app_id = ?", appResp.AppID).
+		First(&vApp).Error)
+	assert.Equal(t, tokenAddress, vApp.Token)
+	assert.ElementsMatch(t, []string{addrA, addrB}, vApp.Participants)
+	assert.Equal(t, ChannelStatusOpen, vApp.Status)
+
+	// Check balances: direct channels drained, virtual app funded
+	directBalA, err := ledger.SelectBeneficiaryAccount(channelA.ChannelID, addrA).Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), directBalA, "direct channel A should be drained")
+
+	directBalB, err := ledger.SelectBeneficiaryAccount(channelB.ChannelID, addrB).Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), directBalB, "direct channel B should be drained")
+
+	virtBalA, err := ledger.SelectBeneficiaryAccount(appResp.AppID, addrA).Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(100), virtBalA, "virtual app A balance")
+
+	virtBalB, err := ledger.SelectBeneficiaryAccount(appResp.AppID, addrB).Balance()
+	require.NoError(t, err)
+	assert.Equal(t, int64(200), virtBalB, "virtual app B balance")
+}
