@@ -814,29 +814,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, errors.New("channel amount cannot be negative")
 	}
 
-	// TODO: call this on receiving channel resized confirmation event
-	// Before that block balance operations
-	err = ledger.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Channel{}).Where("channel_id = ?", channel.ChannelID).
-			Updates(map[string]interface{}{
-				"amount":  newAmount.Int64(),
-				"version": gorm.Expr("version + ?", 1),
-			}).Error; err != nil {
-			return fmt.Errorf("failed to update channel amount and version: %w", err)
-		}
-
-		ledgerTx := &Ledger{db: tx}
-		accountTx := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
-		if err := accountTx.Record(params.ParticipantChange.Int64()); err != nil {
-			return fmt.Errorf("failed to adjust participant balance: %w", err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
+	// TODO: Before that block balance operations until Resized event confirmation.
 
 	// Create the response
 	response := ResizeChannelResponse{

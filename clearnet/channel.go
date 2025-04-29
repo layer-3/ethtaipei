@@ -90,30 +90,6 @@ func (s *ChannelService) GetChannelByID(channelID string) (*Channel, error) {
 	return &channel, nil
 }
 
-// CloseChannel closes a channel by updating its status to "closed"
-func CloseChannel(db *gorm.DB, channelID string) error {
-	var channel Channel
-	result := db.Where("channel_id = ?", channelID).First(&channel)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("channel with ID %s not found", channelID)
-		}
-		return fmt.Errorf("error finding channel: %w", result.Error)
-	}
-
-	// Update the channel status to "closed"
-	channel.Status = ChannelStatusClosed
-	channel.Amount = 0
-	channel.UpdatedAt = time.Now()
-	channel.Version++
-	if err := db.Save(&channel).Error; err != nil {
-		return fmt.Errorf("failed to close channel: %w", err)
-	}
-
-	log.Printf("Closed channel with ID: %s", channelID)
-	return nil
-}
-
 // getDirectChannelForParticipant finds the direct channel between a participant and the broker
 func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*Channel, error) {
 	var directChannel Channel
