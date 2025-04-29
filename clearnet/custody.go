@@ -223,18 +223,18 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		}
 		log.Printf("Joined event data: %+v\n", ev)
 
-	case custodyAbi.Events["ChannelClosed"].ID:
-		ev, err := c.custody.ParseChannelClosed(l)
+	case custodyAbi.Events["Closed"].ID:
+		ev, err := c.custody.ParseClosed(l)
 		if err != nil {
 			log.Println("error parsing ChannelJoined event:", err)
 			return
 		}
-		log.Printf("ChannelClosed event data: %+v\n", ev)
+		log.Printf("Closed event data: %+v\n", ev)
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
 		openDirectChannel, err := channelService.GetChannelByID(channelID.Hex())
 		if err != nil {
-			log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
+			log.Printf("[Closed] Error creating/updating channel in database: %v", err)
 			return
 		}
 
@@ -244,18 +244,18 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			account.db = tx
 			balance, err := account.Balance()
 			if err != nil {
-				log.Printf("[ChannelCreated] Error getting balances for participant: %v", err)
+				log.Printf("[Closed] Error getting balances for participant: %v", err)
 				return err
 			}
 
 			if err := account.Record(-balance); err != nil {
-				log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
+				log.Printf("[Closed] Error recording initial balance for participant A: %v", err)
 				return err
 			}
 
 			err = CloseChannel(tx, channelID.Hex())
 			if err != nil {
-				log.Printf("[ChannelCreated] Error closing channel: %v", err)
+				log.Printf("[Closed] Error closing channel: %v", err)
 				return err
 			}
 			return nil
