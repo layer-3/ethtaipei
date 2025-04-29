@@ -90,11 +90,11 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 
 	// Allocation should be specified for each participant even if it is zero.
 	if len(createApp.Allocations) != len(createApp.Definition.Participants) {
-		return nil, errors.New("invalid allocations")
+		return nil, errors.New("number of allocations must be equal to participants")
 	}
 
 	if len(createApp.Definition.Weights) != len(createApp.Definition.Participants) {
-		return nil, errors.New("invalid weights")
+		return nil, errors.New("number of weights must be equal to participants")
 	}
 
 	var participantsAddresses []common.Address
@@ -102,12 +102,16 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		participantsAddresses = append(participantsAddresses, common.HexToAddress(participant))
 	}
 
+	if createApp.Definition.Nonce == 0 {
+		createApp.Definition.Nonce = rpc.Req.Timestamp
+	}
+
 	// Generate a unique ID for the virtual application (TODO: rethink app ID generation)
 	nitroliteChannel := nitrolite.Channel{
 		Participants: participantsAddresses,
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    createApp.Definition.Challenge,
-		Nonce:        rpc.Req.Timestamp,
+		Nonce:        createApp.Definition.Nonce,
 	}
 	vAppID := nitrolite.GetChannelID(nitroliteChannel)
 
@@ -166,9 +170,6 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			weights = append(weights, v)
 		}
 
-		if createApp.Definition.Nonce == 0 {
-			createApp.Definition.Nonce = rpc.Req.Timestamp
-		}
 		// Record the virtual app creation in state
 		vAppDB := &VApp{
 			Protocol:     createApp.Definition.Protocol,
@@ -306,15 +307,15 @@ func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 }
 
 // HandleCloseChannel processes a request to close a direct payment channel
-func HandleCloseChannel(req *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
+func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
-	if len(req.Req.Params) < 1 {
+	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
 
 	// Parse the parameters
 	var params CloseChannelParams
-	paramsJSON, err := json.Marshal(req.Req.Params[0])
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
@@ -327,6 +328,15 @@ func HandleCloseChannel(req *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 	channel, err := channelService.GetChannelByID(params.ChannelID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find channel: %w", err)
+	}
+
+	reqBytes, err := json.Marshal(rpc.Req)
+	if err != nil {
+		return nil, errors.New("error serializing auth message")
+	}
+
+	if err := validateSignature(reqBytes, rpc.Sig, channel.ParticipantA); err != nil {
+		return nil, err
 	}
 
 	// Grab user balances
@@ -390,7 +400,7 @@ func HandleCloseChannel(req *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 		})
 	}
 	// Create the RPC response
-	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
 }
 
@@ -453,6 +463,7 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 				}
 			}
 			if present {
+				fmt.Println("Signature valid for participant:", participants[i])
 				totalWeight += int(weight)
 			}
 		}
