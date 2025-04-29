@@ -59,6 +59,7 @@ type CloseChannelParams struct {
 // CloseChannelResponse represents the response for closing a direct channel
 type CloseChannelResponse struct {
 	ChannelID        string       `json:"channel_id"`
+	Version          *big.Int     `json:"version"`
 	StateData        string       `json:"state_data"`
 	FinalAllocations []Allocation `json:"allocations"`
 	StateHash        string       `json:"state_hash"`
@@ -388,6 +389,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 
 	response := CloseChannelResponse{
 		ChannelID: channel.ChannelID,
+		Version:   big.NewInt(1), // TODO: get version from somewhere
 		StateData: stateDataStr,
 		StateHash: stateHash,
 		HashSig:   hexutil.Encode(sig),
@@ -701,6 +703,7 @@ type ResizeChannelParams struct {
 type ResizeChannelResponse struct {
 	ChannelID   string       `json:"channel_id"`
 	StateData   string       `json:"state_data"`
+	Version     *big.Int     `json:"version"`
 	Allocations []Allocation `json:"allocations"`
 	StateHash   string       `json:"state_hash"`
 	HashSig     string       `json:"hash_sig"`
@@ -838,15 +841,12 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 
 	// Create the response
 	response := ResizeChannelResponse{
-		ChannelID: channel.ChannelID,
-		StateData: hexutil.Encode(encodedIntentions),
-		StateHash: stateHash,
-		HashSig:   hexutil.Encode(sig),
-	}
-
-	// Convert allocations to the expected response format
-	for _, alloc := range allocations {
-		response.Allocations = append(response.Allocations, alloc)
+		ChannelID:   channel.ChannelID,
+		Version:     big.NewInt(1), // TODO: get version from somewhere. where do we get if from?
+		StateData:   hexutil.Encode(encodedIntentions),
+		StateHash:   stateHash,
+		Allocations: allocations,
+		HashSig:     hexutil.Encode(sig),
 	}
 
 	// Create the RPC response
