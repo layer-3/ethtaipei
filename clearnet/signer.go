@@ -3,8 +3,11 @@ package main
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"strings"
 
 	"github.com/erc7824/go-nitrolite"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -65,4 +68,39 @@ func (s *Signer) GetPublicKey() *ecdsa.PublicKey {
 // GetPrivateKey returns the private key used by the signer
 func (s *Signer) GetPrivateKey() *ecdsa.PrivateKey {
 	return s.privateKey
+}
+
+// GetAddress returns the address derived from the signer's public key
+func (s *Signer) GetAddress() common.Address {
+	return crypto.PubkeyToAddress(*s.GetPublicKey())
+}
+
+// ValidateSignature validates the signature of a message against the provided address
+func ValidateSignature(message []byte, signatureHex, expectedAddrHex string) (bool, error) {
+	recoveredHex, err := RecoverAddress(message, signatureHex)
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(recoveredHex, expectedAddrHex), nil
+}
+
+// RecoverAddress takes the original message and its hex-encoded signature, and returns the address
+func RecoverAddress(message []byte, signatureHex string) (string, error) {
+	sig, err := hexutil.Decode(signatureHex)
+	if err != nil {
+		return "", fmt.Errorf("invalid signature hex: %w", err)
+	}
+	if len(sig) != 65 {
+		return "", fmt.Errorf("invalid signature length: got %d, want 65", len(sig))
+	}
+
+	msgHash := crypto.Keccak256Hash(message)
+
+	pubkey, err := crypto.SigToPub(msgHash.Bytes(), sig)
+	if err != nil {
+		return "", fmt.Errorf("signature recovery failed: %w", err)
+	}
+
+	addr := crypto.PubkeyToAddress(*pubkey)
+	return addr.Hex(), nil
 }

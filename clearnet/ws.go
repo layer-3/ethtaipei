@@ -82,18 +82,18 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 		// Handle message based on the method
 		switch rpcMsg.Req.Method {
-		case "auth":
+		case "auth_request":
 			// Client is initiating authentication
-			err := HandleAuthenticate(h.signer, conn, &rpcMsg, h.authManager)
+			err := HandleAuthRequest(h.signer, conn, &rpcMsg, h.authManager)
 			if err != nil {
 				log.Printf("Auth initialization failed: %v", err)
 				h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, err.Error())
 			}
-			// Continue waiting for auth
+			continue
 
-		case "verify":
+		case "auth_verify":
 			// Client is responding to a challenge
-			authAddr, err := HandleVerifyAuth(conn, &rpcMsg, h.authManager, h.signer)
+			authAddr, err := HandleAuthVerify(conn, &rpcMsg, h.authManager, h.signer)
 			if err != nil {
 				log.Printf("Authentication verification failed: %v", err)
 				h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, err.Error())
@@ -107,7 +107,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		default:
 			// Reject any other messages before authentication
 			log.Printf("Unexpected message method during authentication: %s", rpcMsg.Req.Method)
-			h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, "Authentication required. Please send auth first.")
+			h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, "Authentication required. Please send auth_request first.")
 		}
 	}
 
@@ -154,11 +154,11 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
-		if rpcRequest.AppID != "" {
+		if rpcRequest.AccountID != "" {
 			handlerErr := forwardMessage(&rpcRequest, address, h)
 			if handlerErr != nil {
 				log.Printf("Error forwarding message: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send public message: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send message: "+handlerErr.Error())
 				continue
 			}
 			continue
@@ -184,35 +184,43 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				continue
 			}
 
-		case "list_participants":
-			rpcResponse, handlerErr = HandleListParticipants(&rpcRequest, h.channelService, h.ledger)
+		case "get_ledger_balances":
+			rpcResponse, handlerErr = HandleGetLedgerBalances(&rpcRequest, h.channelService, h.ledger)
 			if handlerErr != nil {
-				log.Printf("Error handling list_participants: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to list available channels: "+handlerErr.Error())
+				log.Printf("Error handling get_ledger_balances: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get ledger balances: "+handlerErr.Error())
 				continue
 			}
 
-		case "create_vapp":
-			rpcResponse, handlerErr = HandleCreateVApp(&rpcRequest, h.ledger)
+		case "get_app_definition":
+			rpcResponse, handlerErr = HandleGetAppDefinition(&rpcRequest, h.ledger)
 			if handlerErr != nil {
-				log.Printf("Error handling create_vapp: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create virtual app: "+handlerErr.Error())
+				log.Printf("Error handling get_app_definition: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get app definition: "+handlerErr.Error())
 				continue
 			}
 
-		case "close_vapp":
-			rpcResponse, handlerErr = HandleCloseVApp(&rpcRequest, h.ledger)
+		case "create_app_session":
+			rpcResponse, handlerErr = HandleCreateApplication(&rpcRequest, h.ledger)
 			if handlerErr != nil {
-				log.Printf("Error handling close_vapp: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close virtual app: "+handlerErr.Error())
+				log.Printf("Error handling create_app_session: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to create application: "+handlerErr.Error())
+				continue
+			}
+
+		case "close_app_session":
+			rpcResponse, handlerErr = HandleCloseApplication(&rpcRequest, h.ledger)
+			if handlerErr != nil {
+				log.Printf("Error handling close_app_session: %v", handlerErr)
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close application: "+handlerErr.Error())
 				continue
 			}
 
 		case "close_channel":
-			rpcResponse, handlerErr = HandleCloseDirectChannel(&rpcRequest, h.ledger, h.signer)
+			rpcResponse, handlerErr = HandleCloseChannel(&rpcRequest, h.ledger, h.signer)
 			if handlerErr != nil {
 				log.Printf("Error handling close_channel: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close direct channel: "+handlerErr.Error())
+				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to close channel: "+handlerErr.Error())
 				continue
 			}
 
@@ -263,9 +271,9 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 		return errors.New("Invalid signature")
 	}
 
-	sendTo, handlerErr := getVCRecipients(fromAddress, rpcRequest.AppID, h.ledger)
+	sendTo, handlerErr := getApplicationRecipients(fromAddress, rpcRequest.AccountID, h.ledger)
 	if handlerErr != nil {
-		log.Printf("Error handling SendMessage: %v", handlerErr)
+		log.Printf("Error handling message: %v", handlerErr)
 		return errors.New("Failed to send message: " + handlerErr.Error())
 	}
 

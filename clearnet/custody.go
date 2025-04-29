@@ -206,11 +206,11 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
 			channelID, c.networkID)
 
-		account := ledger.Account(channelID.Hex(), participantA)
+		account := ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
 		fmt.Println("recording token address:", tokenAddress)
 		fmt.Println("recording token amount:", tokenAmount.Int64())
 
-		if err := account.Record(tokenAddress, tokenAmount.Int64()); err != nil {
+		if err := account.Record(tokenAmount.Int64()); err != nil {
 			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
 			return
 		}
@@ -238,21 +238,19 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		account := ledger.Account(channelID.Hex(), openDirectChannel.ParticipantA)
+		account := ledger.SelectBeneficiaryAccount(channelID.Hex(), openDirectChannel.ParticipantA)
 
 		err = ledger.db.Transaction(func(tx *gorm.DB) error {
 			account.db = tx
-			balances, err := account.Balances()
+			balance, err := account.Balance()
 			if err != nil {
 				log.Printf("[ChannelCreated] Error getting balances for participant: %v", err)
 				return err
 			}
 
-			for tokenAddress, balance := range balances {
-				if err := account.Record(tokenAddress, -balance); err != nil {
-					log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
-					return err
-				}
+			if err := account.Record(-balance); err != nil {
+				log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
+				return err
 			}
 
 			err = CloseChannel(tx, channelID.Hex())

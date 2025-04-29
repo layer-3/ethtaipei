@@ -4,13 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
-
-	"github.com/erc7824/go-nitrolite"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // RPCData represents the common structure for both requests and responses
@@ -75,10 +70,10 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 
 // RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
-	Req        RPCData      `json:"req"`
-	AppID      string       `json:"app_id,omitempty"` // If cid is specified, message is sent to the virtual app.
-	Allocation []Allocation `json:"out,omitempty"`
-	Sig        []string     `json:"sig"`
+	Req       RPCData  `json:"req"`
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
+	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	Sig       []string `json:"sig"`
 }
 
 // Allocation represents a token allocation for a specific participant
@@ -90,10 +85,10 @@ type Allocation struct {
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
-	Res        RPCData      `json:"res"`
-	AppID      string       `json:"app_id,omitempty"` // If cid is specified, message is sent to the virtual app.
-	Allocation []Allocation `json:"out,omitempty"`
-	Sig        []string     `json:"sig"`
+	Res       RPCData  `json:"res"`
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
+	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	Sig       []string `json:"sig"`
 }
 
 // ParseRPCMessage parses a JSON string into a RPCRequest
@@ -116,32 +111,4 @@ func CreateResponse(requestID uint64, method string, responseParams []any, newTi
 		},
 		Sig: []string{},
 	}
-}
-
-// ValidateSignature validates the signature of a message against the provided address
-// It returns true if the signature is valid, false otherwise
-// It can be used for any message that follows the RPC protocol
-func ValidateSignature(message []byte, signature string, address string) (bool, error) {
-	// Decode the signature from hex
-	sigBytes, err := hexutil.Decode(signature)
-	if err != nil || len(sigBytes) != 65 {
-		return false, errors.New("invalid signature format")
-	}
-
-	// Create a nitrolite.Signature from r, s, v components
-	var sig nitrolite.Signature
-	copy(sig.R[:], sigBytes[0:32])
-	copy(sig.S[:], sigBytes[32:64])
-	sig.V = sigBytes[64]
-
-	ethAddress := common.HexToAddress(address)
-
-	// Use nitrolite.Verify to validate the signature
-	isValid, err := nitrolite.Verify(message, sig, ethAddress)
-	if err != nil {
-		log.Printf("Signature verification error: %v", err)
-		return false, fmt.Errorf("signature verification error: %w", err)
-	}
-
-	return isValid, nil
 }
