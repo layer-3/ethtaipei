@@ -15,8 +15,8 @@ import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import { ActionButton } from '../ui/ActionButton';
-import { Hex } from 'viem';
-import { createCloseChannelMessage } from '@erc7824/nitrolite';
+import { Address, Hex } from 'viem';
+import { createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket';
 
 export function AccountInterface() {
@@ -206,6 +206,79 @@ export function AccountInterface() {
         }
     }, [isConnected, walletSnap.walletAddress, sendRequest, handleCloseChannel, getAccountInfo, getParticipants]);
 
+    const resizeChannel = useCallback(async () => {
+        const signer: WalletSigner = nitroSnap.stateSigner;
+
+        if (!isConnected || !walletSnap.walletAddress) {
+            console.error('WebSocket not connected or wallet not connected');
+            return;
+        }
+
+        setLoading((prev) => ({ ...prev, close: true }));
+
+        try {
+            const channelId = localStorage.getItem('nitrolite_channel_id') || '';
+            const state = localStorage.getItem('nitrolite_channel_state') || '';
+
+            if (!state) {
+                throw new Error('No channel state found. Please create a channel first.');
+            }
+
+            if (!channelId) {
+                throw new Error('No channel ID found. Please create a channel first.');
+            }
+
+            if (!nitroSnap.stateSigner) {
+                throw new Error('State signer not initialized. Please create a channel first.');
+            }
+
+            const fundDestination = walletSnap.walletAddress;
+
+            const parsedState = JSON.parse(state, (key, value) => {
+                // Convert strings that look like BigInts back to BigInt
+                if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                    return BigInt(value.substring(0, value.length - 1));
+                }
+                return value;
+            });
+
+            if (!parsedState || !parsedState.allocations || parsedState.allocations.length === 0) {
+                throw new Error('Invalid channel state. No allocations found.');
+            }
+
+            if (!nitroSnap.userAccountFromParticipants) {
+                throw new Error('User account not found in participants.');
+            }
+
+            console.log('parsedState.allocations[0]', parsedState.allocations[0]);
+            const participant_change = nitroSnap.userAccountFromParticipants.amount - parsedState.allocations[0].amount;
+
+            const resizeParams: any = [
+                {
+                    channel_id: channelId as Hex,
+                    participant_change: Number(participant_change),
+                    funds_destination: fundDestination as Address,
+                },
+            ];
+
+            const resizeChannel = await createResizeChannelMessage(signer.sign, resizeParams);
+
+            const response = await sendRequest(resizeChannel);
+
+            console.log('Resize channel response:', response);
+            // TODO: Add handleResizeChannel function for the onchain resize
+            // await handleCloseChannel(response);
+
+            await Promise.all([getAccountInfo(), getParticipants()]);
+
+            console.log('Channel closed successfully');
+        } catch (error) {
+            console.error('Error closing channel:', error);
+        } finally {
+            setLoading((prev) => ({ ...prev, close: false }));
+        }
+    }, [isConnected, walletSnap.walletAddress, sendRequest, handleCloseChannel, getAccountInfo, getParticipants]);
+
     const handleWithdrawal = useCallback(async () => {
         if (!isConnected || !walletSnap.walletAddress || !nitroSnap.client || !chainId) {
             console.error('WebSocket not connected, wallet not connected, client not initialized, or no active chain');
@@ -320,7 +393,9 @@ export function AccountInterface() {
 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-4">
-                    <ActionButton onClick={handleOpenDeposit}>Deposit</ActionButton>
+                    <ActionButton onClick={resizeChannel} disabled={loading.resize}>
+                        {loading.challenge ? 'Resizing...' : 'Resize'}
+                    </ActionButton>
                     <ActionButton
                         onClick={handleWithdrawal}
                         disabled={
