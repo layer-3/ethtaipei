@@ -447,7 +447,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 		},
 	}
 
-	stateDataStr := "0x0000000000000000000000000000000000000000000000000000000000001ec7"
+	stateDataStr := "0x"
 	stateData, err := hexutil.Decode(stateDataStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode state data: %w", err)
