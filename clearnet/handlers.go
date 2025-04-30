@@ -697,7 +697,7 @@ func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthMa
 // ResizeChannelParams represents parameters needed for resizing a direct channel
 type ResizeChannelParams struct {
 	ChannelID         string   `json:"channel_id"`
-	ParticipantChange *big.Int `json:"participant_change"` // ow much user wants to deposit or withdraw.
+	ParticipantChange *big.Int `json:"participant_change"` // how much user wants to deposit or withdraw.
 	FundsDestination  string   `json:"funds_destination"`
 }
 
