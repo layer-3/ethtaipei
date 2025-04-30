@@ -54,7 +54,7 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 
 	// Auto-migrate the models.
 	log.Println("Running database migrations...")
-	if err := db.AutoMigrate(&Entry{}, &Channel{}, &VApp{}); err != nil {
+	if err := db.AutoMigrate(&Entry{}, &Channel{}, &VApp{}, &RPCMessageDB{}); err != nil {
 		return nil, err
 	}
 	log.Println("Database migrations completed successfully")
@@ -149,6 +149,7 @@ func main() {
 	// Initialize global services.
 	channelService = NewChannelService(db)
 	ledger = NewLedger(db)
+	rpcMessageService := NewRPCMessageService(db)
 	signer, err := NewSigner(privateKeyHex)
 	if err != nil {
 		log.Fatalf("failed to initialise signer: %v", err)
@@ -173,7 +174,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, signer, channelService, ledger)
+	unifiedWSHandler := NewUnifiedWSHandler(centrifugeNode, signer, channelService, ledger, rpcMessageService)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Start the HTTP server.
