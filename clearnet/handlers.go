@@ -37,7 +37,7 @@ type CreateApplicationParams struct {
 	Allocations []int64       `json:"allocations"`
 }
 
-type RPCRequest struct {
+type CreateAppSignData struct {
 	RequestID uint64                    // will be the 0th element
 	Method    string                    // 1st element
 	Params    []CreateApplicationParams // 2nd element: a slice of your typed params
@@ -45,7 +45,7 @@ type RPCRequest struct {
 }
 
 // implements the array encoding you already have in JSON
-func (r RPCRequest) MarshalJSON() ([]byte, error) {
+func (r CreateAppSignData) MarshalJSON() ([]byte, error) {
 	// build a Go slice in the exact order you want
 	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
 	return json.Marshal(arr)
@@ -55,6 +55,19 @@ func (r RPCRequest) MarshalJSON() ([]byte, error) {
 type CloseApplicationParams struct {
 	AppID            string  `json:"app_id"`
 	FinalAllocations []int64 `json:"allocations"`
+}
+type CloseAppSignData struct {
+	RequestID uint64                   // will be the 0th element
+	Method    string                   // 1st element
+	Params    []CloseApplicationParams // 2nd element: a slice of your typed params
+	Timestamp uint64                   // 3rd element
+}
+
+// implements the array encoding you already have in JSON
+func (r CloseAppSignData) MarshalJSON() ([]byte, error) {
+	// build a Go slice in the exact order you want
+	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
+	return json.Marshal(arr)
 }
 
 // AppResponse represents response data for application operations
@@ -131,7 +144,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 	}
 	vAppID := nitrolite.GetChannelID(nitroliteChannel)
 
-	req := RPCRequest{
+	req := CreateAppSignData{
 		RequestID: rpc.Req.RequestID,
 		Method:    rpc.Req.Method,
 		Params:    []CreateApplicationParams{{Definition: createApp.Definition, Token: createApp.Token, Allocations: createApp.Allocations}},
@@ -441,14 +454,14 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 }
 
 // HandleCloseApplication closes a virtual app and redistributes funds to participants
-func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
+func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
 	// Extract parameters from the request
-	if len(req.Req.Params) < 1 {
+	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
 
 	var params CloseApplicationParams
-	paramsJSON, err := json.Marshal(req.Req.Params[0])
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
@@ -458,11 +471,19 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 	}
 
 	if params.AppID == "" || len(params.FinalAllocations) == 0 {
-		return nil, errors.New("missing required parameters: appId or allocations")
+		return nil, errors.New("missing required parameters: app_id or allocations")
 	}
 
-	reqBytes, err := json.Marshal(req.Req)
+	req := CloseAppSignData{
+		RequestID: rpc.Req.RequestID,
+		Method:    rpc.Req.Method,
+		Params:    []CloseApplicationParams{{AppID: params.AppID, FinalAllocations: params.FinalAllocations}},
+		Timestamp: rpc.Req.Timestamp,
+	}
+
+	reqBytes, err := json.Marshal(req)
 	if err != nil {
+		log.Printf("Failed to serialize message: %v", err)
 		return nil, errors.New("error serializing auth message")
 	}
 
@@ -485,7 +506,7 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 		}
 
 		var totalWeight int64
-		for _, sigHex := range req.Sig {
+		for _, sigHex := range rpc.Sig {
 			recovered, err := RecoverAddress(reqBytes, sigHex)
 			if err != nil {
 				return err
@@ -557,18 +578,8 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 		Status: string(ChannelStatusClosed),
 	}
 
-	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
-}
-
-// findAllocation retrieves the allocation for a specific participant
-func findAllocation(allocations []Allocation, participant string) *Allocation {
-	for _, alloc := range allocations {
-		if alloc.Participant == participant {
-			return &alloc
-		}
-	}
-	return nil
 }
 
 // BrokerConfig represents the broker configuration information
