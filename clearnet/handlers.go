@@ -37,6 +37,20 @@ type CreateApplicationParams struct {
 	Allocations []int64       `json:"allocations"`
 }
 
+type RPCRequest struct {
+	RequestID uint64                    // will be the 0th element
+	Method    string                    // 1st element
+	Params    []CreateApplicationParams // 2nd element: a slice of your typed params
+	Timestamp uint64                    // 3rd element
+}
+
+// implements the array encoding you already have in JSON
+func (r RPCRequest) MarshalJSON() ([]byte, error) {
+	// build a Go slice in the exact order you want
+	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
+	return json.Marshal(arr)
+}
+
 // CloseApplicationParams represents parameters needed for virtual app closure
 type CloseApplicationParams struct {
 	AppID            string       `json:"app_id"`
@@ -117,8 +131,16 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 	}
 	vAppID := nitrolite.GetChannelID(nitroliteChannel)
 
-	reqBytes, err := json.Marshal(rpc.Req)
+	req := RPCRequest{
+		RequestID: rpc.Req.RequestID,
+		Method:    rpc.Req.Method,
+		Params:    []CreateApplicationParams{{Definition: createApp.Definition, Token: createApp.Token, Allocations: createApp.Allocations}},
+		Timestamp: rpc.Req.Timestamp,
+	}
+
+	reqBytes, err := json.Marshal(req)
 	if err != nil {
+		log.Printf("Failed to serialize message: %v", err)
 		return nil, errors.New("error serializing auth message")
 	}
 
@@ -130,6 +152,15 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			TokenAddress: createApp.Token,
 			Amount:       big.NewInt(createApp.Allocations[i]),
 		}
+	}
+
+	recoveredAddresses := map[string]bool{}
+	for _, sig := range rpc.Sig {
+		addr, err := RecoverAddress(reqBytes, sig)
+		if err != nil {
+			return nil, errors.New("invalid signature")
+		}
+		recoveredAddresses[addr] = true
 	}
 
 	// Use a transaction to ensure atomicity for the entire operation
@@ -147,8 +178,8 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			}
 
 			if allocation.Amount.Sign() > 0 {
-				if err := validateSignature(reqBytes, rpc.Sig, allocation.Participant); err != nil {
-					return err
+				if !recoveredAddresses[allocation.Participant] {
+					return fmt.Errorf("missing signature for participant %s", allocation.Participant)
 				}
 			}
 
@@ -337,8 +368,9 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 		return nil, errors.New("error serializing auth message")
 	}
 
-	if err := validateSignature(reqBytes, rpc.Sig, channel.ParticipantA); err != nil {
-		return nil, err
+	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], channel.ParticipantA)
+	if err != nil || !isValid {
+		return nil, errors.New("invalid signature")
 	}
 
 	// Grab user balances
@@ -527,21 +559,6 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 
 	rpcResponse := CreateResponse(req.Req.RequestID, req.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
-}
-
-// validateSignature checks if signer's signature is present in a list of signatures.
-func validateSignature(reqBytes []byte, signatures []string, signer string) error {
-	valid := false
-	for _, sig := range signatures {
-		if isValid, _ := ValidateSignature(reqBytes, sig, signer); isValid {
-			valid = true
-			break
-		}
-	}
-	if !valid {
-		return fmt.Errorf("invalid or missing signature for participant: %s", signer)
-	}
-	return nil
 }
 
 // findAllocation retrieves the allocation for a specific participant
@@ -745,8 +762,9 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, errors.New("error serializing auth message")
 	}
 
-	if err := validateSignature(reqBytes, rpc.Sig, channel.ParticipantA); err != nil {
-		return nil, err
+	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], channel.ParticipantA)
+	if err != nil || !isValid {
+		return nil, errors.New("invalid signature")
 	}
 
 	// Get current account balance

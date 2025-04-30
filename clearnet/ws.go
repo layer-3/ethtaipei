@@ -272,9 +272,16 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 		return errors.New("Error validating signature")
 	}
 
-	// Validate the signature
-	err = validateSignature(reqBytes, rpcRequest.Sig, fromAddress)
-	if err != nil {
+	recoveredAddresses := map[string]bool{}
+	for _, sig := range rpcRequest.Sig {
+		addr, err := RecoverAddress(reqBytes, sig)
+		if err != nil {
+			return errors.New("invalid signature")
+		}
+		recoveredAddresses[addr] = true
+	}
+
+	if !recoveredAddresses[fromAddress] {
 		log.Printf("Signature validation failed: %v", err)
 		return errors.New("Invalid signature")
 	}
