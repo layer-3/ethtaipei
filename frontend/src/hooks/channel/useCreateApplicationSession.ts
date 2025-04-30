@@ -8,7 +8,7 @@ import { WalletSigner } from '@/websocket/crypto';
 import { useSnapshot } from 'valtio';
 import { SettingsStore } from '@/store';
 
-const DEFAULT_PROTOCOL = 'NitroRPC/0.1';
+const DEFAULT_PROTOCOL = 'nitroliterpc';
 const DEFAULT_WEIGHTS = [100, 0];
 const DEFAULT_QUORUM = 100;
 
@@ -50,19 +50,19 @@ export function useCreateApplicationSession() {
                     nonce: Date.now(),
                 };
 
-                const createAppRequest: CreateAppSessionRequest[] = [
-                    {
-                        definition: appDefinition,
-                        token: tokenAddress,
-                        allocations: [amountBigInt, zeroBigInt],
-                    },
-                ];
-
                 const initialIntent: Intent = [amountBigInt, zeroBigInt];
 
-                console.log('createAppRequest', signer, createAppRequest, initialIntent);
-
-                const signedMessage = await createAppSessionMessage(signer.sign, createAppRequest, initialIntent);
+                const signedMessage = await createAppSessionMessage(
+                    signer.sign,
+                    [
+                        {
+                            definition: appDefinition,
+                            token: tokenAddress,
+                            allocations: [amountBigInt, zeroBigInt],
+                        },
+                    ],
+                    initialIntent,
+                );
                 const response = await sendRequest(signedMessage);
 
                 if (response && response[0].app_id) {

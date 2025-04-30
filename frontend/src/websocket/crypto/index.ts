@@ -69,9 +69,8 @@ export const createEthersSigner = (privateKey: string): WalletSigner => {
                 try {
                     const messageBytes = ethers.utils.arrayify(ethers.utils.id(JSON.stringify(payload)));
 
-                    // Sign the hash directly without EIP-191 prefix
                     const flatSignature = await wallet._signingKey().signDigest(messageBytes);
-                    // Format signature as hex string
+
                     const signature = ethers.utils.joinSignature(flatSignature);
 
                     return signature as Hex;

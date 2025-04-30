@@ -83,6 +83,13 @@ export function usePaymentFlow({ isConnected, signer, sendRequest }: PaymentFlow
                     throw new Error('Failed to open virtual channel.');
                 }
 
+                // const appId = '0x850adbcfb2af07de69612abb91ffc08328d743c278a814b90ad7d4eec4aaab7d';
+                // current open
+                // const allocations = {
+                //     participantA: '0',
+                //     participantB: '0.00008',
+                // };
+
                 const allocations = {
                     participantA: '0',
                     participantB: amount,

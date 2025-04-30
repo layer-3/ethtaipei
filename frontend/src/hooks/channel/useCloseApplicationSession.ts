@@ -29,8 +29,8 @@ export function useCloseApplicationSession() {
                 }
 
                 const finalAllocations: any = [
-                    parseTokenUnits(tokenAddress, finalAllocationStr[0]),
-                    finalAllocationStr[1],
+                    Number(parseTokenUnits(tokenAddress, finalAllocationStr[0])),
+                    Number(finalAllocationStr[1]),
                 ];
 
                 const closeRequest: CloseAppSessionRequest = {

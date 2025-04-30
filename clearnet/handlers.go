@@ -209,16 +209,6 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		recoveredAddresses[addr] = true
 	}
 
-	recoveredAddresses := map[string]bool{}
-	for _, sig := range rpc.Sig {
-		addr, err := RecoverAddress(reqBytes, sig)
-		if err != nil {
-			return nil, errors.New("invalid signature")
-		}
-		fmt.Println("[CREATE APP] Recovered address from signature:", addr)
-		recoveredAddresses[addr] = true
-	}
-
 	// Use a transaction to ensure atomicity for the entire operation
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}

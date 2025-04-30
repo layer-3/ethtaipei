@@ -51,7 +51,7 @@ function HomePage() {
 
         const intervalId = setInterval(() => {
             getParticipants();
-        }, 2000);
+        }, 10000);
 
         return () => clearInterval(intervalId);
     }, [walletSnap.connected, isConnected, getParticipants]);
