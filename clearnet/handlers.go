@@ -763,26 +763,26 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		brokerPart = 0
 	}
 
-	allocations := []nitrolite.Allocation{
-		{
-			Destination: common.HexToAddress(params.FundsDestination),
-			Token:       common.HexToAddress(channel.Token),
-			Amount:      big.NewInt(balance),
-		},
-		{
-			Destination: common.HexToAddress(channel.ParticipantB),
-			Token:       common.HexToAddress(channel.Token),
-			Amount:      big.NewInt(brokerAllocation),
-		},
-	}
-
 	// Calculate the new channel amount
 	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
 	if newAmount.Sign() < 0 {
 		return nil, errors.New("invalid resize amount")
 	}
 
-	afterResize := []*big.Int{newAmount, big.NewInt(0)} // Always release broker funds if there is a surplus.
+	allocations := []nitrolite.Allocation{
+		{
+			Destination: common.HexToAddress(params.FundsDestination),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      newAmount,
+		},
+		{
+			Destination: common.HexToAddress(channel.ParticipantB),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      big.NewInt(0),
+		},
+	}
+
+	afterResize := []*big.Int{params.ParticipantChange, big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
 
 	intentionType, err := abi.NewType("int256[]", "", nil)
 	if err != nil {
