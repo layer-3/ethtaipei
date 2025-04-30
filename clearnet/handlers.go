@@ -90,7 +90,13 @@ type CloseChannelResponse struct {
 	StateData        string       `json:"state_data"`
 	FinalAllocations []Allocation `json:"allocations"`
 	StateHash        string       `json:"state_hash"`
-	HashSig          string       `json:"hash_sig"`
+	Signature        Signature    `json:"server_signature"`
+}
+
+type Signature struct {
+	V uint8  `json:"v,string"`
+	R string `json:"r,string"`
+	S string `json:"s,string"`
 }
 
 // HandleCreateApplication creates a virtual application between participants
@@ -427,7 +433,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 	}
 
 	stateHash := crypto.Keccak256Hash(encodedState).Hex()
-	sig, err := signer.Sign(encodedState)
+	sig, err := signer.NitroSign(encodedState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign state: %w", err)
 	}
@@ -438,7 +444,11 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: stateDataStr,
 		StateHash: stateHash,
-		HashSig:   hexutil.Encode(sig),
+		Signature: Signature{
+			V: sig.V,
+			R: hexutil.Encode(sig.R[:]),
+			S: hexutil.Encode(sig.S[:]),
+		},
 	}
 
 	for _, alloc := range allocations {
@@ -736,7 +746,7 @@ type ResizeChannelResponse struct {
 	Version     *big.Int     `json:"version"`
 	Allocations []Allocation `json:"allocations"`
 	StateHash   string       `json:"state_hash"`
-	HashSig     string       `json:"hash_sig"`
+	Signature   Signature    `json:"server_signature"`
 }
 
 // HandleResizeChannel processes a request to resize a direct payment channel
@@ -835,7 +845,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 
 	// Generate state hash and sign it
 	stateHash := crypto.Keccak256Hash(encodedState).Hex()
-	sig, err := signer.Sign(encodedState)
+	sig, err := signer.NitroSign(encodedState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign state: %w", err)
 	}
@@ -849,7 +859,11 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: hexutil.Encode(encodedIntentions),
 		StateHash: stateHash,
-		HashSig:   hexutil.Encode(sig),
+		Signature: Signature{
+			V: sig.V,
+			R: hexutil.Encode(sig.R[:]),
+			S: hexutil.Encode(sig.S[:]),
+		},
 	}
 
 	for _, alloc := range allocations {
