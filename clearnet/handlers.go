@@ -53,8 +53,8 @@ func (r RPCRequest) MarshalJSON() ([]byte, error) {
 
 // CloseApplicationParams represents parameters needed for virtual app closure
 type CloseApplicationParams struct {
-	AppID            string       `json:"app_id"`
-	FinalAllocations []Allocation `json:"allocations"`
+	AppID            string  `json:"app_id"`
+	FinalAllocations []int64 `json:"allocations"`
 }
 
 // AppResponse represents response data for application operations
@@ -501,16 +501,16 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 
 		fmt.Println("Quorum met:", totalWeight, "of", vApp.Quorum)
 
+		if len(params.FinalAllocations) != len(vApp.Participants) {
+			return errors.New("number of allocations must match number of participants")
+		}
+
 		// Process allocations
 		totalVirtualAppBalance, sumAllocations := int64(0), int64(0)
-		for _, participant := range vApp.Participants {
-			allocation := findAllocation(params.FinalAllocations, participant)
-			if allocation == nil || allocation.Amount == nil || allocation.Amount.Sign() < 0 {
+		for i, participant := range vApp.Participants {
+			allocation := params.FinalAllocations[i]
+			if allocation < 0 {
 				return errors.New("invalid allocation")
-			}
-
-			if allocation.TokenAddress != vApp.Token {
-				return errors.New("invalid token address in allocation")
 			}
 			// Adjust balances
 			virtualBalance := ledgerTx.SelectBeneficiaryAccount(vApp.AppID, participant)
@@ -530,10 +530,10 @@ func HandleCloseApplication(req *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 			}
 
 			toAccount := ledgerTx.SelectBeneficiaryAccount(directChannel.ChannelID, participant)
-			if err := toAccount.Record(allocation.Amount.Int64()); err != nil {
+			if err := toAccount.Record(allocation); err != nil {
 				return fmt.Errorf("failed to adjust direct balance for %s: %w", participant, err)
 			}
-			sumAllocations += allocation.Amount.Int64()
+			sumAllocations += allocation
 		}
 
 		if sumAllocations != totalVirtualAppBalance {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -205,23 +204,9 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 	accountB := ledger.SelectBeneficiaryAccount(vAppID, participantB)
 	require.NoError(t, accountB.Record(300))
 
-	// Create allocation parameters for closing
-	allocations := []Allocation{
-		{
-			Participant:  participantA,
-			TokenAddress: tokenAddress,
-			Amount:       big.NewInt(250), // Participant A gets more than initial deposit
-		},
-		{
-			Participant:  participantB,
-			TokenAddress: tokenAddress,
-			Amount:       big.NewInt(250), // Participant B gets less than initial deposit
-		},
-	}
-
 	closeParams := CloseApplicationParams{
 		AppID:            vAppID,
-		FinalAllocations: allocations,
+		FinalAllocations: []int64{250, 250},
 	}
 
 	// Create RPC request
