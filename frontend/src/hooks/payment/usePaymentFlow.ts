@@ -60,8 +60,6 @@ export function usePaymentFlow({ isConnected, signer, sendRequest }: PaymentFlow
                 return { success: false, error: errorMessage };
             }
 
-            console.log('signer', signer);
-
             try {
                 const openResult = await createApplicationSession(
                     signer,
@@ -82,13 +80,6 @@ export function usePaymentFlow({ isConnected, signer, sendRequest }: PaymentFlow
                 if (!appId) {
                     throw new Error('Failed to open virtual channel.');
                 }
-
-                // const appId = '0x850adbcfb2af07de69612abb91ffc08328d743c278a814b90ad7d4eec4aaab7d';
-                // current open
-                // const allocations = {
-                //     participantA: '0',
-                //     participantB: '0.00008',
-                // };
 
                 const allocations = {
                     participantA: '0',
