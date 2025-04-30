@@ -35,7 +35,6 @@ type CreateApplicationParams struct {
 	Definition  AppDefinition `json:"definition"`
 	Token       string        `json:"token"`
 	Allocations []int64       `json:"allocations"`
-	// Channels    []string      `json:"channels"`
 }
 
 // CloseApplicationParams represents parameters needed for virtual app closure
@@ -390,7 +389,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 
 	response := CloseChannelResponse{
 		ChannelID: channel.ChannelID,
-		Intent:    3,
+		Intent:    uint8(nitrolite.IntentFINALIZE),
 		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: stateDataStr,
 		StateHash: stateHash,
@@ -782,7 +781,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		},
 	}
 
-	afterResize := []*big.Int{params.ParticipantChange, big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
+	resizeAmounts := []*big.Int{params.ParticipantChange, big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
 
 	intentionType, err := abi.NewType("int256[]", "", nil)
 	if err != nil {
@@ -793,7 +792,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		{Type: intentionType},
 	}
 
-	encodedIntentions, err := intentionsArgs.Pack(afterResize)
+	encodedIntentions, err := intentionsArgs.Pack(resizeAmounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack intentions: %w", err)
 	}
@@ -817,7 +816,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 	// Create the response
 	response := ResizeChannelResponse{
 		ChannelID: channel.ChannelID,
-		Intent:    2,
+		Intent:    uint8(nitrolite.IntentRESIZE),
 		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: hexutil.Encode(encodedIntentions),
 		StateHash: stateHash,
