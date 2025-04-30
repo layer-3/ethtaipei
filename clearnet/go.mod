@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/centrifugal/centrifuge v0.35.0
-	github.com/erc7824/go-nitrolite v0.0.0-20250429120116-f9b602e5d3aa
+	github.com/erc7824/go-nitrolite v0.0.0-20250430093849-5c2862e9d523
 	github.com/ethereum/go-ethereum v1.15.8
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1

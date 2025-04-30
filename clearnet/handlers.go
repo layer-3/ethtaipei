@@ -776,12 +776,13 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		},
 	}
 
-	change := params.ParticipantChange.Int64()
-	if change+balance < 0 {
+	// Calculate the new channel amount
+	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
+	if newAmount.Sign() < 0 {
 		return nil, errors.New("invalid resize amount")
 	}
 
-	intentions := []*big.Int{big.NewInt(change + balance), big.NewInt(0)} // Always release broker funds if there is a surplus.
+	afterResize := []*big.Int{newAmount, big.NewInt(0)} // Always release broker funds if there is a surplus.
 
 	intentionType, err := abi.NewType("int256[]", "", nil)
 	if err != nil {
@@ -792,7 +793,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		{Type: intentionType},
 	}
 
-	encodedIntentions, err := intentionsArgs.Pack(intentions)
+	encodedIntentions, err := intentionsArgs.Pack(afterResize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack intentions: %w", err)
 	}
@@ -809,12 +810,6 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 	sig, err := signer.Sign(encodedState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign state: %w", err)
-	}
-
-	// Calculate the new channel amount
-	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
-	if newAmount.Sign() < 0 {
-		return nil, errors.New("channel amount cannot be negative")
 	}
 
 	// TODO: Before that block balance operations until Resized event confirmation.
