@@ -59,6 +59,7 @@ type CloseChannelParams struct {
 // CloseChannelResponse represents the response for closing a direct channel
 type CloseChannelResponse struct {
 	ChannelID        string       `json:"channel_id"`
+	Intent           uint8        `json:"intent"`
 	Version          *big.Int     `json:"version"`
 	StateData        string       `json:"state_data"`
 	FinalAllocations []Allocation `json:"allocations"`
@@ -376,7 +377,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 	}
 
 	channelID := common.HexToHash(channel.ChannelID)
-	encodedState, err := nitrolite.EncodeState(channelID, stateData, allocations)
+	encodedState, err := nitrolite.EncodeState(channelID, nitrolite.IntentFINALIZE, big.NewInt(int64(channel.Version)+1), stateData, allocations)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode state hash: %w", err)
 	}
@@ -389,6 +390,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 
 	response := CloseChannelResponse{
 		ChannelID: channel.ChannelID,
+		Intent:    3,
 		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: stateDataStr,
 		StateHash: stateHash,
@@ -695,7 +697,7 @@ func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthMa
 // ResizeChannelParams represents parameters needed for resizing a direct channel
 type ResizeChannelParams struct {
 	ChannelID         string   `json:"channel_id"`
-	ParticipantChange *big.Int `json:"participant_change"` // hum much user wants to deposit or withdraw.
+	ParticipantChange *big.Int `json:"participant_change"` // ow much user wants to deposit or withdraw.
 	FundsDestination  string   `json:"funds_destination"`
 }
 
@@ -703,6 +705,7 @@ type ResizeChannelParams struct {
 type ResizeChannelResponse struct {
 	ChannelID   string       `json:"channel_id"`
 	StateData   string       `json:"state_data"`
+	Intent      uint8        `json:"intent"`
 	Version     *big.Int     `json:"version"`
 	Allocations []Allocation `json:"allocations"`
 	StateHash   string       `json:"state_hash"`
@@ -760,16 +763,16 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		brokerPart = 0
 	}
 
-	allocations := []Allocation{
+	allocations := []nitrolite.Allocation{
 		{
-			Participant:  params.FundsDestination,
-			TokenAddress: channel.Token,
-			Amount:       big.NewInt(balance),
+			Destination: common.HexToAddress(params.FundsDestination),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      big.NewInt(balance),
 		},
 		{
-			Participant:  channel.ParticipantB,
-			TokenAddress: channel.Token,
-			Amount:       big.NewInt(brokerAllocation),
+			Destination: common.HexToAddress(channel.ParticipantB),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      big.NewInt(brokerAllocation),
 		},
 	}
 
@@ -778,7 +781,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, errors.New("invalid resize amount")
 	}
 
-	intentions := []*big.Int{big.NewInt(change), big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
+	intentions := []*big.Int{big.NewInt(change + balance), big.NewInt(0)} // Always release broker funds if there is a surplus.
 
 	intentionType, err := abi.NewType("int256[]", "", nil)
 	if err != nil {
@@ -796,9 +799,9 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 
 	// Encode the channel ID and state for signing
 	channelID := common.HexToHash(channel.ChannelID)
-	encodedState, err := EncodeState(channelID, encodedIntentions, allocations)
+	encodedState, err := nitrolite.EncodeState(channelID, nitrolite.IntentRESIZE, big.NewInt(int64(channel.Version)+1), encodedIntentions, allocations)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode state: %w", err)
+		return nil, fmt.Errorf("failed to encode state hash: %w", err)
 	}
 
 	// Generate state hash and sign it
@@ -818,61 +821,23 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 
 	// Create the response
 	response := ResizeChannelResponse{
-		ChannelID:   channel.ChannelID,
-		Version:     big.NewInt(int64(channel.Version) + 1),
-		StateData:   hexutil.Encode(encodedIntentions),
-		StateHash:   stateHash,
-		Allocations: allocations,
-		HashSig:     hexutil.Encode(sig),
+		ChannelID: channel.ChannelID,
+		Intent:    2,
+		Version:   big.NewInt(int64(channel.Version) + 1),
+		StateData: hexutil.Encode(encodedIntentions),
+		StateHash: stateHash,
+		HashSig:   hexutil.Encode(sig),
+	}
+
+	for _, alloc := range allocations {
+		response.Allocations = append(response.Allocations, Allocation{
+			Participant:  alloc.Destination.Hex(),
+			TokenAddress: alloc.Token.Hex(),
+			Amount:       alloc.Amount,
+		})
 	}
 
 	// Create the RPC response
 	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
-}
-
-// EncodeState encodes channel state into a byte array using channelID, state data, and allocations.
-func EncodeState(channelID common.Hash, stateData []byte, allocations []Allocation) ([]byte, error) {
-	allocationType, err := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
-		{
-			Name: "destination",
-			Type: "address",
-		},
-		{
-			Name: "token",
-			Type: "address",
-		},
-		{
-			Name: "amount",
-			Type: "uint256",
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var allocValues []any
-	for _, alloc := range allocations {
-		allocValues = append(allocValues, struct {
-			Destination common.Address
-			Token       common.Address
-			Amount      *big.Int
-		}{
-			Destination: common.HexToAddress(alloc.Participant),
-			Token:       common.HexToAddress(alloc.TokenAddress),
-			Amount:      alloc.Amount,
-		})
-	}
-
-	args := abi.Arguments{
-		{Type: abi.Type{T: abi.FixedBytesTy, Size: 32}}, // channelId
-		{Type: abi.Type{T: abi.BytesTy}},                // data
-		{Type: allocationType},                          // allocations as tuple[]
-	}
-
-	packed, err := args.Pack(channelID, stateData, allocations)
-	if err != nil {
-		return nil, err
-	}
-	return packed, nil
 }
