@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/erc7824/go-nitrolite"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -189,7 +191,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		encodedState, err := nitrolite.EncodeState(ev.ChannelId, ev.Initial.Data, ev.Initial.Allocations)
+		encodedState, err := nitrolite.EncodeState(ev.ChannelId, nitrolite.IntentINITIALIZE, big.NewInt(0), ev.Initial.Data, ev.Initial.Allocations)
 		if err != nil {
 			log.Printf("[ChannelCreated] Error encoding state hash: %v", err)
 			return
@@ -232,15 +234,28 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		log.Printf("Closed event data: %+v\n", ev)
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
-		openDirectChannel, err := channelService.GetChannelByID(channelID.Hex())
-		if err != nil {
-			log.Printf("[Closed] Error creating/updating channel in database: %v", err)
-			return
-		}
-
-		account := ledger.SelectBeneficiaryAccount(channelID.Hex(), openDirectChannel.ParticipantA)
 
 		err = ledger.db.Transaction(func(tx *gorm.DB) error {
+			var channel Channel
+			result := tx.Where("channel_id = ?", channelID.Hex()).First(&channel)
+			if result.Error != nil {
+				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+					return fmt.Errorf("channel with ID %s not found", channelID)
+				}
+				return fmt.Errorf("error finding channel: %w", result.Error)
+			}
+
+			// Update the channel status to "closed"
+			channel.Status = ChannelStatusClosed
+			participantA := channel.ParticipantA
+			channel.Amount = 0
+			channel.UpdatedAt = time.Now()
+			channel.Version++
+			if err := tx.Save(&channel).Error; err != nil {
+				return fmt.Errorf("failed to close channel: %w", err)
+			}
+
+			account := ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
 			account.db = tx
 			balance, err := account.Balance()
 			if err != nil {
@@ -253,13 +268,39 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 				return err
 			}
 
-			err = CloseChannel(tx, channelID.Hex())
-			if err != nil {
-				log.Printf("[Closed] Error closing channel: %v", err)
-				return err
-			}
+			log.Printf("Closed channel with ID: %s", channelID)
+
 			return nil
 		})
+		if err != nil {
+			log.Printf("[Closed] Error closing channel in database: %v", err)
+			return
+		}
+	case custodyAbi.Events["Resized"].ID:
+		ev, err := c.custody.ParseResized(l)
+		if err != nil {
+			log.Println("error parsing ChannelJoined event:", err)
+			return
+		}
+		log.Printf("Closed event data: %+v\n", ev)
+
+		channelID := common.BytesToHash(ev.ChannelId[:])
+
+		change := ev.DeltaAllocations[0]
+		var channel Channel
+		result := ledger.db.Where("channel_id = ?", channelID).First(&channel)
+		if result.Error != nil {
+			log.Println("error finding channel:", result.Error)
+			return
+		}
+
+		channel.Amount += change.Int64()
+		channel.UpdatedAt = time.Now()
+		channel.Version++
+		if err := ledger.db.Save(&channel).Error; err != nil {
+			log.Printf("[Resized] Error saving channel in database: %v", err)
+			return
+		}
 	default:
 		fmt.Println("Unknown event ID:", eventID.Hex())
 	}

@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Test single file: `go test -v ./path/to/file_test.go`
 - Test specific function: `go test -v -run TestFunctionName`
 - Run with race detector: `go test -race ./...`
+- Contract bindings: https://raw.githubusercontent.com/erc7824/go-nitrolite/refs/heads/main/bindings.go
 
 ## Code Style Guidelines
 - Follow standard Go conventions (gofmt)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/erc7824/go-nitrolite"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,7 +35,6 @@ type CreateApplicationParams struct {
 	Definition  AppDefinition `json:"definition"`
 	Token       string        `json:"token"`
 	Allocations []int64       `json:"allocations"`
-	// Channels    []string      `json:"channels"`
 }
 
 // CloseApplicationParams represents parameters needed for virtual app closure
@@ -58,6 +58,8 @@ type CloseChannelParams struct {
 // CloseChannelResponse represents the response for closing a direct channel
 type CloseChannelResponse struct {
 	ChannelID        string       `json:"channel_id"`
+	Intent           uint8        `json:"intent"`
+	Version          *big.Int     `json:"version"`
 	StateData        string       `json:"state_data"`
 	FinalAllocations []Allocation `json:"allocations"`
 	StateHash        string       `json:"state_hash"`
@@ -374,7 +376,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 	}
 
 	channelID := common.HexToHash(channel.ChannelID)
-	encodedState, err := nitrolite.EncodeState(channelID, stateData, allocations)
+	encodedState, err := nitrolite.EncodeState(channelID, nitrolite.IntentFINALIZE, big.NewInt(int64(channel.Version)+1), stateData, allocations)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode state hash: %w", err)
 	}
@@ -387,6 +389,8 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 
 	response := CloseChannelResponse{
 		ChannelID: channel.ChannelID,
+		Intent:    uint8(nitrolite.IntentFINALIZE),
+		Version:   big.NewInt(int64(channel.Version) + 1),
 		StateData: stateDataStr,
 		StateHash: stateHash,
 		HashSig:   hexutil.Encode(sig),
@@ -687,4 +691,147 @@ func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthMa
 	}
 
 	return addr, nil
+}
+
+// ResizeChannelParams represents parameters needed for resizing a direct channel
+type ResizeChannelParams struct {
+	ChannelID         string   `json:"channel_id"`
+	ParticipantChange *big.Int `json:"participant_change"` // how much user wants to deposit or withdraw.
+	FundsDestination  string   `json:"funds_destination"`
+}
+
+// ResizeChannelResponse represents the response for resizing a direct channel
+type ResizeChannelResponse struct {
+	ChannelID   string       `json:"channel_id"`
+	StateData   string       `json:"state_data"`
+	Intent      uint8        `json:"intent"`
+	Version     *big.Int     `json:"version"`
+	Allocations []Allocation `json:"allocations"`
+	StateHash   string       `json:"state_hash"`
+	HashSig     string       `json:"hash_sig"`
+}
+
+// HandleResizeChannel processes a request to resize a direct payment channel
+func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
+	// Extract the channel parameters from the request
+	if len(rpc.Req.Params) < 1 {
+		return nil, errors.New("missing parameters")
+	}
+
+	// Parse the parameters
+	var params ResizeChannelParams
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
+	if err := json.Unmarshal(paramsJSON, &params); err != nil {
+		return nil, fmt.Errorf("invalid parameters format: %w", err)
+	}
+
+	if params.ParticipantChange == nil {
+		return nil, errors.New("missing participant change amount")
+	}
+
+	// Retrieve the channel
+	channel, err := channelService.GetChannelByID(params.ChannelID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find channel: %w", err)
+	}
+
+	// Verify signature of participant A (user)
+	reqBytes, err := json.Marshal(rpc.Req)
+	if err != nil {
+		return nil, errors.New("error serializing auth message")
+	}
+
+	if err := validateSignature(reqBytes, rpc.Sig, channel.ParticipantA); err != nil {
+		return nil, err
+	}
+
+	// Get current account balance
+	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+	balance, err := account.Balance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
+	}
+
+	brokerPart := channel.Amount - balance
+	brokerAllocation := int64(0)
+	if brokerPart < 0 {
+		brokerPart = 0
+	}
+
+	// Calculate the new channel amount
+	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
+	if newAmount.Sign() < 0 {
+		return nil, errors.New("invalid resize amount")
+	}
+
+	allocations := []nitrolite.Allocation{
+		{
+			Destination: common.HexToAddress(params.FundsDestination),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      newAmount,
+		},
+		{
+			Destination: common.HexToAddress(channel.ParticipantB),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      big.NewInt(0),
+		},
+	}
+
+	resizeAmounts := []*big.Int{params.ParticipantChange, big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
+
+	intentionType, err := abi.NewType("int256[]", "", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ABI type for intentions: %w", err)
+	}
+
+	intentionsArgs := abi.Arguments{
+		{Type: intentionType},
+	}
+
+	encodedIntentions, err := intentionsArgs.Pack(resizeAmounts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack intentions: %w", err)
+	}
+
+	// Encode the channel ID and state for signing
+	channelID := common.HexToHash(channel.ChannelID)
+	encodedState, err := nitrolite.EncodeState(channelID, nitrolite.IntentRESIZE, big.NewInt(int64(channel.Version)+1), encodedIntentions, allocations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode state hash: %w", err)
+	}
+
+	// Generate state hash and sign it
+	stateHash := crypto.Keccak256Hash(encodedState).Hex()
+	sig, err := signer.Sign(encodedState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign state: %w", err)
+	}
+
+	// TODO: Before that block balance operations until Resized event confirmation.
+
+	// Create the response
+	response := ResizeChannelResponse{
+		ChannelID: channel.ChannelID,
+		Intent:    uint8(nitrolite.IntentRESIZE),
+		Version:   big.NewInt(int64(channel.Version) + 1),
+		StateData: hexutil.Encode(encodedIntentions),
+		StateHash: stateHash,
+		HashSig:   hexutil.Encode(sig),
+	}
+
+	for _, alloc := range allocations {
+		response.Allocations = append(response.Allocations, Allocation{
+			Participant:  alloc.Destination.Hex(),
+			TokenAddress: alloc.Token.Hex(),
+			Amount:       alloc.Amount,
+		})
+	}
+
+	// Create the RPC response
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
+	return rpcResponse, nil
 }
