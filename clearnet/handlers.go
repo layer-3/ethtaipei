@@ -38,15 +38,13 @@ type CreateApplicationParams struct {
 }
 
 type CreateAppSignData struct {
-	RequestID uint64                    // will be the 0th element
-	Method    string                    // 1st element
-	Params    []CreateApplicationParams // 2nd element: a slice of your typed params
-	Timestamp uint64                    // 3rd element
+	RequestID uint64
+	Method    string
+	Params    []CreateApplicationParams
+	Timestamp uint64
 }
 
-// implements the array encoding you already have in JSON
 func (r CreateAppSignData) MarshalJSON() ([]byte, error) {
-	// build a Go slice in the exact order you want
 	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
 	return json.Marshal(arr)
 }
@@ -56,16 +54,15 @@ type CloseApplicationParams struct {
 	AppID            string  `json:"app_id"`
 	FinalAllocations []int64 `json:"allocations"`
 }
+
 type CloseAppSignData struct {
-	RequestID uint64                   // will be the 0th element
-	Method    string                   // 1st element
-	Params    []CloseApplicationParams // 2nd element: a slice of your typed params
-	Timestamp uint64                   // 3rd element
+	RequestID uint64
+	Method    string
+	Params    []CloseApplicationParams
+	Timestamp uint64
 }
 
-// implements the array encoding you already have in JSON
 func (r CloseAppSignData) MarshalJSON() ([]byte, error) {
-	// build a Go slice in the exact order you want
 	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
 	return json.Marshal(arr)
 }
@@ -97,6 +94,36 @@ type Signature struct {
 	V uint8  `json:"v,string"`
 	R string `json:"r,string"`
 	S string `json:"s,string"`
+}
+
+// ResizeChannelParams represents parameters needed for resizing a direct channel
+type ResizeChannelParams struct {
+	ChannelID         string   `json:"channel_id"`
+	ParticipantChange *big.Int `json:"participant_change"` // how much user wants to deposit or withdraw.
+	FundsDestination  string   `json:"funds_destination"`
+}
+
+// ResizeChannelResponse represents the response for resizing a direct channel
+type ResizeChannelResponse struct {
+	ChannelID   string       `json:"channel_id"`
+	StateData   string       `json:"state_data"`
+	Intent      uint8        `json:"intent"`
+	Version     *big.Int     `json:"version"`
+	Allocations []Allocation `json:"allocations"`
+	StateHash   string       `json:"state_hash"`
+	Signature   Signature    `json:"server_signature"`
+}
+
+type ResizeChannelSignData struct {
+	RequestID uint64
+	Method    string
+	Params    []ResizeChannelParams
+	Timestamp uint64
+}
+
+func (r ResizeChannelSignData) MarshalJSON() ([]byte, error) {
+	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
+	return json.Marshal(arr)
 }
 
 // HandleCreateApplication creates a virtual application between participants
@@ -731,24 +758,6 @@ func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthMa
 	return addr, nil
 }
 
-// ResizeChannelParams represents parameters needed for resizing a direct channel
-type ResizeChannelParams struct {
-	ChannelID         string   `json:"channel_id"`
-	ParticipantChange *big.Int `json:"participant_change"` // how much user wants to deposit or withdraw.
-	FundsDestination  string   `json:"funds_destination"`
-}
-
-// ResizeChannelResponse represents the response for resizing a direct channel
-type ResizeChannelResponse struct {
-	ChannelID   string       `json:"channel_id"`
-	StateData   string       `json:"state_data"`
-	Intent      uint8        `json:"intent"`
-	Version     *big.Int     `json:"version"`
-	Allocations []Allocation `json:"allocations"`
-	StateHash   string       `json:"state_hash"`
-	Signature   Signature    `json:"server_signature"`
-}
-
 // HandleResizeChannel processes a request to resize a direct payment channel
 func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	// Extract the channel parameters from the request
@@ -777,9 +786,16 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, fmt.Errorf("failed to find channel: %w", err)
 	}
 
-	// Verify signature of participant A (user)
-	reqBytes, err := json.Marshal(rpc.Req)
+	req := ResizeChannelSignData{
+		RequestID: rpc.Req.RequestID,
+		Method:    rpc.Req.Method,
+		Params:    []ResizeChannelParams{{ChannelID: params.ChannelID, ParticipantChange: params.ParticipantChange, FundsDestination: params.FundsDestination}},
+		Timestamp: rpc.Req.Timestamp,
+	}
+
+	reqBytes, err := json.Marshal(req)
 	if err != nil {
+		log.Printf("Failed to serialize message: %v", err)
 		return nil, errors.New("error serializing auth message")
 	}
 
