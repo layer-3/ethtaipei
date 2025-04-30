@@ -83,8 +83,8 @@ github.com/dolthub/maphash v0.1.0 h1:bsQ7JsF4FkkWyrP3oCnFJgrCUAFbFf3kOl4L/QxPDyQ
 github.com/dolthub/maphash v0.1.0/go.mod h1:gkg4Ch4CdCDu5h6PMriVLawB7koZ+5ijb9puGMV50a4=
 github.com/ebitengine/purego v0.8.2 h1:jPPGWs2sZ1UgOSgD2bClL0MJIqu58nOmIcBuXr62z1I=
 github.com/ebitengine/purego v0.8.2/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
-github.com/erc7824/go-nitrolite v0.0.0-20250430093849-5c2862e9d523 h1:mVPw4P8+JGZSGpaKj/b0CO5EaPqanGx2p6YgzGQtKB8=
-github.com/erc7824/go-nitrolite v0.0.0-20250430093849-5c2862e9d523/go.mod h1:Oa590wHOl72+/faePY3T7/gGenXyf08EOV19Y5SoWdc=
+github.com/erc7824/go-nitrolite v0.0.0-20250430150833-44ef2fcc89dc h1:APkaxOmPhnZFUVUGGlf2pwxXO7E+bD33lut0kOrZlgE=
+github.com/erc7824/go-nitrolite v0.0.0-20250430150833-44ef2fcc89dc/go.mod h1:Oa590wHOl72+/faePY3T7/gGenXyf08EOV19Y5SoWdc=
 github.com/ethereum/c-kzg-4844 v1.0.3 h1:IEnbOHwjixW2cTvKRUlAAUOeleV7nNM/umJR+qy4WDs=
 github.com/ethereum/c-kzg-4844 v1.0.3/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
 github.com/ethereum/go-ethereum v1.15.8 h1:H6NilvRXFVoHiXZ3zkuTqKW5XcxjLZniV5UjxJt1GJU=
