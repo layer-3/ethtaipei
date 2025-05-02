@@ -18,6 +18,7 @@ import { ActionButton } from '../ui/ActionButton';
 import { Address, Hex } from 'viem';
 import { createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket';
+import { useResize } from '@/hooks/channel/useResize';
 
 export function AccountInterface() {
     const walletSnap = useSnapshot(WalletStore.state);
@@ -42,6 +43,7 @@ export function AccountInterface() {
     const [localStorageAddress, setLocalStorageAddress] = useState<string>();
 
     const { handleCloseChannel } = useChannelClose();
+    const { handleResizeChannel } = useResize();
 
     // Get account info hook
     const { getAccountInfo } = useGetAccountInfo({
@@ -265,9 +267,7 @@ export function AccountInterface() {
 
             const response = await sendRequest(resizeChannel);
 
-            console.log('Resize channel response:', response);
-            // TODO: Add handleResizeChannel function for the onchain resize
-            // await handleCloseChannel(response);
+            await handleResizeChannel(response);
 
             await Promise.all([getAccountInfo(), getParticipants()]);
 
