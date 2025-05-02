@@ -80,6 +80,7 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 | `create_app_session` | Creates a new virtual application on a ledger |
 | `close_app_session` | Closes a virtual application |
 | `close_channel` | Closes a direct payment channel |
+| `resize_channel` | Adjusts channel capacity |
 | `message` | Sends a message to all participants in a virtual application |
 
 ## RPC Message Format
@@ -316,12 +317,7 @@ Creates a virtual application between participants.
       "nonce": 1
     },
     "token": "0xTokenAddress",
-    "allocations": [100, 100], // Target funding
-    "channels": ["0xAlice-Bob", "0xCharlie-Bob"],
-    "signers": [
-      "0x1234567890abcdef...",
-      "0x2345678901abcdef..."
-    ]
+    "allocations": [100, 100]
   }], 1619123456789],
   "int": [100, 100], // Initial funding intent from 0, 0
   "sig": ["0x9876fedcba..."]
@@ -378,7 +374,8 @@ Closes a direct channel between a participant and the broker.
 ```json
 {
   "req": [5, "close_channel", [{
-    "channel_id": "0x4567890123abcdef..."
+    "channel_id": "0x4567890123abcdef...",
+    "funds_destination": "0x1234567890abcdef..."
   }], 1619123456789],
   "sig": ["0x9876fedcba..."]
 }
@@ -390,6 +387,8 @@ Closes a direct channel between a participant and the broker.
 {
   "res": [5, "close_channel", [{
     "channel_id": "0x4567890123abcdef...",
+    "intent": 1,
+    "version": "123",
     "state_data": "0x0000000000000000000000000000000000000000000000000000000000001ec7",
     "allocations": [
       {
@@ -404,7 +403,60 @@ Closes a direct channel between a participant and the broker.
       }
     ],
     "state_hash": "0xLedgerStateHash",
-    "hash_sig": ["0xBrokerSignature"]
+    "server_signature": {
+      "v": "27",
+      "r": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "s": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    }
+  }], 1619123456789],
+  "sig": ["0xabcd1234..."]
+}
+```
+
+### Resize Channel
+
+Adjusts the capacity of a direct channel.
+
+**Request:**
+
+```json
+{
+  "req": [6, "resize_channel", [{
+    "channel_id": "0x4567890123abcdef...",
+    "participant_change": "50000",
+    "funds_destination": "0x1234567890abcdef..."
+  }], 1619123456789],
+  "sig": ["0x9876fedcba..."]
+}
+```
+
+**Response:**
+
+```json
+{
+  "res": [6, "resize_channel", [{
+    "channel_id": "0x4567890123abcdef...",
+    "intent": 2,
+    "version": "124",
+    "state_data": "0x0000000000000000000000000000000000000000000000000000000000002ec7",
+    "allocations": [
+      {
+        "destination": "0x1234567890abcdef...",
+        "token": "0xeeee567890abcdef...",
+        "amount": "100000"
+      },
+      {
+        "destination": "0xbbbb567890abcdef...", // Broker address
+        "token": "0xeeee567890abcdef...",
+        "amount": "0"
+      }
+    ],
+    "state_hash": "0xLedgerStateHash",
+    "server_signature": {
+      "v": "28",
+      "r": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "s": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    }
   }], 1619123456789],
   "sig": ["0xabcd1234..."]
 }
