@@ -29,10 +29,8 @@ interface WebSocketContextProps {
     disconnect: () => void;
     setNitroliteChannel: (channel: NitroliteChannel) => void;
     clearKeys: () => void;
-    subscribeToChannel: (channel: Channel) => Promise<void>;
-    sendMessage: (message: string, channelOverride?: Channel) => Promise<void>;
     sendPing: () => Promise<void>;
-    sendRequest: (methodName: string, params: unknown[]) => Promise<unknown>;
+    sendRequest: (payload: string) => Promise<unknown>;
 }
 
 const WebSocketContext = createContext<WebSocketContextProps | undefined>(undefined);
@@ -221,19 +219,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
     }, []);
 
-    const subscribeToChannel = useCallback(async (channel: Channel) => {
-        if (!clientRef.current?.isConnected) {
-            console.error('Cannot subscribe: Not connected.');
-            return;
-        }
-        try {
-            await clientRef.current.subscribe(channel);
-            setWsChannel(channel);
-        } catch (error) {
-            console.error(`Subscribe error: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }, []);
-
     const setNitroliteChannel = useCallback((nitroliteChannel: NitroliteChannel) => {
         if (!clientRef.current) {
             console.error('Cannot set Nitrolite channel: Client not initialized.');
@@ -241,24 +226,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         setCurrentNitroliteChannel(nitroliteChannel);
         clientRef.current.setNitroliteChannel(nitroliteChannel);
-    }, []);
-
-    const sendMessage = useCallback(async (message: string, channelOverride?: Channel) => {
-        const targetChannel = channelOverride || clientRef.current?.currentSubscribedChannel;
-
-        if (!clientRef.current?.isConnected) {
-            console.error('Cannot send message: Not connected.');
-            return;
-        }
-        if (!targetChannel) {
-            console.error('Cannot send message: No channel specified or subscribed.');
-            return;
-        }
-        try {
-            await clientRef.current.publishMessage(message, channelOverride);
-        } catch (error) {
-            console.error(`Send error: ${error instanceof Error ? error.message : String(error)}`);
-        }
     }, []);
 
     const sendPing = useCallback(async () => {
@@ -273,19 +240,21 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
     }, []);
 
-    const sendRequest = useCallback(async (methodName: string, params: unknown[]) => {
+    const sendRequest = useCallback(async (signedRequest) => {
         if (!clientRef.current?.isConnected) {
-            const errorMsg = `Cannot send request (${methodName}): Not connected.`;
+            const errorMsg = `Cannot send request (${signedRequest}): Not connected.`;
 
             console.error(errorMsg);
             throw new Error('WebSocket not connected');
         }
         try {
-            const response = await clientRef.current.sendRequest(methodName, params);
+            const response = await clientRef.current.sendRequest(signedRequest);
 
             return response;
         } catch (error) {
-            console.error(`Request error (${methodName}): ${error instanceof Error ? error.message : String(error)}`);
+            console.error(
+                `Request error (${signedRequest}): ${error instanceof Error ? error.message : String(error)}`,
+            );
             throw error;
         }
     }, []);
@@ -304,8 +273,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
             disconnect,
             setNitroliteChannel,
             clearKeys,
-            subscribeToChannel,
-            sendMessage,
             sendPing,
             sendRequest,
         }),
@@ -319,8 +286,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
             disconnect,
             setNitroliteChannel,
             clearKeys,
-            subscribeToChannel,
-            sendMessage,
             sendPing,
             sendRequest,
         ],

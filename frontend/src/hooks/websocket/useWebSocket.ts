@@ -21,8 +21,6 @@ export function useWebSocket() {
         disconnect: context.disconnect,
         setNitroliteChannel: context.setNitroliteChannel,
         clearKeys: context.clearKeys,
-        subscribeToChannel: context.subscribeToChannel,
-        sendMessage: context.sendMessage,
         sendPing: context.sendPing,
         sendRequest: context.sendRequest,
     };

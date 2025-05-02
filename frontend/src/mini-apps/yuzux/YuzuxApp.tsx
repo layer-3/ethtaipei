@@ -36,10 +36,10 @@ export function YuzuxApp() {
     }, [settingsSnap.activeChain]);
 
     const { getAccountInfo } = useGetAccountInfo({ activeChainId: chainId });
-    // Pass the necessary functions/state from the hook to useGetParticipants
+
     const { getParticipants } = useGetParticipants({
-        wsProps: { isConnected, connect, sendRequest },
-        activeChainId: chainId,
+        signer: nitroSnap.stateSigner,
+        sendRequest,
     });
 
     // Ensure keys exist and connect WebSocket when the app mounts or becomes visible

@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { NitroliteStore, WalletStore } from '@/store';
+import { Allocation } from '@erc7824/nitrolite';
+import { Address } from 'viem';
 
 // Define localStorage keys - must match those in useChannelCreate
 const STORAGE_KEYS = {
@@ -59,24 +61,28 @@ export function useChannelClose() {
             try {
                 const brokerState = finalState[0];
 
+                const finalStateData = {
+                    channelId: brokerState.channel_id,
+                    stateData: brokerState.state_data,
+                    version: brokerState.version,
+                    allocations: [
+                        {
+                            destination: brokerState.allocations[0].destination,
+                            token: brokerState.allocations[0].token,
+                            amount: brokerState.allocations[0].amount,
+                        },
+                        {
+                            destination: brokerState.allocations[1].destination,
+                            token: brokerState.allocations[1].token,
+                            amount: brokerState.allocations[1].amount,
+                        },
+                    ] as [Allocation, Allocation],
+                    serverSignature: brokerState['server_signature'],
+                };
+
                 await NitroliteStore.state.client.closeChannel({
-                    finalState: {
-                        channelId: brokerState.channel_id,
-                        stateData: brokerState.state_data,
-                        allocations: [
-                            {
-                                destination: brokerState.allocations[0].participant,
-                                token: brokerState.allocations[0].token_address,
-                                amount: brokerState.allocations[0].amount,
-                            },
-                            {
-                                destination: brokerState.allocations[1].participant,
-                                token: brokerState.allocations[1].token_address,
-                                amount: brokerState.allocations[1].amount,
-                            },
-                        ],
-                        serverSignature: brokerState['server_signature'],
-                    },
+                    stateData: brokerState.state_data,
+                    finalState: finalStateData,
                 });
 
                 clearStoredChannel();

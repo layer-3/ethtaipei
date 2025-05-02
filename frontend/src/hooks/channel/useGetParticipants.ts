@@ -1,63 +1,42 @@
 import { useCallback } from 'react';
-import APP_CONFIG from '@/config/app';
 import NitroliteStore from '@/store/NitroliteStore';
 import { Participant } from '@/store/types';
+import { Hex } from 'viem';
+import { WalletSigner } from '@/websocket/crypto';
+import { createGetLedgerBalancesMessage } from '@erc7824/nitrolite';
 
-interface useGetParticipantsParams {
-    wsProps: any;
-    activeChainId?: number;
+interface useGetLedgerBalancesParams {
+    signer: WalletSigner | null;
+    sendRequest: (signedMessage: string) => Promise<any>;
 }
 
-export function useGetParticipants({ wsProps, activeChainId }: useGetParticipantsParams) {
-    const { isConnected, connect, sendRequest } = wsProps;
-
+export function useGetParticipants({ signer, sendRequest }: useGetLedgerBalancesParams) {
     const getParticipants = useCallback(async () => {
-        console.log('Fetching participants...');
+        const channelId = localStorage.getItem('nitrolite_channel_id') as Hex;
 
-        if (!isConnected) {
-            try {
-                await connect();
-            } catch (error) {
-                console.error('Failed to connect WebSocket:', error);
-                return;
-            }
+        if (!signer) {
+            console.error('Signer not available.');
+            return;
         }
-
-        const tokenAddress = activeChainId && APP_CONFIG.TOKENS[activeChainId];
-        const message = {
-            token_address: tokenAddress,
-        };
-
-        if (!tokenAddress) {
-            console.error('Token address not found for active chain ID:', activeChainId);
+        if (!channelId) {
+            console.error('Channel ID not provided.');
             return;
         }
 
         try {
-            const response = await sendRequest('ListOpenParticipants', [message]);
-
-            console.log('Participants response:', response);
+            const signedMessage = await createGetLedgerBalancesMessage(signer.sign, channelId);
+            const response = await sendRequest(signedMessage);
 
             let participantsList: Participant[] = [];
 
-            if (response && Array.isArray(response)) {
-                const potentialRes = response as any;
-
-                if (
-                    potentialRes.res &&
-                    Array.isArray(potentialRes.res) &&
-                    potentialRes.res.length > 2 &&
-                    Array.isArray(potentialRes.res[2]) &&
-                    potentialRes.res[2][0] &&
-                    Array.isArray(potentialRes.res[2][0])
-                ) {
-                    participantsList = potentialRes.res[2][0];
-                } else if (response[0] && Array.isArray(response[0])) {
-                    participantsList = response[0];
-                } else if (response.length > 0 && response[0].address) {
-                    participantsList = response;
+            if (response && Array.isArray(response) && response.length > 0) {
+                if (Array.isArray(response) && Array.isArray(response[0])) {
+                    participantsList = response[0].map((p: any) => ({
+                        address: p.address as Hex,
+                        amount: BigInt(p.amount),
+                    }));
                 } else {
-                    console.warn('Participants list appears empty or has unexpected format:', response);
+                    console.warn('Ledger balances list appears empty or has unexpected format:', response);
                 }
             } else {
                 console.error('Unexpected response format:', response);
@@ -65,10 +44,10 @@ export function useGetParticipants({ wsProps, activeChainId }: useGetParticipant
 
             NitroliteStore.setParticipants(participantsList);
         } catch (error) {
-            console.error('Error getting participants:', error);
+            console.error('Error getting ledger balances:', error);
             NitroliteStore.setParticipants([]);
         }
-    }, [isConnected, connect, sendRequest, activeChainId]);
+    }, [signer, sendRequest]);
 
     return {
         getParticipants,

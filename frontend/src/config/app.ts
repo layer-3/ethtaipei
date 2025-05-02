@@ -31,7 +31,7 @@ export const APP_CONFIG = {
     },
 
     CUSTODIES: {
-        137: '0xDB33fEC4e2994a675133320867a6439Da4A5acD8' as Address,
+        137: '0xEd44dba5ECB7928032649EF0075258FA3aca508B' as Address,
         42220: '0xDB33fEC4e2994a675133320867a6439Da4A5acD8' as Address,
         1337: '0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE' as Address,
         80002: '0x65a995DFe6C14f604d91987A94054df990F88BBa' as Address,
@@ -40,12 +40,10 @@ export const APP_CONFIG = {
     DEFAULT_ADJUDICATOR: 'dummy',
 
     ADJUDICATORS: {
-        dummy: {
-            137: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
-            42220: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
-            1337: '0x5fbdb2315678afecb367f032d93f642f64180aa3' as Address,
-            80002: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
-        },
+        137: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
+        42220: '0xC2BA5c5E2c4848F64187Aa1F3f32a331b0C031b9' as Address,
+        1337: '0x5fbdb2315678afecb367f032d93f642f64180aa3' as Address,
+        80002: '0xE6586454A7fc0F74E8870263148014FEEAEAAe52' as Address,
     },
 };
 

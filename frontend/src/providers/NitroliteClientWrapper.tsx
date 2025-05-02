@@ -108,12 +108,7 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
 
                 const addresses: ContractAddresses = {
                     custody: APP_CONFIG.CUSTODIES[activeChain.id],
-                    adjudicators: {
-                        ...Object.fromEntries(
-                            Object.entries(APP_CONFIG.ADJUDICATORS).map(([key, value]) => [key, value[activeChain.id]]),
-                        ),
-                        default: APP_CONFIG.ADJUDICATORS['dummy'][activeChain.id],
-                    },
+                    adjudicator: APP_CONFIG.ADJUDICATORS[activeChain.id],
                     guestAddress: APP_CONFIG.CHANNEL.DEFAULT_GUEST as Hex,
                     tokenAddress: APP_CONFIG.TOKENS[activeChain.id] as Hex,
                 };

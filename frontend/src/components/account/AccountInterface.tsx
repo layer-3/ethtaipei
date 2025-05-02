@@ -15,7 +15,10 @@ import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import { ActionButton } from '../ui/ActionButton';
-import { Hex } from 'viem';
+import { Address, Hex } from 'viem';
+import { createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
+import { WalletSigner } from '@/websocket';
+import { useResize } from '@/hooks/channel/useResize';
 
 export function AccountInterface() {
     const walletSnap = useSnapshot(WalletStore.state);
@@ -27,7 +30,7 @@ export function AccountInterface() {
     const chainId = settingsSnap.activeChain?.id;
     const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
 
-    const { isConnected, sendRequest, connect } = useWebSocket();
+    const { isConnected, sendRequest } = useWebSocket();
 
     const [loading, setLoading] = useState<{ [key: string]: boolean }>({
         deposit: false,
@@ -40,16 +43,16 @@ export function AccountInterface() {
     const [localStorageAddress, setLocalStorageAddress] = useState<string>();
 
     const { handleCloseChannel } = useChannelClose();
+    const { handleResizeChannel } = useResize();
 
     // Get account info hook
     const { getAccountInfo } = useGetAccountInfo({
         activeChainId: settingsSnap.activeChain?.id,
     });
 
-    // Get participants info
     const { getParticipants } = useGetParticipants({
-        wsProps: { isConnected, connect, sendRequest },
-        activeChainId: chainId,
+        signer: nitroSnap.stateSigner,
+        sendRequest,
     });
 
     const handleOpenDeposit = useCallback(() => {
@@ -152,6 +155,7 @@ export function AccountInterface() {
             await nitroSnap.client.challengeChannel({
                 channelId: channelId,
                 candidateState: state,
+                proofStates: state,
             });
 
             // Refresh account info after challenging
@@ -166,6 +170,8 @@ export function AccountInterface() {
     }, [isConnected, walletSnap.walletAddress, nitroSnap.client, getAccountInfo, getParticipants]);
 
     const closeChannel = useCallback(async () => {
+        const signer: WalletSigner = nitroSnap.stateSigner;
+
         if (!isConnected || !walletSnap.walletAddress) {
             console.error('WebSocket not connected or wallet not connected');
             return;
@@ -180,14 +186,88 @@ export function AccountInterface() {
                 throw new Error('No channel ID found. Please create a channel first.');
             }
 
-            const closeDirectChannelParams = {
-                channel_id: channelId,
-                funds_destination: walletSnap.walletAddress,
-            };
+            if (!nitroSnap.stateSigner) {
+                throw new Error('State signer not initialized. Please create a channel first.');
+            }
 
-            const response = await sendRequest('CloseDirectChannel', [closeDirectChannelParams]);
+            const fundDestination = walletSnap.walletAddress;
+
+            const closeChannelMessage = await createCloseChannelMessage(signer.sign, channelId as Hex, fundDestination);
+
+            const response = await sendRequest(closeChannelMessage);
 
             await handleCloseChannel(response);
+
+            await Promise.all([getAccountInfo(), getParticipants()]);
+
+            console.log('Channel closed successfully');
+        } catch (error) {
+            console.error('Error closing channel:', error);
+        } finally {
+            setLoading((prev) => ({ ...prev, close: false }));
+        }
+    }, [isConnected, walletSnap.walletAddress, sendRequest, handleCloseChannel, getAccountInfo, getParticipants]);
+
+    const resizeChannel = useCallback(async () => {
+        const signer: WalletSigner = nitroSnap.stateSigner;
+
+        if (!isConnected || !walletSnap.walletAddress) {
+            console.error('WebSocket not connected or wallet not connected');
+            return;
+        }
+
+        setLoading((prev) => ({ ...prev, close: true }));
+
+        try {
+            const channelId = localStorage.getItem('nitrolite_channel_id') || '';
+            const state = localStorage.getItem('nitrolite_channel_state') || '';
+
+            if (!state) {
+                throw new Error('No channel state found. Please create a channel first.');
+            }
+
+            if (!channelId) {
+                throw new Error('No channel ID found. Please create a channel first.');
+            }
+
+            if (!nitroSnap.stateSigner) {
+                throw new Error('State signer not initialized. Please create a channel first.');
+            }
+
+            const fundDestination = walletSnap.walletAddress;
+
+            const parsedState = JSON.parse(state, (key, value) => {
+                // Convert strings that look like BigInts back to BigInt
+                if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                    return BigInt(value.substring(0, value.length - 1));
+                }
+                return value;
+            });
+
+            if (!parsedState || !parsedState.allocations || parsedState.allocations.length === 0) {
+                throw new Error('Invalid channel state. No allocations found.');
+            }
+
+            if (!nitroSnap.userAccountFromParticipants) {
+                throw new Error('User account not found in participants.');
+            }
+
+            console.log('parsedState.allocations[0]', parsedState.allocations[0]);
+            const participant_change = nitroSnap.userAccountFromParticipants.amount - parsedState.allocations[0].amount;
+
+            const resizeParams: any = [
+                {
+                    channel_id: channelId as Hex,
+                    participant_change: Number(participant_change),
+                    funds_destination: fundDestination as Address,
+                },
+            ];
+
+            const resizeChannel = await createResizeChannelMessage(signer.sign, resizeParams);
+
+            const response = await sendRequest(resizeChannel);
+
+            await handleResizeChannel(response);
 
             await Promise.all([getAccountInfo(), getParticipants()]);
 
@@ -313,7 +393,9 @@ export function AccountInterface() {
 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-4">
-                    <ActionButton onClick={handleOpenDeposit}>Deposit</ActionButton>
+                    <ActionButton onClick={resizeChannel} disabled={loading.resize}>
+                        {loading.challenge ? 'Resizing...' : 'Resize'}
+                    </ActionButton>
                     <ActionButton
                         onClick={handleWithdrawal}
                         disabled={
