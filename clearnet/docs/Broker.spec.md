@@ -25,10 +25,12 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 - The broker sets up message routing between participants
 
 ### 3. Virtual Application Operations
-- Participants send messages to each other through virtual applications using WebSocket connections
-- The broker maintains a real-time communication layer for message routing
+- Participants send both requests and responses to each other through virtual applications using WebSocket connections
+- Any message (request or response) with an AccountID (`acc` field) is forwarded to all other participants
+- The broker maintains a real-time bidirectional communication layer for message routing
 - Virtual applications have versioning and expiration mechanisms to ensure security
 - Participants can update the state of their application off-chain without requiring blockchain transactions
+- Intent-based balance transfers can be included in both request and response messages
 
 ### 4. Virtual Application Closure and Settlement
 - When participants wish to close a virtual application, all designated signers must provide signatures to authorize the closure
@@ -92,24 +94,22 @@ All messages exchanged between clients and Clearnet brokers follow this standard
 
 ```json
 {
-  "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP],
+  "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP, [INTENT]],
   "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
-  "int": [INTENT], // Optional allocation intent change
   "sig": ["SIGNATURE"]  // Client's signature of the entire "req" object
 }
 ```
 
+- The `req` field now contains the intent as its fifth element when present.
 - The `acc` field serves as both the subject and destination pubsub topic for the message. There is a one-to-one mapping between topics and ledger accounts.
-- The `int` field can be omitted if there is no allocation change in this request.
 - The `sig` field contains the rpcHash signature, ensuring proof-of-history integrity.
 
 ### Response Message
 
 ```json
 {
-  "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP],
+  "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP, [INTENT]],
   "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
-  "int": [INTENT],// Allocation intent change
   "sig": ["SIGNATURE"]
 }
 ```
@@ -120,8 +120,8 @@ The structure breakdown:
 - `METHOD`: The name of the method being called (string)
 - `PARAMETERS`/`RESPONSE_DATA`: An array of parameters/response data (array)
 - `TIMESTAMP`: Unix timestamp of the request/response (uint64)
+- `INTENT`: Optional array of allocation intent changes for token distributions between participants (included as fifth element of the array)
 - `ACCOUNT_ID` (`acc`): Ledger account identifier that serves as the destination pubsub topic for the message
-- `INTENT` (`int`): Optional allocation intent change for token distributions between participants
 - `SIGNATURE`: Cryptographic signature of the message.
 
 ## App Definition
@@ -143,12 +143,15 @@ The structure breakdown:
 ### Intent Format
 
 Intent specifies token distributions for a ledger allocation change.
-Values are arranged in the same order as the participants array.
+Values are arranged in the same order as the participants array and included as the fifth element in the RPCData array.
 
 #### Example
 
 ```json
-[-10, +10]
+{
+  "req": [123, "create_app_session", [...], 1619123456789, [-10, +10]],
+  ...
+}
 ```
 
 When creating a new app, the first Intent represents the initial allocation.
@@ -318,8 +321,7 @@ Creates a virtual application between participants.
     },
     "token": "0xTokenAddress",
     "allocations": [100, 100]
-  }], 1619123456789],
-  "int": [100, 100], // Initial funding intent from 0, 0
+  }], 1619123456789, [100, 100]], // Initial funding intent from 0, 0 as fifth element
   "sig": ["0x9876fedcba..."]
 }
 ```
@@ -347,8 +349,7 @@ Closes a virtual application and redistributes funds.
   "req": [4, "close_app_session", [{
     "app_id": "0x3456789012abcdef...",
     "allocations": [0, 200]
-  }], 1619123456789],
-  "int": [0, 200],
+  }], 1619123456789, [0, 200]],
   "sig": ["0x9876fedcba...", "0x8765fedcba..."]
 }
 ```
@@ -464,6 +465,8 @@ Adjusts the capacity of a channel.
 
 ## Peer-to-Peer Messaging
 
+The broker supports bi-directional peer-to-peer messaging between participants in a virtual application. Both requests and responses can be forwarded between participants when they include the `acc` field with the virtual application ID.
+
 ### Send Message in Virtual Application
 
 Sends a message to all participants in a virtual application.
@@ -481,6 +484,25 @@ Sends a message to all participants in a virtual application.
 ```
 
 This message is not acknowledged by the broker but is instead forwarded to all other participants in the specified virtual application.
+
+### Send Response in Virtual Application
+
+Responses can also be forwarded to all participants in a virtual application by including the `acc` field:
+
+```json
+{
+  "res": [6, "result", [{
+    "result": "Example operation completed successfully!"
+  }], 1619123456789],
+  "acc": "0x3456789012abcdef...", // Virtual application ID
+  "sig": ["0x9876fedcba..."]
+}
+```
+
+Both requests and responses with the `acc` field:
+1. Are validated using cryptographic signatures
+2. Can include Intent arrays for allocation changes
+3. Are forwarded to all other participants in the virtual application
 
 ## Utility Methods
 

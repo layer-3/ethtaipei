@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 // UnifiedWSHandler manages WebSocket connections with authentication
@@ -131,7 +132,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	log.Printf("Participant authenticated: %s", address)
 
 	for {
-		_, message, err := conn.ReadMessage()
+		_, messageBytes, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket unexpected close error: %v", err)
@@ -151,19 +152,27 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// Update session activity timestamp
 		h.authManager.UpdateSession(address)
 
-		var rpcRequest RPCMessage
-		if err := json.Unmarshal(message, &rpcRequest); err != nil {
+		var msg map[string]interface{}
+		if err := json.Unmarshal(messageBytes, &msg); err != nil {
 			h.sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
 		}
 
-		if rpcRequest.AccountID != "" {
-			handlerErr := forwardMessage(&rpcRequest, address, h)
+		// Forward message to app participants if AccountID is present.
+		if accountID, ok := msg["acc"]; ok && accountID != "" {
+			handlerErr := forwardMessage(msg, messageBytes, address, h)
 			if handlerErr != nil {
 				log.Printf("Error forwarding message: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send message: "+handlerErr.Error())
+				h.sendErrorResponse(0, "error", conn, "Failed to forward message: "+handlerErr.Error())
 				continue
 			}
+			continue
+
+		}
+
+		var rpcRequest RPCMessage
+		if err := json.Unmarshal(messageBytes, &rpcRequest); err != nil {
+			h.sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
 		}
 
@@ -267,36 +276,97 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 }
 
 // forwardMessage forwards an RPC message to all recipients in a virtual app
-func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHandler) error {
+func forwardMessage(genericMsg map[string]interface{}, msg []byte, fromAddress string, h *UnifiedWSHandler) error {
+	// Handle both requests and responses for in-app communication.
+	var rpcData RPCData
+	if req, ok := genericMsg["req"].(string); ok && req != "" {
+		if err := json.Unmarshal([]byte(req), &rpcData); err != nil {
+			return errors.New("failed to parse message: " + err.Error())
+		}
+	} else if res, ok := genericMsg["res"].(string); ok && res != "" {
+		if err := json.Unmarshal([]byte(res), &rpcData); err != nil {
+			return errors.New("failed to parse message: " + err.Error())
+		}
+	} else {
+		return errors.New("Invalid message format")
+	}
+
+	if err := json.Unmarshal(msg, &rpcData); err != nil {
+		return errors.New("failed to parse message: " + err.Error())
+	}
+
 	// Validate the signature for the message
-	reqBytes, err := json.Marshal(rpcRequest.Req)
+	reqBytes, err := json.Marshal(rpcData)
 	if err != nil {
-		log.Printf("Error serializing request for validation: %v", err)
-		return errors.New("Error validating signature")
+		return errors.New("Error validating signature: " + err.Error())
+	}
+
+	accountID := genericMsg["acc"].(string)
+	signatures, ok := genericMsg["sig"].([]string)
+	if !ok || len(signatures) == 0 {
+		return errors.New("missing signatures")
 	}
 
 	recoveredAddresses := map[string]bool{}
-	for _, sig := range rpcRequest.Sig {
+	for _, sig := range signatures {
 		addr, err := RecoverAddress(reqBytes, sig)
 		if err != nil {
-			return errors.New("invalid signature")
+			return errors.New("invalid signature: " + err.Error())
 		}
 		recoveredAddresses[addr] = true
 	}
 
-	if !recoveredAddresses[fromAddress] {
-		log.Printf("Signature validation failed: %v", err)
-		return errors.New("Invalid signature")
-	}
+	var participants []string
+	err = h.ledger.db.Transaction(func(tx *gorm.DB) error {
+		var vApp VApp
+		if err := tx.Where("app_id = ?", accountID).First(&vApp).Error; err != nil {
+			return errors.New("failed to find virtual app: " + err.Error())
+		}
+		participants = vApp.Participants
 
-	// TODO: use cache, do not go to database on each request.
-	var vApp VApp
-	if err := h.ledger.db.Where("app_id = ?", rpcRequest.AccountID).First(&vApp).Error; err != nil {
-		return errors.New("failed to find virtual app: " + err.Error())
+		// Update ledger with the new intent if present
+		if len(rpcData.Intent) != 0 {
+			if len(participants) != len(rpcData.Intent) {
+				return errors.New("Invalid intent length")
+			}
+
+			// TODO: add quorum for intentions verification.
+			var totalIntent int64 = 0
+			for _, value := range rpcData.Intent {
+				totalIntent += value
+			}
+			if totalIntent != 0 {
+				return errors.New("Invalid intent: sum of all intents must be 0")
+			}
+
+			participantsBalances, err := GetAccountBalances(tx, accountID)
+			if err != nil {
+				return errors.New("Failed to get participant balance: " + err.Error())
+			}
+
+			for i, participantBalance := range participantsBalances {
+				if participantBalance.Amount+rpcData.Intent[i] < 0 {
+					return errors.New("Invalid intent: insufficient balance for participant " + participantBalance.Address)
+				}
+			}
+
+			// Iterate over participants to keep same order with intent
+			for i, participant := range participants {
+				account := h.ledger.SelectBeneficiaryAccount(accountID, participant)
+				if err := account.Record(rpcData.Intent[i]); err != nil {
+					return errors.New("Failed to record intent: " + err.Error())
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	// Iterate over all recipients in a virtual app and send the message
-	for _, recipient := range vApp.Participants {
+	for _, recipient := range participants {
 		if recipient == fromAddress {
 			continue
 		}
@@ -305,8 +375,6 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 		recipientConn, exists := h.connections[recipient]
 		h.connectionsMu.RUnlock()
 		if exists {
-			msg, _ := json.Marshal(rpcRequest)
-
 			// Use NextWriter for safer message delivery
 			w, err := recipientConn.NextWriter(websocket.TextMessage)
 			if err != nil {

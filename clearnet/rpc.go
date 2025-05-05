@@ -9,12 +9,13 @@ import (
 )
 
 // RPCData represents the common structure for both requests and responses
-// Format: [request_id, method, params, ts]
+// Format: [request_id, method, params, ts, intent]
 type RPCData struct {
 	RequestID uint64
 	Method    string
 	Params    []any
 	Timestamp uint64
+	Intent    []int64
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for RPCMessage
@@ -25,9 +26,9 @@ func (m *RPCData) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Validate array length
-	if len(rawMsg) != 4 {
-		return errors.New("invalid message format: expected 4 elements")
+	// Validate array length (4 or 5 elements)
+	if len(rawMsg) < 4 || len(rawMsg) > 5 {
+		return errors.New("invalid message format: expected 4 or 5 elements")
 	}
 
 	// Parse RequestID (uint64)
@@ -54,12 +55,30 @@ func (m *RPCData) UnmarshalJSON(data []byte) error {
 	}
 	m.Timestamp = uint64(timestamp)
 
+	// Parse Intent if present ([]int64)
+	if len(rawMsg) == 5 {
+		var intent []int64
+		if err := json.Unmarshal(rawMsg[4], &intent); err != nil {
+			return fmt.Errorf("invalid intent: %w", err)
+		}
+		m.Intent = intent
+	}
+
 	return nil
 }
 
 // MarshalJSON implements the json.Marshaler interface for RPCMessage
 func (m RPCData) MarshalJSON() ([]byte, error) {
 	// Create array representation
+	if len(m.Intent) > 0 {
+		return json.Marshal([]any{
+			m.RequestID,
+			m.Method,
+			m.Params,
+			m.Timestamp,
+			m.Intent,
+		})
+	}
 	return json.Marshal([]any{
 		m.RequestID,
 		m.Method,
@@ -71,8 +90,7 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 // RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
 	Req       RPCData  `json:"req"`
-	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
-	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app with this account ID.
 	Sig       []string `json:"sig"`
 }
 
@@ -87,7 +105,6 @@ type Allocation struct {
 type RPCResponse struct {
 	Res       RPCData  `json:"res"`
 	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
-	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
 	Sig       []string `json:"sig"`
 }
 

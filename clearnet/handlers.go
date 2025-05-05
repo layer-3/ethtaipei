@@ -198,6 +198,10 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		return nil, errors.New("number of allocations must be equal to participants")
 	}
 
+	if len(createApp.Allocations) != len(rpc.Req.Intent) {
+		return nil, errors.New("number of allocations must be equal to intents")
+	}
+
 	if len(createApp.Definition.Weights) != len(createApp.Definition.Participants) {
 		return nil, errors.New("number of weights must be equal to participants")
 	}
@@ -232,16 +236,6 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		return nil, errors.New("error serializing message")
 	}
 
-	// Initial allocations from intent
-	allocations := make([]Allocation, len(createApp.Definition.Participants))
-	for i, participant := range createApp.Definition.Participants {
-		allocations[i] = Allocation{
-			Participant:  participant,
-			TokenAddress: createApp.Token,
-			Amount:       big.NewInt(createApp.Allocations[i]),
-		}
-	}
-
 	recoveredAddresses := map[string]bool{}
 	for _, sig := range rpc.Sig {
 		addr, err := RecoverAddress(reqBytes, sig)
@@ -255,33 +249,38 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}
 
-		for _, allocation := range allocations {
-			participantChannel, err := getChannelForParticipant(tx, allocation.Participant)
+		for i, participant := range createApp.Definition.Participants {
+			participantChannel, err := getChannelForParticipant(tx, participant)
 			if err != nil {
 				return err
 			}
+			allocation := big.NewInt(createApp.Allocations[i])
 
-			if allocation.Amount.Sign() < 0 {
+			if allocation != big.NewInt(rpc.Req.Intent[i]) {
+				return errors.New("intent must match allocation")
+			}
+
+			if allocation.Sign() < 0 {
 				return errors.New("invalid allocation")
 			}
 
-			if allocation.Amount.Sign() > 0 {
-				if !recoveredAddresses[allocation.Participant] {
-					return fmt.Errorf("missing signature for participant %s", allocation.Participant)
+			if allocation.Sign() > 0 {
+				if !recoveredAddresses[participant] {
+					return fmt.Errorf("missing signature for participant %s", participant)
 				}
 			}
 
-			account := ledgerTx.SelectBeneficiaryAccount(participantChannel.ChannelID, allocation.Participant)
+			account := ledgerTx.SelectBeneficiaryAccount(participantChannel.ChannelID, participant)
 			balance, err := account.Balance()
 			if err != nil {
 				return fmt.Errorf("failed to check participant balance: %w", err)
 			}
-			if balance < allocation.Amount.Int64() {
+			if balance < allocation.Int64() {
 				return errors.New("insufficient funds")
 			}
 
-			toAccount := ledgerTx.SelectBeneficiaryAccount(vAppID.Hex(), allocation.Participant)
-			if err := account.Transfer(toAccount, allocation.Amount.Int64()); err != nil {
+			toAccount := ledgerTx.SelectBeneficiaryAccount(vAppID.Hex(), participant)
+			if err := account.Transfer(toAccount, allocation.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds from participant: %w", err)
 			}
 		}
