@@ -58,8 +58,8 @@ func (s *ChannelService) CreateChannel(channelID, participantA string, nonce uin
 	channel := Channel{
 		ChannelID:    channelID,
 		ParticipantA: participantA,
-		ParticipantB: BrokerAddress, // Always use broker address for direct channels
-		NetworkID:    networkID,     // Set the network ID for real channels
+		ParticipantB: BrokerAddress, // Always use broker address for channels
+		NetworkID:    networkID,     // Set the network ID for channels
 		Status:       ChannelStatusOpen,
 		Nonce:        nonce,
 		Adjudicator:  adjudicator,
@@ -90,14 +90,14 @@ func (s *ChannelService) GetChannelByID(channelID string) (*Channel, error) {
 	return &channel, nil
 }
 
-// getDirectChannelForParticipant finds the direct channel between a participant and the broker
-func getDirectChannelForParticipant(tx *gorm.DB, participant string) (*Channel, error) {
-	var directChannel Channel
+// getChannelForParticipant finds the channel between a participant and the broker
+func getChannelForParticipant(tx *gorm.DB, participant string) (*Channel, error) {
+	var channel Channel
 	if err := tx.Where("participant_a = ? AND participant_b = ? AND status = ?",
-		participant, BrokerAddress, ChannelStatusOpen).Order("nonce DESC").First(&directChannel).Error; err != nil {
-		return nil, fmt.Errorf("no direct channel found for participant %s: %w", participant, err)
+		participant, BrokerAddress, ChannelStatusOpen).Order("nonce DESC").First(&channel).Error; err != nil {
+		return nil, fmt.Errorf("no channel found for participant %s: %w", participant, err)
 	}
-	return &directChannel, nil
+	return &channel, nil
 }
 
 // CheckExistingChannels checks if there is an existing open channel on the same network between participant A and B

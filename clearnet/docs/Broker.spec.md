@@ -16,12 +16,12 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 - After being credited from on-chain channels, participants can create virtual applications with other participants
 - Virtual applications allow participants to allocate a portion of their balance for peer-to-peer transactions without requiring on-chain operations
 - The broker validates that:
-  - All participants have direct channels with the broker
+  - All participants have channels with the broker
   - All participants have sufficient funds in their respective accounts
   - The requested allocation amounts are available
 - Participants must provide signatures to authorize application creation
 - The application can designate specific signers who will have authority over application closure
-- Funds are transferred from participants' direct channel accounts to the new virtual application
+- Funds are transferred from participants' channel accounts to the new virtual application
 - The broker sets up message routing between participants
 
 ### 3. Virtual Application Operations
@@ -35,7 +35,7 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 - The broker validates the signatures against the list of authorized signers registered during application creation
 - The broker validates the final allocation of funds between participants
 - The broker ensures the total allocated amount matches the total funds in the application
-- Funds are transferred from the virtual application back to the participants' direct channels according to the final allocations
+- Funds are transferred from the virtual application back to the participants' channels according to the final allocations
 - The virtual application is marked as closed and message routing is discontinued
 - When participants wish to materialize their balances on-chain, they can request the broker to re-open or update on-chain channels
 - Settlement is only performed when requested by participants, allowing most transactions to remain off-chain
@@ -79,7 +79,7 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 | `get_ledger_balances` | Lists participants and their balances for a ledger account |
 | `create_app_session` | Creates a new virtual application on a ledger |
 | `close_app_session` | Closes a virtual application |
-| `close_channel` | Closes a direct payment channel |
+| `close_channel` | Closes a payment channel |
 | `resize_channel` | Adjusts channel capacity |
 | `message` | Sends a message to all participants in a virtual application |
 
@@ -365,9 +365,9 @@ Closes a virtual application and redistributes funds.
 }
 ```
 
-### Close Direct Channel
+### Close Channel
 
-Closes a direct channel between a participant and the broker.
+Closes a channel between a participant and the broker.
 
 **Request:**
 
@@ -415,7 +415,7 @@ Closes a direct channel between a participant and the broker.
 
 ### Resize Channel
 
-Adjusts the capacity of a direct channel.
+Adjusts the capacity of a channel.
 
 **Request:**
 

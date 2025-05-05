@@ -169,7 +169,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		}
 
 		if existingOpenChannel != nil {
-			log.Printf("[ChannelCreated] An open direct channel with broker already exists: %s", existingOpenChannel.ChannelID)
+			log.Printf("[ChannelCreated] An open channel with broker already exists: %s", existingOpenChannel.ChannelID)
 			return
 		}
 

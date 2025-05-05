@@ -20,7 +20,7 @@ import (
 // AppDefinition represents the definition of an application on the ledger
 type AppDefinition struct {
 	Protocol     string   `json:"protocol"`
-	Participants []string `json:"participants"` // Participants from direct channels with broker.
+	Participants []string `json:"participants"` // Participants from channels with broker.
 	Weights      []int64  `json:"weights"`      // Signature weight for each participant.
 	Quorum       int      `json:"quorum"`
 	Challenge    uint64   `json:"challenge"`
@@ -70,14 +70,14 @@ type AppResponse struct {
 	Status string `json:"status"`
 }
 
-// ResizeChannelParams represents parameters needed for resizing a direct channel
+// ResizeChannelParams represents parameters needed for resizing a channel
 type ResizeChannelParams struct {
 	ChannelID         string   `json:"channel_id"`
 	ParticipantChange *big.Int `json:"participant_change"` // how much user wants to deposit or withdraw.
 	FundsDestination  string   `json:"funds_destination"`
 }
 
-// ResizeChannelResponse represents the response for resizing a direct channel
+// ResizeChannelResponse represents the response for resizing a channel
 type ResizeChannelResponse struct {
 	ChannelID   string       `json:"channel_id"`
 	StateData   string       `json:"state_data"`
@@ -100,13 +100,13 @@ func (r ResizeChannelSignData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(arr)
 }
 
-// CloseChannelParams represents parameters needed for direct channel closure
+// CloseChannelParams represents parameters needed for channel closure
 type CloseChannelParams struct {
 	ChannelID        string `json:"channel_id"`
 	FundsDestination string `json:"funds_destination"`
 }
 
-// CloseChannelResponse represents the response for closing a direct channel
+// CloseChannelResponse represents the response for closing a channel
 type CloseChannelResponse struct {
 	ChannelID        string       `json:"channel_id"`
 	Intent           uint8        `json:"intent"`
@@ -256,7 +256,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		ledgerTx := &Ledger{db: tx}
 
 		for _, allocation := range allocations {
-			participantChannel, err := getDirectChannelForParticipant(tx, allocation.Participant)
+			participantChannel, err := getChannelForParticipant(tx, allocation.Participant)
 			if err != nil {
 				return err
 			}
@@ -416,14 +416,14 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 				return fmt.Errorf("failed to adjust virtual balance for %s: %w", participant, err)
 			}
 
-			directChannel, err := getDirectChannelForParticipant(tx, participant)
+			channel, err := getChannelForParticipant(tx, participant)
 			if err != nil {
-				return fmt.Errorf("failed to find direct channel for %s: %w", participant, err)
+				return fmt.Errorf("failed to find channel for %s: %w", participant, err)
 			}
 
-			toAccount := ledgerTx.SelectBeneficiaryAccount(directChannel.ChannelID, participant)
+			toAccount := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, participant)
 			if err := toAccount.Record(allocation); err != nil {
-				return fmt.Errorf("failed to adjust direct balance for %s: %w", participant, err)
+				return fmt.Errorf("failed to adjust balance for %s: %w", participant, err)
 			}
 			sumAllocations += allocation
 		}
@@ -492,7 +492,7 @@ func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 	return rpcResponse, nil
 }
 
-// HandleResizeChannel processes a request to resize a direct payment channel
+// HandleResizeChannel processes a request to resize a payment channel
 func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
@@ -623,7 +623,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 	return rpcResponse, nil
 }
 
-// HandleCloseChannel processes a request to close a direct payment channel
+// HandleCloseChannel processes a request to close a payment channel
 func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
