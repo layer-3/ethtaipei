@@ -209,8 +209,6 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 			channelID, c.networkID)
 
 		account := ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
-		fmt.Println("recording token address:", tokenAddress)
-		fmt.Println("recording token amount:", tokenAmount.Int64())
 
 		if err := account.Record(tokenAmount.Int64()); err != nil {
 			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)

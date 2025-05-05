@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -14,8 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
@@ -73,29 +70,6 @@ type AppResponse struct {
 	Status string `json:"status"`
 }
 
-// CloseChannelParams represents parameters needed for direct channel closure
-type CloseChannelParams struct {
-	ChannelID        string `json:"channel_id"`
-	FundsDestination string `json:"funds_destination"`
-}
-
-// CloseChannelResponse represents the response for closing a direct channel
-type CloseChannelResponse struct {
-	ChannelID        string       `json:"channel_id"`
-	Intent           uint8        `json:"intent"`
-	Version          *big.Int     `json:"version"`
-	StateData        string       `json:"state_data"`
-	FinalAllocations []Allocation `json:"allocations"`
-	StateHash        string       `json:"state_hash"`
-	Signature        Signature    `json:"server_signature"`
-}
-
-type Signature struct {
-	V uint8  `json:"v,string"`
-	R string `json:"r,string"`
-	S string `json:"s,string"`
-}
-
 // ResizeChannelParams represents parameters needed for resizing a direct channel
 type ResizeChannelParams struct {
 	ChannelID         string   `json:"channel_id"`
@@ -126,14 +100,85 @@ func (r ResizeChannelSignData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(arr)
 }
 
+// CloseChannelParams represents parameters needed for direct channel closure
+type CloseChannelParams struct {
+	ChannelID        string `json:"channel_id"`
+	FundsDestination string `json:"funds_destination"`
+}
+
+// CloseChannelResponse represents the response for closing a direct channel
+type CloseChannelResponse struct {
+	ChannelID        string       `json:"channel_id"`
+	Intent           uint8        `json:"intent"`
+	Version          *big.Int     `json:"version"`
+	StateData        string       `json:"state_data"`
+	FinalAllocations []Allocation `json:"allocations"`
+	StateHash        string       `json:"state_hash"`
+	Signature        Signature    `json:"server_signature"`
+}
+
+type Signature struct {
+	V uint8  `json:"v,string"`
+	R string `json:"r,string"`
+	S string `json:"s,string"`
+}
+
+// AvailableBalance represents a participant's availability for virtual apps
+type AvailableBalance struct {
+	Address string `json:"address"`
+	Amount  int64  `json:"amount"`
+}
+
+// BrokerConfig represents the broker configuration information
+type BrokerConfig struct {
+	BrokerAddress string `json:"brokerAddress"`
+}
+
+// HandleGetConfig returns the broker configuration
+func HandleGetConfig(req *RPCMessage) (*RPCResponse, error) {
+	config := BrokerConfig{
+		BrokerAddress: BrokerAddress,
+	}
+
+	rpcResponse := CreateResponse(req.Req.RequestID, "get_config", []any{config}, time.Now())
+	return rpcResponse, nil
+}
+
+// HandlePing responds to a ping request with a pong response in RPC format
+func HandlePing(req *RPCMessage) (*RPCResponse, error) {
+	rpcResponse := CreateResponse(req.Req.RequestID, "pong", []any{}, time.Now())
+	return rpcResponse, nil
+}
+
+// HandleGetLedgerBalances returns a list of participants and their balances for a ledger account
+func HandleGetLedgerBalances(rpc *RPCMessage, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
+	var accountID string
+
+	if len(rpc.Req.Params) > 0 {
+		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
+		if err == nil {
+			var params map[string]string
+			if err := json.Unmarshal(paramsJSON, &params); err == nil {
+				accountID = params["acc"]
+			}
+		}
+	}
+
+	balances, err := GetAccountBalances(ledger.db, accountID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find account: %w", err)
+	}
+
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{balances}, time.Now())
+	return rpcResponse, nil
+}
+
 // HandleCreateApplication creates a virtual application between participants
 func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
-	// Extract the application parameters from the request
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
 
-	// Parse the parameters
 	var createApp CreateApplicationParams
 	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 	if err != nil {
@@ -143,8 +188,6 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 	if err := json.Unmarshal(paramsJSON, &createApp); err != nil {
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
-
-	log.Printf("Parsed parameters: %+v\n", createApp)
 
 	if len(createApp.Definition.Participants) < 2 {
 		return nil, errors.New("invalid number of participants")
@@ -186,8 +229,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
-		log.Printf("Failed to serialize message: %v", err)
-		return nil, errors.New("error serializing auth message")
+		return nil, errors.New("error serializing message")
 	}
 
 	// Initial allocations from intent
@@ -275,7 +317,6 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		return nil, err
 	}
 
-	// Create a response
 	response := &AppResponse{
 		AppID:  vAppID.Hex(),
 		Status: string(ChannelStatusOpen),
@@ -285,214 +326,8 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 	return rpcResponse, nil
 }
 
-// PublicMessageRequest represents a request to broadcast a message to all participants
-type PublicMessageRequest struct {
-	Message string `json:"message"`
-}
-
-// getApplicationRecipients handles sending a message through a virtual app
-func getApplicationRecipients(address, appID string, ledger *Ledger) ([]string, error) {
-	// TODO: use cache, do not go to database on each request.
-
-	// Query the database for the virtual app
-	var vApp VApp
-	if err := ledger.db.Where("app_id = ?", appID).First(&vApp).Error; err != nil {
-		return nil, fmt.Errorf("failed to find virtual app: %w", err)
-	}
-
-	// Exclude the sender address from the participants to send to
-	var participants []string
-	for _, participant := range vApp.Participants {
-		if participant != address {
-			participants = append(participants, participant)
-		}
-	}
-
-	return participants, nil
-}
-
-// AvailableBalance represents a participant's availability for virtual apps
-type AvailableBalance struct {
-	Address string `json:"address"`
-	Amount  int64  `json:"amount"`
-}
-
-// HandleGetLedgerBalances returns a list of participants and their balances for a ledger account
-func HandleGetLedgerBalances(rpc *RPCMessage, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
-	var accountID string
-
-	if len(rpc.Req.Params) > 0 {
-		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
-		if err == nil {
-			var params map[string]string
-			if err := json.Unmarshal(paramsJSON, &params); err == nil {
-				accountID = params["acc"]
-			}
-		}
-	}
-
-	balances, err := GetAccountBalances(ledger.db, accountID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find account: %w", err)
-	}
-
-	// Create the RPC response
-	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{balances}, time.Now())
-	return rpcResponse, nil
-
-}
-
-// HandleGetAppDefinition returns the application definition for a ledger account
-func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
-	var accountID string
-
-	if len(rpc.Req.Params) > 0 {
-		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
-		if err == nil {
-			var params map[string]string
-			if err := json.Unmarshal(paramsJSON, &params); err == nil {
-				accountID = params["acc"]
-			}
-		}
-	}
-
-	if accountID == "" {
-		return nil, errors.New("missing account ID")
-	}
-
-	// Get the application definition
-	var vApp VApp
-	if err := ledger.db.Where("app_id = ?", accountID).First(&vApp).Error; err != nil {
-		return nil, fmt.Errorf("failed to find application: %w", err)
-	}
-
-	// Create AppDefinition response
-	appDef := AppDefinition{
-		Protocol:     vApp.Protocol,
-		Participants: vApp.Participants,
-		Weights:      make([]int64, len(vApp.Participants)), // Default weights to 0 for now
-		Quorum:       vApp.Quorum,                           // Default quorum to 100 for now
-		Challenge:    vApp.Challenge,
-		Nonce:        vApp.Nonce,
-	}
-
-	for i := range vApp.Weights {
-		appDef.Weights[i] = vApp.Weights[i]
-	}
-
-	// Create the RPC response
-	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{appDef}, time.Now())
-	return rpcResponse, nil
-}
-
-// HandleCloseChannel processes a request to close a direct payment channel
-func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
-	// Extract the channel parameters from the request
-	if len(rpc.Req.Params) < 1 {
-		return nil, errors.New("missing parameters")
-	}
-
-	// Parse the parameters
-	var params CloseChannelParams
-	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
-
-	if err := json.Unmarshal(paramsJSON, &params); err != nil {
-		return nil, fmt.Errorf("invalid parameters format: %w", err)
-	}
-
-	// Grab channel
-	channel, err := channelService.GetChannelByID(params.ChannelID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find channel: %w", err)
-	}
-
-	reqBytes, err := json.Marshal(rpc.Req)
-	if err != nil {
-		return nil, errors.New("error serializing auth message")
-	}
-
-	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], channel.ParticipantA)
-	if err != nil || !isValid {
-		return nil, errors.New("invalid signature")
-	}
-
-	// Grab user balances
-	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
-	balance, err := account.Balance()
-	if err != nil {
-		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
-	}
-
-	if channel.Amount-balance < 0 {
-		return nil, errors.New("temporary dev error: resize this channel first")
-	}
-
-	if balance < 0 {
-		return nil, errors.New("insufficient funds for participant: " + channel.Token)
-	}
-
-	allocations := []nitrolite.Allocation{
-		{
-			Destination: common.HexToAddress(params.FundsDestination),
-			Token:       common.HexToAddress(channel.Token),
-			Amount:      big.NewInt(balance),
-		},
-		{
-			Destination: common.HexToAddress(channel.ParticipantB),
-			Token:       common.HexToAddress(channel.Token),
-			Amount:      big.NewInt(channel.Amount - balance), // Broker receives the remaining amount
-		},
-	}
-
-	stateDataStr := "0x"
-	stateData, err := hexutil.Decode(stateDataStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode state data: %w", err)
-	}
-
-	channelID := common.HexToHash(channel.ChannelID)
-	encodedState, err := nitrolite.EncodeState(channelID, nitrolite.IntentFINALIZE, big.NewInt(int64(channel.Version)+1), stateData, allocations)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode state hash: %w", err)
-	}
-
-	stateHash := crypto.Keccak256Hash(encodedState).Hex()
-	sig, err := signer.NitroSign(encodedState)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign state: %w", err)
-	}
-
-	response := CloseChannelResponse{
-		ChannelID: channel.ChannelID,
-		Intent:    uint8(nitrolite.IntentFINALIZE),
-		Version:   big.NewInt(int64(channel.Version) + 1),
-		StateData: stateDataStr,
-		StateHash: stateHash,
-		Signature: Signature{
-			V: sig.V,
-			R: hexutil.Encode(sig.R[:]),
-			S: hexutil.Encode(sig.S[:]),
-		},
-	}
-
-	for _, alloc := range allocations {
-		response.FinalAllocations = append(response.FinalAllocations, Allocation{
-			Participant:  alloc.Destination.Hex(),
-			TokenAddress: alloc.Token.Hex(),
-			Amount:       alloc.Amount,
-		})
-	}
-	// Create the RPC response
-	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
-	return rpcResponse, nil
-}
-
 // HandleCloseApplication closes a virtual app and redistributes funds to participants
 func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
-	// Extract parameters from the request
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
@@ -520,11 +355,9 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
-		log.Printf("Failed to serialize message: %v", err)
-		return nil, errors.New("error serializing auth message")
+		return nil, errors.New("error serializing message")
 	}
 
-	// Perform atomic transaction
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}
 
@@ -570,6 +403,7 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 			if allocation < 0 {
 				return errors.New("invalid allocation")
 			}
+
 			// Adjust balances
 			virtualBalance := ledgerTx.SelectBeneficiaryAccount(vApp.AppID, participant)
 			participantBalance, err := virtualBalance.Balance()
@@ -609,7 +443,6 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 		return nil, err
 	}
 
-	// Create response
 	response := &AppResponse{
 		AppID:  params.AppID,
 		Status: string(ChannelStatusClosed),
@@ -619,153 +452,52 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 	return rpcResponse, nil
 }
 
-// BrokerConfig represents the broker configuration information
-type BrokerConfig struct {
-	BrokerAddress string `json:"brokerAddress"`
-}
+// HandleGetAppDefinition returns the application definition for a ledger account
+func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
+	var accountID string
 
-// HandleGetConfig returns the broker configuration
-func HandleGetConfig(req *RPCMessage) (*RPCResponse, error) {
-	config := BrokerConfig{
-		BrokerAddress: BrokerAddress,
+	if len(rpc.Req.Params) > 0 {
+		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
+		if err == nil {
+			var params map[string]string
+			if err := json.Unmarshal(paramsJSON, &params); err == nil {
+				accountID = params["acc"]
+			}
+		}
 	}
 
-	rpcResponse := CreateResponse(req.Req.RequestID, "get_config", []any{config}, time.Now())
+	if accountID == "" {
+		return nil, errors.New("missing account ID")
+	}
+
+	var vApp VApp
+	if err := ledger.db.Where("app_id = ?", accountID).First(&vApp).Error; err != nil {
+		return nil, fmt.Errorf("failed to find application: %w", err)
+	}
+
+	appDef := AppDefinition{
+		Protocol:     vApp.Protocol,
+		Participants: vApp.Participants,
+		Weights:      make([]int64, len(vApp.Participants)), // Default weights to 0 for now
+		Quorum:       vApp.Quorum,                           // Default quorum to 100 for now
+		Challenge:    vApp.Challenge,
+		Nonce:        vApp.Nonce,
+	}
+
+	for i := range vApp.Weights {
+		appDef.Weights[i] = vApp.Weights[i]
+	}
+
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{appDef}, time.Now())
 	return rpcResponse, nil
-}
-
-// HandlePing responds to a ping request with a pong response in RPC format
-func HandlePing(req *RPCMessage) (*RPCResponse, error) {
-	rpcResponse := CreateResponse(req.Req.RequestID, "pong", []any{}, time.Now())
-	return rpcResponse, nil
-}
-
-// AuthResponse represents the server's challenge response
-type AuthResponse struct {
-	ChallengeMessage uuid.UUID `json:"challenge_message"` // The message to sign
-}
-
-// AuthVerifyParams represents parameters for completing authentication
-type AuthVerifyParams struct {
-	Challenge uuid.UUID `json:"challenge"` // The challenge token
-	Address   string    `json:"address"`   // The client's address
-}
-
-// HandleAuthRequest initializes the authentication process by generating a challenge
-func HandleAuthRequest(signer *Signer, conn *websocket.Conn, rpc *RPCMessage, authManager *AuthManager) error {
-	// Parse the parameters
-	if len(rpc.Req.Params) < 1 {
-		return errors.New("missing parameters")
-	}
-
-	addr, ok := rpc.Req.Params[0].(string)
-	if !ok || addr == "" {
-		return errors.New("invalid address")
-	}
-
-	// Generate a challenge for this address
-	token, err := authManager.GenerateChallenge(addr)
-	if err != nil {
-		log.Printf("Failed to generate challenge: %v", err)
-		return fmt.Errorf("failed to generate challenge: %w", err)
-	}
-
-	// Create challenge response
-	challengeRes := AuthResponse{
-		ChallengeMessage: token,
-	}
-
-	// Create RPC response with the challenge
-	response := CreateResponse(rpc.Req.RequestID, "auth_challenge", []any{challengeRes}, time.Now())
-
-	// Sign the response with the server's key
-	resBytes, _ := json.Marshal(response.Res)
-	signature, _ := signer.Sign(resBytes)
-	response.Sig = []string{hexutil.Encode(signature)}
-
-	// Send the challenge response
-	responseData, _ := json.Marshal(response)
-	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
-		log.Printf("Error sending challenge: %v", err)
-		return fmt.Errorf("error sending challenge: %w", err)
-	}
-
-	return nil
-}
-
-// HandleAuthVerify verifies an authentication response to a challenge
-func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthManager, signer *Signer) (string, error) {
-	// Parse the authentication parameters
-	if len(rpc.Req.Params) < 1 {
-		return "", errors.New("missing parameters")
-	}
-
-	// Extract auth parameters
-	var authParams AuthVerifyParams
-	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
-	if err != nil {
-		return "", fmt.Errorf("failed to parse parameters: %w", err)
-	}
-
-	if err := json.Unmarshal(paramsJSON, &authParams); err != nil {
-		return "", fmt.Errorf("invalid parameters format: %w", err)
-	}
-
-	// Ensure address has 0x prefix
-	addr := authParams.Address
-	if !strings.HasPrefix(addr, "0x") {
-		addr = "0x" + addr
-	}
-
-	// Validate the request signature
-	if len(rpc.Sig) == 0 {
-		return "", errors.New("missing signature in request")
-	}
-
-	reqBytes, err := json.Marshal(rpc.Req)
-	if err != nil {
-		return "", errors.New("error serializing auth message")
-	}
-
-	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], addr)
-	if err != nil || !isValid {
-		return "", errors.New("invalid signature")
-	}
-
-	err = authManager.ValidateChallenge(authParams.Challenge, addr)
-	if err != nil {
-		log.Printf("Challenge verification failed: %v", err)
-		return "", err
-	}
-
-	// Create success response following the RPC format
-	response := CreateResponse(rpc.Req.RequestID, "auth_verify", []any{map[string]any{
-		"address": addr,
-		"success": true,
-	}}, time.Now())
-
-	// Sign the response with the server's key
-	resBytes, _ := json.Marshal(response.Res)
-	signature, _ := signer.Sign(resBytes)
-	response.Sig = []string{hexutil.Encode(signature)}
-
-	responseData, _ := json.Marshal(response)
-	if err = conn.WriteMessage(websocket.TextMessage, responseData); err != nil {
-		log.Printf("Error sending auth success: %v", err)
-		return "", err
-	}
-
-	return addr, nil
 }
 
 // HandleResizeChannel processes a request to resize a direct payment channel
 func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
-	// Extract the channel parameters from the request
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
 
-	// Parse the parameters
 	var params ResizeChannelParams
 	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 	if err != nil {
@@ -780,7 +512,6 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, errors.New("missing participant change amount")
 	}
 
-	// Retrieve the channel
 	channel, err := channelService.GetChannelByID(params.ChannelID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find channel: %w", err)
@@ -795,8 +526,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
-		log.Printf("Failed to serialize message: %v", err)
-		return nil, errors.New("error serializing auth message")
+		return nil, errors.New("error serializing message")
 	}
 
 	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], channel.ParticipantA)
@@ -868,7 +598,6 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 
 	// TODO: Before that block balance operations until Resized event confirmation.
 
-	// Create the response
 	response := ResizeChannelResponse{
 		ChannelID: channel.ChannelID,
 		Intent:    uint8(nitrolite.IntentRESIZE),
@@ -890,7 +619,107 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		})
 	}
 
-	// Create the RPC response
+	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
+	return rpcResponse, nil
+}
+
+// HandleCloseChannel processes a request to close a direct payment channel
+func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
+	if len(rpc.Req.Params) < 1 {
+		return nil, errors.New("missing parameters")
+	}
+
+	var params CloseChannelParams
+	paramsJSON, err := json.Marshal(rpc.Req.Params[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
+	if err := json.Unmarshal(paramsJSON, &params); err != nil {
+		return nil, fmt.Errorf("invalid parameters format: %w", err)
+	}
+
+	channel, err := channelService.GetChannelByID(params.ChannelID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find channel: %w", err)
+	}
+
+	reqBytes, err := json.Marshal(rpc.Req)
+	if err != nil {
+		return nil, errors.New("error serializing message")
+	}
+
+	isValid, err := ValidateSignature(reqBytes, rpc.Sig[0], channel.ParticipantA)
+	if err != nil || !isValid {
+		return nil, errors.New("invalid signature")
+	}
+
+	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+	balance, err := account.Balance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
+	}
+
+	if channel.Amount-balance < 0 {
+		return nil, errors.New("resize this channel first")
+	}
+
+	if balance < 0 {
+		return nil, errors.New("insufficient funds for participant: " + channel.Token)
+	}
+
+	allocations := []nitrolite.Allocation{
+		{
+			Destination: common.HexToAddress(params.FundsDestination),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      big.NewInt(balance),
+		},
+		{
+			Destination: common.HexToAddress(channel.ParticipantB),
+			Token:       common.HexToAddress(channel.Token),
+			Amount:      big.NewInt(channel.Amount - balance), // Broker receives the remaining amount
+		},
+	}
+
+	stateDataStr := "0x"
+	stateData, err := hexutil.Decode(stateDataStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode state data: %w", err)
+	}
+
+	channelID := common.HexToHash(channel.ChannelID)
+	encodedState, err := nitrolite.EncodeState(channelID, nitrolite.IntentFINALIZE, big.NewInt(int64(channel.Version)+1), stateData, allocations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode state hash: %w", err)
+	}
+
+	stateHash := crypto.Keccak256Hash(encodedState).Hex()
+	sig, err := signer.NitroSign(encodedState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign state: %w", err)
+	}
+
+	response := CloseChannelResponse{
+		ChannelID: channel.ChannelID,
+		Intent:    uint8(nitrolite.IntentFINALIZE),
+		Version:   big.NewInt(int64(channel.Version) + 1),
+		StateData: stateDataStr,
+		StateHash: stateHash,
+		Signature: Signature{
+			V: sig.V,
+			R: hexutil.Encode(sig.R[:]),
+			S: hexutil.Encode(sig.S[:]),
+		},
+	}
+
+	for _, alloc := range allocations {
+		response.FinalAllocations = append(response.FinalAllocations, Allocation{
+			Participant:  alloc.Destination.Hex(),
+			TokenAddress: alloc.Token.Hex(),
+			Amount:       alloc.Amount,
+		})
+	}
+
 	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
 }
