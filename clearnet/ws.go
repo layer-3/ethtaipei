@@ -322,11 +322,26 @@ func forwardMessage(genericMsg map[string]interface{}, msg []byte, fromAddress s
 
 		// Update ledger with the new intent if present
 		if len(rpcData.Intent) != 0 {
+			participantWeights := make(map[string]int64, len(vApp.Participants))
+			for i, addr := range vApp.Participants {
+				participantWeights[strings.ToLower(addr)] = vApp.Weights[i]
+			}
+
+			var totalWeight int64
+			for addr := range recoveredAddresses {
+				if w, ok := participantWeights[strings.ToLower(addr)]; ok && w > 0 {
+					totalWeight += w
+				}
+			}
+
+			if totalWeight < int64(vApp.Quorum) {
+				return fmt.Errorf("quorum to apply intent is not met: %d/%d", totalWeight, vApp.Quorum)
+			}
+
 			if len(participants) != len(rpcData.Intent) {
 				return errors.New("Invalid intent length")
 			}
 
-			// TODO: add quorum for intentions verification.
 			var totalIntent int64 = 0
 			for _, value := range rpcData.Intent {
 				totalIntent += value

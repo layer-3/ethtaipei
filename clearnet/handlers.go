@@ -371,9 +371,7 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 
 		participantWeights := make(map[string]int64, len(vApp.Participants))
 		for i, addr := range vApp.Participants {
-			if i < len(vApp.Weights) {
-				participantWeights[strings.ToLower(addr)] = vApp.Weights[i]
-			}
+			participantWeights[strings.ToLower(addr)] = vApp.Weights[i]
 		}
 
 		var totalWeight int64

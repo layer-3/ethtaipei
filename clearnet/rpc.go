@@ -89,7 +89,8 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 
 // RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
-	Req       RPCData  `json:"req"`
+	Req RPCData `json:"req"`
+	// TODO: having account here is insecure
 	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app with this account ID.
 	Sig       []string `json:"sig"`
 }
