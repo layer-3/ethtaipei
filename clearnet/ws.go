@@ -368,6 +368,16 @@ func forwardMessage(genericMsg map[string]interface{}, msg []byte, fromAddress s
 					return errors.New("Failed to record intent: " + err.Error())
 				}
 			}
+
+			// Update the virtual app version in the database
+			if rpcData.Timestamp <= vApp.Version {
+				return errors.New("outdated request")
+			}
+
+			vApp.Version = rpcData.Timestamp
+			if err := tx.Save(&vApp).Error; err != nil {
+				return errors.New("failed to update vapp version: " + err.Error())
+			}
 		}
 		return nil
 	})

@@ -328,7 +328,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	appDefinition := AppDefinition{
 		Protocol:     "test-proto",
 		Participants: []string{addrA, addrB},
-		Weights:      []int64{1, 1},
+		Weights:      []uint64{1, 1},
 		Quorum:       2,
 		Challenge:    60,
 		Nonce:        timestamp, // Set nonce to match what the handler sets

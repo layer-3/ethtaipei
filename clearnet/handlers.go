@@ -21,8 +21,8 @@ import (
 type AppDefinition struct {
 	Protocol     string   `json:"protocol"`
 	Participants []string `json:"participants"` // Participants from channels with broker.
-	Weights      []int64  `json:"weights"`      // Signature weight for each participant.
-	Quorum       int      `json:"quorum"`
+	Weights      []uint64 `json:"weights"`      // Signature weight for each participant.
+	Quorum       uint64   `json:"quorum"`
 	Challenge    uint64   `json:"challenge"`
 	Nonce        uint64   `json:"nonce,omitempty"`
 }
@@ -289,7 +289,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 
 		weights := pq.Int64Array{}
 		for _, v := range createApp.Definition.Weights {
-			weights = append(weights, v)
+			weights = append(weights, int64(v))
 		}
 
 		// Record the virtual app creation in state
@@ -303,6 +303,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			Token:        createApp.Token,
 			Quorum:       createApp.Definition.Quorum,
 			Nonce:        createApp.Definition.Nonce,
+			Version:      rpc.Req.Timestamp,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -477,14 +478,14 @@ func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 	appDef := AppDefinition{
 		Protocol:     vApp.Protocol,
 		Participants: vApp.Participants,
-		Weights:      make([]int64, len(vApp.Participants)), // Default weights to 0 for now
-		Quorum:       vApp.Quorum,                           // Default quorum to 100 for now
+		Weights:      make([]uint64, len(vApp.Participants)), // Default weights to 0 for now
+		Quorum:       vApp.Quorum,                            // Default quorum to 100 for now
 		Challenge:    vApp.Challenge,
 		Nonce:        vApp.Nonce,
 	}
 
 	for i := range vApp.Weights {
-		appDef.Weights[i] = vApp.Weights[i]
+		appDef.Weights[i] = uint64(vApp.Weights[i])
 	}
 
 	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{appDef}, time.Now())
