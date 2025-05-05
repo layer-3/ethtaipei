@@ -347,6 +347,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 			Method:    "create_app_session",
 			Params:    []any{createParams},
 			Timestamp: timestamp,
+			Intent:    []int64{100, 200},
 		},
 	}
 
@@ -357,6 +358,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 		Method:    rpcReq.Req.Method,
 		Params:    []CreateApplicationParams{createParams},
 		Timestamp: rpcReq.Req.Timestamp,
+		Intent:    rpcReq.Req.Intent,
 	}
 
 	// Important: Use the custom MarshalJSON method instead of standard json.Marshal

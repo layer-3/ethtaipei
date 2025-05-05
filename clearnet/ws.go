@@ -291,10 +291,6 @@ func forwardMessage(genericMsg map[string]interface{}, msg []byte, fromAddress s
 		return errors.New("Invalid message format")
 	}
 
-	if err := json.Unmarshal(msg, &rpcData); err != nil {
-		return errors.New("failed to parse message: " + err.Error())
-	}
-
 	// Validate the signature for the message
 	reqBytes, err := json.Marshal(rpcData)
 	if err != nil {

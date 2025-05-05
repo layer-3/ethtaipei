@@ -38,11 +38,12 @@ type CreateAppSignData struct {
 	RequestID uint64
 	Method    string
 	Params    []CreateApplicationParams
+	Intent    []int64
 	Timestamp uint64
 }
 
 func (r CreateAppSignData) MarshalJSON() ([]byte, error) {
-	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
+	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp, r.Intent}
 	return json.Marshal(arr)
 }
 
@@ -229,6 +230,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		Method:    rpc.Req.Method,
 		Params:    []CreateApplicationParams{{Definition: createApp.Definition, Token: createApp.Token, Allocations: createApp.Allocations}},
 		Timestamp: rpc.Req.Timestamp,
+		Intent:    rpc.Req.Intent,
 	}
 
 	reqBytes, err := json.Marshal(req)
@@ -256,7 +258,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			}
 			allocation := big.NewInt(createApp.Allocations[i])
 
-			if allocation != big.NewInt(rpc.Req.Intent[i]) {
+			if allocation.Cmp(big.NewInt(rpc.Req.Intent[i])) != 0 {
 				return errors.New("intent must match allocation")
 			}
 
