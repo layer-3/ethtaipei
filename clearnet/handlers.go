@@ -454,24 +454,24 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 
 // HandleGetAppDefinition returns the application definition for a ledger account
 func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
-	var accountID string
+	var appID string
 
 	if len(rpc.Req.Params) > 0 {
 		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 		if err == nil {
 			var params map[string]string
 			if err := json.Unmarshal(paramsJSON, &params); err == nil {
-				accountID = params["acc"]
+				appID = params["app_id"]
 			}
 		}
 	}
 
-	if accountID == "" {
+	if appID == "" {
 		return nil, errors.New("missing account ID")
 	}
 
 	var vApp VApp
-	if err := ledger.db.Where("app_id = ?", accountID).First(&vApp).Error; err != nil {
+	if err := ledger.db.Where("app_id = ?", appID).First(&vApp).Error; err != nil {
 		return nil, fmt.Errorf("failed to find application: %w", err)
 	}
 

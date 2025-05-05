@@ -26,7 +26,7 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 
 ### 3. Virtual Application Operations
 - Participants send both requests and responses to each other through virtual applications using WebSocket connections
-- Any message (request or response) with an AccountID (`acc` field) is forwarded to all other participants
+- Any message (request or response) with an AppID specified is forwarded to all other participants
 - The broker maintains a real-time bidirectional communication layer for message routing
 - Virtual applications have versioning and expiration mechanisms to ensure security
 - Participants can update the state of their application off-chain without requiring blockchain transactions
@@ -94,22 +94,19 @@ All messages exchanged between clients and Clearnet brokers follow this standard
 
 ```json
 {
-  "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP, [INTENT]],
-  "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
+  "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP, [INTENT], APP_ID],
   "sig": ["SIGNATURE"]  // Client's signature of the entire "req" object
 }
 ```
 
 - The `req` field now contains the intent as its fifth element when present.
-- The `acc` field serves as both the subject and destination pubsub topic for the message. There is a one-to-one mapping between topics and ledger accounts.
 - The `sig` field contains the rpcHash signature, ensuring proof-of-history integrity.
 
 ### Response Message
 
 ```json
 {
-  "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP, [INTENT]],
-  "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
+  "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP, [INTENT], APP_ID],
   "sig": ["SIGNATURE"]
 }
 ```
@@ -121,7 +118,7 @@ The structure breakdown:
 - `PARAMETERS`/`RESPONSE_DATA`: An array of parameters/response data (array)
 - `TIMESTAMP`: Unix timestamp of the request/response (uint64)
 - `INTENT`: Optional array of allocation intent changes for token distributions between participants (included as fifth element of the array)
-- `ACCOUNT_ID` (`acc`): Ledger account identifier that serves as the destination pubsub topic for the message
+- `APP_ID`: Ledger account identifier that serves as the destination pubsub topic for the message
 - `SIGNATURE`: Cryptographic signature of the message.
 
 ## App Definition
@@ -237,7 +234,7 @@ If authentication is successful, the server responds:
 ```json
 {
   "req": [2, "get_app_definition", [{
-    "acc": "0x1234567890abcdef..."
+    "app_id": "0x1234567890abcdef..."
   }], 1619123456789],
   "sig": ["0x9876fedcba..."] // Optional
 }
@@ -465,7 +462,7 @@ Adjusts the capacity of a channel.
 
 ## Peer-to-Peer Messaging
 
-The broker supports bi-directional peer-to-peer messaging between participants in a virtual application. Both requests and responses can be forwarded between participants when they include the `acc` field with the virtual application ID.
+The broker supports bi-directional peer-to-peer messaging between participants in a virtual application. Both requests and responses can be forwarded between participants when they include AppID.
 
 ### Send Message in Virtual Application
 
@@ -477,8 +474,7 @@ Sends a message to all participants in a virtual application.
 {
   "req": [6, "message", [{
     "message": "Hello, application participants!"
-  }], 1619123456789],
-  "acc": "0x3456789012abcdef...", // Virtual application ID
+  }], 1619123456789, "app_id_0x345678.."],
   "sig": ["0x9876fedcba..."]
 }
 ```
@@ -487,19 +483,18 @@ This message is not acknowledged by the broker but is instead forwarded to all o
 
 ### Send Response in Virtual Application
 
-Responses can also be forwarded to all participants in a virtual application by including the `acc` field:
+Responses can also be forwarded to all participants in a virtual application by including the AppID field:
 
 ```json
 {
   "res": [6, "result", [{
     "result": "Example operation completed successfully!"
-  }], 1619123456789],
-  "acc": "0x3456789012abcdef...", // Virtual application ID
+  }], 1619123456789, "app_id_0x345678.."],
   "sig": ["0x9876fedcba..."]
 }
 ```
 
-Both requests and responses with the `acc` field:
+Both requests and responses with the AppID field:
 1. Are validated using cryptographic signatures
 2. Can include Intent arrays for allocation changes
 3. Are forwarded to all other participants in the virtual application
