@@ -284,15 +284,17 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
 
-		change := ev.DeltaAllocations[0]
 		var channel Channel
-		result := ledger.db.Where("channel_id = ?", channelID).First(&channel)
+		result := ledger.db.Where("channel_id = ?", channelID.Hex()).First(&channel)
 		if result.Error != nil {
 			log.Println("error finding channel:", result.Error)
 			return
 		}
 
-		channel.Amount += change.Int64()
+		for _, change := range ev.DeltaAllocations {
+			channel.Amount += change.Int64()
+		}
+
 		channel.UpdatedAt = time.Now()
 		channel.Version++
 		if err := ledger.db.Save(&channel).Error; err != nil {

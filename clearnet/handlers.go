@@ -541,16 +541,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
 
-	fmt.Println("Initial channel amount of Alice:", channel.Amount)
-	fmt.Println("Current balance:", balance)
-
 	brokerPart := channel.Amount - balance
-	fmt.Println("Broker part:", brokerPart)
-
-	brokerAllocation := int64(0)
-	if brokerPart < 0 {
-		brokerPart = 0
-	}
 
 	// Calculate the new channel amount
 	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
@@ -571,8 +562,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		},
 	}
 
-	fmt.Println("resize amounts:", params.ParticipantChange, -brokerAllocation)
-	resizeAmounts := []*big.Int{params.ParticipantChange, big.NewInt(-brokerAllocation)} // Always release broker funds if there is a surplus.
+	resizeAmounts := []*big.Int{params.ParticipantChange, big.NewInt(-brokerPart)} // Always release broker funds if there is a surplus.
 
 	intentionType, err := abi.NewType("int256[]", "", nil)
 	if err != nil {
