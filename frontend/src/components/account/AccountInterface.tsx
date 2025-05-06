@@ -155,7 +155,7 @@ export function AccountInterface() {
             await nitroSnap.client.challengeChannel({
                 channelId: channelId,
                 candidateState: state,
-                proofStates: state,
+                proofStates: [state],
             });
 
             // Refresh account info after challenging
