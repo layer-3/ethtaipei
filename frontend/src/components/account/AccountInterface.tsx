@@ -16,7 +16,7 @@ import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import { ActionButton } from '../ui/ActionButton';
 import { Address, Hex } from 'viem';
-import { createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
+import { Allocation, createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket';
 import { useResize } from '@/hooks/channel/useResize';
 
@@ -73,7 +73,6 @@ export function AccountInterface() {
             available: nitroSnap.accountInfo?.available
                 ? formatTokenUnits(tokenConfig, nitroSnap.accountInfo?.available)
                 : 0,
-            locked: nitroSnap.accountInfo?.locked ? formatTokenUnits(tokenConfig, nitroSnap.accountInfo?.locked) : 0,
         };
     }, [nitroSnap]);
 
@@ -253,12 +252,11 @@ export function AccountInterface() {
             }
 
             console.log('parsedState.allocations[0]', parsedState.allocations[0]);
-            const participant_change = nitroSnap.userAccountFromParticipants.amount - parsedState.allocations[0].amount;
 
             const resizeParams: any = [
                 {
                     channel_id: channelId as Hex,
-                    participant_change: Number(participant_change),
+                    participant_change: 0,
                     funds_destination: fundDestination as Address,
                 },
             ];
@@ -267,7 +265,55 @@ export function AccountInterface() {
 
             const response = await sendRequest(resizeChannel);
 
-            await handleResizeChannel(response);
+            // {
+            //     "channel_id": "0x5e9f1bf4f970d3d6f2c30b62c6fb3650ef48a8f170ca2020fb4858ee10f5b377",
+            //     "state_data": "0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffec780000000000000000000000000000000000000000000000000000000000000000",
+            //     "intent": 2,
+            //     "version": 1,
+            //     "allocations": [
+            //         {
+            //             "destination": "0x47b56a639D1Dbe3eDfb3c34b1BB583Bf4312be97",
+            //             "token": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            //             "amount": 0
+            //         },
+            //         {
+            //             "destination": "0x3c93C321634a80FB3657CFAC707718A11cA57cBf",
+            //             "token": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            //             "amount": 0
+            //         }
+            //     ],
+            //     "state_hash": "0x61cec33449997e8478ae9d3cff96dc33eb7547ce35e2b5b634c4a567d50a8972",
+            //     "server_signature": {
+            //         "v": "28",
+            //         "r": "\"0xb36160607133e8fcb7e85698a9d87836a41e2a6324b4be5edc66b4de4d990897\"",
+            //         "s": "\"0x5770fd47cd6f7da77d8a24f9dc0b9732dedf635b776ff1037d616e25f16580a7\""
+            //     }
+            // }
+
+            const brokerState = response[0];
+
+            const resizeStateData = {
+                channelId: brokerState.channel_id,
+                stateData: brokerState.state_data,
+                version: brokerState.version,
+                intent: brokerState.intent,
+                allocations: [
+                    {
+                        destination: brokerState.allocations[0].destination,
+                        token: brokerState.allocations[0].token,
+                        amount: brokerState.allocations[0].amount,
+                    },
+                    {
+                        destination: brokerState.allocations[1].destination,
+                        token: brokerState.allocations[1].token,
+                        amount: brokerState.allocations[1].amount,
+                    },
+                ] as [Allocation, Allocation],
+                serverSignature: brokerState['server_signature'],
+            };
+
+            // parsedState - is the state of the channel before resize (in our case intiState)
+            await handleResizeChannel(resizeStateData, parsedState);
 
             await Promise.all([getAccountInfo(), getParticipants()]);
 
@@ -360,12 +406,6 @@ export function AccountInterface() {
                         <div className="border border-gray-300 rounded-lg p-4">
                             <div className="text-sm text-gray-800 mb-1">Total available</div>
                             <div className="text-2xl font-bold text-black">$ {balances.available}</div>
-                        </div>
-
-                        {/* Locked Amount */}
-                        <div className="border border-gray-300 rounded-lg p-4">
-                            <div className="text-sm text-gray-800 mb-1">Locked in Channels</div>
-                            <div className="text-2xl font-bold text-black">$ {balances.locked}</div>
                         </div>
                     </div>
                 </div>

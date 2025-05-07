@@ -1,18 +1,14 @@
 import { useCallback } from 'react';
 import { NitroliteStore } from '@/store';
-import { Hex } from 'viem';
 
 export function useResize() {
-    const handleResizeChannel = useCallback(async (finalState: any) => {
+    const handleResizeChannel = useCallback(async (finalState: any, initState: any) => {
         try {
-            const channelId = localStorage.getItem('nitrolite_channel_id') as Hex;
-            const resizeState = {
-                ...finalState,
-            };
+            console.log('proofs', initState);
 
             await NitroliteStore.state.client.resizeChannel({
-                channelId: channelId,
-                candidateState: resizeState,
+                resizeState: finalState,
+                proofStates: [initState],
             });
 
             return true;

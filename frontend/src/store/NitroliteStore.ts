@@ -25,7 +25,6 @@ const state = proxy<NitroliteState>({
     stateSigner: null,
     accountInfo: {
         available: 0n,
-        locked: 0n,
         channelCount: 0n,
     },
     openChannelIds: [],
@@ -157,7 +156,6 @@ const NitroliteStore = {
         state.stateSigner = null;
         state.accountInfo = {
             available: 0n,
-            locked: 0n,
             channelCount: 0n,
         };
         state.openChannelIds = [];

@@ -34,7 +34,6 @@ export type ChannelId = string;
 
 export interface AccountInfo {
     available: bigint;
-    locked: bigint;
     channelCount: bigint;
 }
 
