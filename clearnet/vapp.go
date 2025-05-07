@@ -18,7 +18,8 @@ type VApp struct {
 	Nonce        uint64         `gorm:"column:nonce;not null"`
 	Token        string         `gorm:"column:token;not null"`
 	Weights      pq.Int64Array  `gorm:"type:integer[];column:weights"`
-	Quorum       int            `gorm:"column:quorum;default:100"`
+	Quorum       uint64         `gorm:"column:quorum;default:100"`
+	Version      uint64         `gorm:"column:version;default:1"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

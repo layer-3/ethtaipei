@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 // UnifiedWSHandler manages WebSocket connections with authentication
@@ -124,7 +125,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	log.Printf("Participant authenticated: %s", address)
 
 	for {
-		_, message, err := conn.ReadMessage()
+		_, messageBytes, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket unexpected close error: %v", err)
@@ -144,19 +145,27 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// Update session activity timestamp
 		h.authManager.UpdateSession(address)
 
+		// Forward request or response if it is intended for other participants
 		var rpcRequest RPCMessage
-		if err := json.Unmarshal(message, &rpcRequest); err != nil {
-			h.sendErrorResponse(0, "error", conn, "Invalid message format")
-			continue
-		}
-
-		if rpcRequest.AccountID != "" {
-			handlerErr := forwardMessage(&rpcRequest, address, h)
-			if handlerErr != nil {
-				log.Printf("Error forwarding message: %v", handlerErr)
-				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to send message: "+handlerErr.Error())
+		err = json.Unmarshal(messageBytes, &rpcRequest)
+		if err == nil && rpcRequest.Req.AppID != "" {
+			if err := forwardMessage(rpcRequest.Req, rpcRequest.Sig, messageBytes, address, h); err != nil {
+				log.Printf("Error forwarding message: %v", err)
+				h.sendErrorResponse(0, "error", conn, "Failed to forward message: "+err.Error())
 				continue
 			}
+		} else {
+			var rpcRes RPCResponse
+			if err2 := json.Unmarshal(messageBytes, &rpcRes); err2 == nil && rpcRes.Res.AppID != "" {
+				if err := forwardMessage(rpcRes.Res, rpcRes.Sig, messageBytes, address, h); err != nil {
+					log.Printf("Error forwarding message: %v", err)
+					h.sendErrorResponse(0, "error", conn, "Failed to forward message: "+err.Error())
+					continue
+				}
+			}
+		}
+		if err != nil {
+			h.sendErrorResponse(0, "error", conn, "Invalid message format")
 			continue
 		}
 
@@ -260,36 +269,97 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 }
 
 // forwardMessage forwards an RPC message to all recipients in a virtual app
-func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHandler) error {
-	// Validate the signature for the message
-	reqBytes, err := json.Marshal(rpcRequest.Req)
+func forwardMessage(rpcData RPCData, signatures []string, msg []byte, fromAddress string, h *UnifiedWSHandler) error {
+	reqBytes, err := json.Marshal(rpcData)
 	if err != nil {
-		log.Printf("Error serializing request for validation: %v", err)
-		return errors.New("Error validating signature")
+		return errors.New("Error validating signature: " + err.Error())
 	}
 
 	recoveredAddresses := map[string]bool{}
-	for _, sig := range rpcRequest.Sig {
+	for _, sig := range signatures {
 		addr, err := RecoverAddress(reqBytes, sig)
 		if err != nil {
-			return errors.New("invalid signature")
+			return errors.New("invalid signature: " + err.Error())
 		}
 		recoveredAddresses[addr] = true
 	}
 
-	if !recoveredAddresses[fromAddress] {
-		log.Printf("Signature validation failed: %v", err)
-		return errors.New("Invalid signature")
-	}
+	var participants []string
+	err = h.ledger.db.Transaction(func(tx *gorm.DB) error {
+		var vApp VApp
+		if err := tx.Where("app_id = ?", rpcData.AppID).First(&vApp).Error; err != nil {
+			return errors.New("failed to find virtual app: " + err.Error())
+		}
+		participants = vApp.Participants
 
-	// TODO: use cache, do not go to database on each request.
-	var vApp VApp
-	if err := h.ledger.db.Where("app_id = ?", rpcRequest.AccountID).First(&vApp).Error; err != nil {
-		return errors.New("failed to find virtual app: " + err.Error())
+		// Update ledger with the new intent if present
+		if len(rpcData.Intent) != 0 {
+			participantWeights := make(map[string]int64, len(vApp.Participants))
+			for i, addr := range vApp.Participants {
+				participantWeights[strings.ToLower(addr)] = vApp.Weights[i]
+			}
+
+			var totalWeight int64
+			for addr := range recoveredAddresses {
+				if w, ok := participantWeights[strings.ToLower(addr)]; ok && w > 0 {
+					totalWeight += w
+				}
+			}
+
+			if totalWeight < int64(vApp.Quorum) {
+				return fmt.Errorf("quorum to apply intent is not met: %d/%d", totalWeight, vApp.Quorum)
+			}
+
+			if len(participants) != len(rpcData.Intent) {
+				return errors.New("Invalid intent length")
+			}
+
+			var totalIntent int64 = 0
+			for _, value := range rpcData.Intent {
+				totalIntent += value
+			}
+			if totalIntent != 0 {
+				return errors.New("Invalid intent: sum of all intents must be 0")
+			}
+
+			participantsBalances, err := GetAccountBalances(tx, rpcData.AppID)
+			if err != nil {
+				return errors.New("Failed to get participant balance: " + err.Error())
+			}
+
+			for i, participantBalance := range participantsBalances {
+				if participantBalance.Amount+rpcData.Intent[i] < 0 {
+					return errors.New("Invalid intent: insufficient balance for participant " + participantBalance.Address)
+				}
+			}
+
+			// Iterate over participants to keep same order with intent
+			for i, participant := range participants {
+				account := h.ledger.SelectBeneficiaryAccount(rpcData.AppID, participant)
+				if err := account.Record(rpcData.Intent[i]); err != nil {
+					return errors.New("Failed to record intent: " + err.Error())
+				}
+			}
+
+			// Update the virtual app version in the database
+			if rpcData.Timestamp <= vApp.Version {
+				return errors.New("outdated request")
+			}
+
+			vApp.Version = rpcData.Timestamp
+			if err := tx.Save(&vApp).Error; err != nil {
+				return errors.New("failed to update vapp version: " + err.Error())
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	// Iterate over all recipients in a virtual app and send the message
-	for _, recipient := range vApp.Participants {
+	for _, recipient := range participants {
 		if recipient == fromAddress {
 			continue
 		}
@@ -298,8 +368,6 @@ func forwardMessage(rpcRequest *RPCMessage, fromAddress string, h *UnifiedWSHand
 		recipientConn, exists := h.connections[recipient]
 		h.connectionsMu.RUnlock()
 		if exists {
-			msg, _ := json.Marshal(rpcRequest)
-
 			// Use NextWriter for safer message delivery
 			w, err := recipientConn.NextWriter(websocket.TextMessage)
 			if err != nil {
