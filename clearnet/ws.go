@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/centrifugal/centrifuge"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -19,28 +18,22 @@ import (
 // UnifiedWSHandler manages WebSocket connections with authentication
 // and subsequent communication.
 type UnifiedWSHandler struct {
-	node           *centrifuge.Node
-	signer         *Signer
-	channelService *ChannelService
-	ledger         *Ledger
-	upgrader       websocket.Upgrader
-	connections    map[string]*websocket.Conn
-	connectionsMu  sync.RWMutex
-	authManager    *AuthManager
+	signer        *Signer
+	ledger        *Ledger
+	upgrader      websocket.Upgrader
+	connections   map[string]*websocket.Conn
+	connectionsMu sync.RWMutex
+	authManager   *AuthManager
 }
 
 // NewUnifiedWSHandler creates a new unified WebSocket handler.
 func NewUnifiedWSHandler(
-	node *centrifuge.Node,
 	signer *Signer,
-	channelService *ChannelService,
 	ledger *Ledger,
 ) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
-		node:           node,
-		signer:         signer,
-		channelService: channelService,
-		ledger:         ledger,
+		signer: signer,
+		ledger: ledger,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -188,7 +181,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			}
 
 		case "get_ledger_balances":
-			rpcResponse, handlerErr = HandleGetLedgerBalances(&rpcRequest, h.channelService, h.ledger)
+			rpcResponse, handlerErr = HandleGetLedgerBalances(&rpcRequest, h.ledger)
 			if handlerErr != nil {
 				log.Printf("Error handling get_ledger_balances: %v", handlerErr)
 				h.sendErrorResponse(rpcRequest.Req.RequestID, rpcRequest.Req.Method, conn, "Failed to get ledger balances: "+handlerErr.Error())

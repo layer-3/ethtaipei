@@ -33,8 +33,8 @@ func init() {
 
 type LogHandler func(l types.Log)
 
-// ListenEvents listens for blockchain events and processes them with the provided handler
-func ListenEvents(
+// listenEvents listens for blockchain events and processes them with the provided handler
+func listenEvents(
 	ctx context.Context,
 	client bind.ContractBackend,
 	subID string,

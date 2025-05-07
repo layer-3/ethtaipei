@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/erc7824/go-nitrolite"
@@ -26,6 +27,11 @@ func NewSigner(privateKeyHex string) (*Signer, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	publicKey := privateKey.Public().(*ecdsa.PublicKey)
+	BrokerAddress = crypto.PubkeyToAddress(*publicKey).Hex()
+
+	log.Printf("Broker signer initialized with address: %s", BrokerAddress)
 
 	return &Signer{privateKey: privateKey}, nil
 }

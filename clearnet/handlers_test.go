@@ -428,7 +428,6 @@ func TestHandleListParticipants(t *testing.T) {
 	defer cleanup()
 
 	// Create channel service and ledger
-	channelService := NewChannelService(db)
 	ledger := NewLedger(db)
 
 	// Create test channels with the broker
@@ -481,7 +480,7 @@ func TestHandleListParticipants(t *testing.T) {
 	}
 
 	// Use the test-specific handler instead of the actual one
-	response, err := HandleGetLedgerBalances(rpcRequest, channelService, ledger)
+	response, err := HandleGetLedgerBalances(rpcRequest, ledger)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 

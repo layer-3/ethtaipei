@@ -21,41 +21,62 @@ var (
 	custodyAbi *abi.ABI
 )
 
-// CustodyClientWrapper implements the BlockchainClient interface using the Custody contract
-type CustodyClientWrapper struct {
+// Custody implements the BlockchainClient interface using the Custody contract
+type Custody struct {
 	client       *ethclient.Client
 	custody      *nitrolite.Custody
+	ledger       *Ledger
 	custodyAddr  common.Address
 	transactOpts *bind.TransactOpts
 	networkID    string
 	signer       *Signer
 }
 
-// NewCustodyClientWrapper creates a new custody client wrapper
-func NewCustodyClientWrapper(
-	client *ethclient.Client,
-	custodyAddress common.Address,
-	transactOpts *bind.TransactOpts,
-	networkID string,
-	signer *Signer,
-) (*CustodyClientWrapper, error) {
+// NewCustody initializes the Ethereum client and custody contract wrapper.
+func NewCustody(signer *Signer, ledger *Ledger, infuraURL, custodyAddressStr, networkID string) (*Custody, error) {
+	custodyAddress := common.HexToAddress(custodyAddressStr)
+	client, err := ethclient.Dial(infuraURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Ethereum node: %w", err)
+	}
+
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain ID: %w", err)
+	}
+
+	// Create auth options for transactions.
+	auth, err := bind.NewKeyedTransactorWithChainID(signer.GetPrivateKey(), chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction signer: %w", err)
+	}
+	auth.GasPrice = big.NewInt(30000000000) // 20 gwei.
+	auth.GasLimit = uint64(3000000)
+
 	custody, err := nitrolite.NewCustody(custodyAddress, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind custody contract: %w", err)
 	}
 
-	return &CustodyClientWrapper{
+	return &Custody{
 		client:       client,
 		custody:      custody,
+		ledger:       ledger,
 		custodyAddr:  custodyAddress,
-		transactOpts: transactOpts,
+		transactOpts: auth,
 		networkID:    networkID,
 		signer:       signer,
 	}, nil
 }
 
+// ListenEvents initializes event listening for the custody contract
+func (c *Custody) ListenEvents(ctx context.Context) {
+	// TODO: store processed events in a database
+	listenEvents(ctx, c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
+}
+
 // Join calls the join method on the custody contract
-func (c *CustodyClientWrapper) Join(channelID string, lastStateData []byte) error {
+func (c *Custody) Join(channelID string, lastStateData []byte) error {
 	// Convert string channelID to bytes32
 	channelIDBytes := common.HexToHash(channelID)
 
@@ -83,58 +104,8 @@ func (c *CustodyClientWrapper) Join(channelID string, lastStateData []byte) erro
 	return nil
 }
 
-// GetNetworkID returns the network ID for this client
-func (c *CustodyClientWrapper) GetNetworkID() string {
-	return c.networkID
-}
-
-// GetCustody returns the underlying Custody contract instance
-func (c *CustodyClientWrapper) GetCustody() *nitrolite.Custody {
-	return c.custody
-}
-
-// ListenEvents initializes event listening for the custody contract
-func (c *CustodyClientWrapper) ListenEvents(ctx context.Context) {
-	// TODO: store processed events in a database
-	ListenEvents(ctx, c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
-}
-
-// MultiNetworkCustodyWrapper manages custody clients across multiple networks
-type MultiNetworkCustodyWrapper struct {
-	clients        map[string]*CustodyClientWrapper
-	defaultChainID string
-}
-
-// NewMultiNetworkCustodyWrapper creates a new multi-network custody wrapper
-func NewMultiNetworkCustodyWrapper(clients map[string]*CustodyClientWrapper, defaultChainID string) *MultiNetworkCustodyWrapper {
-	return &MultiNetworkCustodyWrapper{
-		clients:        clients,
-		defaultChainID: defaultChainID,
-	}
-}
-
-// GetClient returns a client for the specified network ID
-func (m *MultiNetworkCustodyWrapper) GetClient(networkID string) *CustodyClientWrapper {
-	if client, ok := m.clients[networkID]; ok {
-		return client
-	}
-	return nil
-}
-
-// GetDefaultClient returns the default client
-func (m *MultiNetworkCustodyWrapper) GetDefaultClient() *CustodyClientWrapper {
-	return m.clients[m.defaultChainID]
-}
-
-// ListenAllEvents initializes event listeners for all networks
-func (m *MultiNetworkCustodyWrapper) ListenAllEvents(ctx context.Context) {
-	for _, client := range m.clients {
-		go client.ListenEvents(ctx)
-	}
-}
-
 // handleBlockChainEvent processes different event types received from the blockchain
-func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
+func (c *Custody) handleBlockChainEvent(l types.Log) {
 	log.Printf("Received event: %+v\n", l)
 	eventID := l.Topics[0]
 	switch eventID {
@@ -162,7 +133,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		}
 
 		// Check if there is already existing open channel with the broker
-		existingOpenChannel, err := channelService.CheckExistingChannels(participantA, participantB, c.networkID)
+		existingOpenChannel, err := CheckExistingChannels(c.ledger.db, participantA, participantB, c.networkID)
 		if err != nil {
 			log.Printf("[ChannelCreated] Error checking channels in database: %v", err)
 			return
@@ -177,7 +148,8 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		tokenAmount := ev.Initial.Allocations[0].Amount
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
-		err = channelService.CreateChannel(
+		err = CreateChannel(
+			c.ledger.db,
 			channelID.Hex(),
 			participantA,
 			nonce,
@@ -208,7 +180,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
 			channelID, c.networkID)
 
-		account := ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
+		account := c.ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
 
 		if err := account.Record(tokenAmount.Int64()); err != nil {
 			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
@@ -233,7 +205,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
 
-		err = ledger.db.Transaction(func(tx *gorm.DB) error {
+		err = c.ledger.db.Transaction(func(tx *gorm.DB) error {
 			var channel Channel
 			result := tx.Where("channel_id = ?", channelID.Hex()).First(&channel)
 			if result.Error != nil {
@@ -253,7 +225,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 				return fmt.Errorf("failed to close channel: %w", err)
 			}
 
-			account := ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
+			account := c.ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
 			account.db = tx
 			balance, err := account.Balance()
 			if err != nil {
@@ -285,7 +257,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 		channelID := common.BytesToHash(ev.ChannelId[:])
 
 		var channel Channel
-		result := ledger.db.Where("channel_id = ?", channelID.Hex()).First(&channel)
+		result := c.ledger.db.Where("channel_id = ?", channelID.Hex()).First(&channel)
 		if result.Error != nil {
 			log.Println("error finding channel:", result.Error)
 			return
@@ -297,7 +269,7 @@ func (c *CustodyClientWrapper) handleBlockChainEvent(l types.Log) {
 
 		channel.UpdatedAt = time.Now()
 		channel.Version++
-		if err := ledger.db.Save(&channel).Error; err != nil {
+		if err := c.ledger.db.Save(&channel).Error; err != nil {
 			log.Printf("[Resized] Error saving channel in database: %v", err)
 			return
 		}

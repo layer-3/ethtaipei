@@ -151,7 +151,7 @@ func HandlePing(req *RPCMessage) (*RPCResponse, error) {
 }
 
 // HandleGetLedgerBalances returns a list of participants and their balances for a ledger account
-func HandleGetLedgerBalances(rpc *RPCMessage, channelService *ChannelService, ledger *Ledger) (*RPCResponse, error) {
+func HandleGetLedgerBalances(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
 	var accountID string
 
 	if len(rpc.Req.Params) > 0 {
@@ -512,7 +512,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, errors.New("missing participant change amount")
 	}
 
-	channel, err := channelService.GetChannelByID(params.ChannelID)
+	channel, err := GetChannelByID(ledger.db, params.ChannelID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find channel: %w", err)
 	}
@@ -635,7 +635,7 @@ func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCRe
 		return nil, fmt.Errorf("invalid parameters format: %w", err)
 	}
 
-	channel, err := channelService.GetChannelByID(params.ChannelID)
+	channel, err := GetChannelByID(ledger.db, params.ChannelID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find channel: %w", err)
 	}
