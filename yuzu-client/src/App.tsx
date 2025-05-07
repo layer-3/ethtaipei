@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { formatSignificantWithSeparators } from "./components/Decimal";
 import { Send } from "./components/Send";
 import { Receive } from "./components/Receive";
+import "./App.css";
 
 function setThemeColor(color: string) {
     let themeMeta = document.querySelector('meta[name="theme-color"]');
@@ -29,7 +30,7 @@ export function YuzuxApp() {
     }, []);
 
     return (
-        <div className="bg-black flex flex-col p-6">
+        <div className="bg-black flex flex-col p-6 h-full">
             <div className="flex justify-between items-center py-2">
                 <h1 className="text-3xl font-bold text-white">Yuzux</h1>
             </div>
