@@ -104,6 +104,73 @@ func (c *Custody) Join(channelID string, lastStateData []byte) error {
 	return nil
 }
 
+func (c *Custody) Resize(channelID string, channelVersion int64, resizeAmounts []*big.Int, allocations []nitrolite.Allocation) error {
+	// Convert string channelID to bytes32
+	channelIDBytes := common.HexToHash(channelID)
+	intentionType, err := abi.NewType("int256[]", "", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create ABI type for intentions: %w", err)
+	}
+
+	intentionsArgs := abi.Arguments{
+		{Type: intentionType},
+	}
+
+	encodedIntentions, err := intentionsArgs.Pack(resizeAmounts)
+	if err != nil {
+		return fmt.Errorf("failed to pack intentions: %w", err)
+	}
+
+	// Encode the channel ID and state for signing
+	encodedState, err := nitrolite.EncodeState(common.HexToHash(channelID), nitrolite.IntentRESIZE, big.NewInt(channelVersion+1), encodedIntentions, allocations)
+	if err != nil {
+		return fmt.Errorf("failed to encode state hash: %w", err)
+	}
+
+	// Generate state hash and sign it
+	sig, err := c.signer.NitroSign(encodedState)
+	if err != nil {
+		return fmt.Errorf("failed to sign state: %w", err)
+	}
+	gasPrice, err := c.client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to suggest gas price: %w", err)
+	}
+
+	c.transactOpts.GasPrice = gasPrice.Add(gasPrice, gasPrice)
+
+	candidate := nitrolite.State{
+		Intent:      uint8(nitrolite.IntentRESIZE),
+		Version:     big.NewInt(channelVersion + 1),
+		Data:        encodedIntentions,
+		Allocations: allocations,
+		// TODO: we need both sighatures, otherwise broker cannot call resize.
+		// Participants (particularly the ones sending money) must submit signed candidates on each update.
+		Sigs: []nitrolite.Signature{sig},
+	}
+
+	proofs := []nitrolite.State{
+		{
+			Intent:      uint8(nitrolite.IntentRESIZE),
+			Version:     big.NewInt(channelVersion + 1),
+			Data:        encodedIntentions,
+			Allocations: allocations,
+			Sigs:        []nitrolite.Signature{},
+		},
+	}
+
+	// Proof allocation = candidate + resizeAmount
+	proofs[0].Allocations[1].Amount.Add(proofs[0].Allocations[1].Amount, resizeAmounts[1]) // Only broker's allocation is changed
+
+	tx, err := c.custody.Resize(c.transactOpts, channelIDBytes, candidate, proofs)
+	if err != nil {
+		return fmt.Errorf("failed to join channel: %w", err)
+	}
+	log.Println("TxHash:", tx.Hash().Hex())
+
+	return nil
+}
+
 // handleBlockChainEvent processes different event types received from the blockchain
 func (c *Custody) handleBlockChainEvent(l types.Log) {
 	log.Printf("Received event: %+v\n", l)

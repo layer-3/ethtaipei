@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var BrokerAddress string
@@ -28,6 +29,7 @@ func main() {
 		log.Fatalf("failed to initialise signer: %v", err)
 	}
 
+	resizer := NewResizeWorker(ledger, signer)
 	for name, network := range config.networks {
 		client, err := NewCustody(signer, ledger, network.InfuraURL, network.CustodyAddress, network.ChainID)
 		if err != nil {
@@ -35,12 +37,15 @@ func main() {
 			continue
 		}
 		go client.ListenEvents(context.Background())
+		resizer.AddCustody(client)
 	}
+
+	// Resize one channel with the biggest broker allocation every minute to keep custody healthy.
+	go resizer.Run(1 * time.Minute)
 
 	unifiedWSHandler := NewUnifiedWSHandler(signer, ledger)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
-	// Start the HTTP server.
 	go func() {
 		log.Printf("Starting server, visit http://localhost:8000")
 		if err := http.ListenAndServe(":8000", nil); err != nil {
