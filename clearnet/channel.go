@@ -102,3 +102,12 @@ func CheckExistingChannels(tx *gorm.DB, participantA, participantB, networkID st
 
 	return &channel, nil
 }
+
+// GetOpenChannelsWithBroker returns all open channels with broker
+func GetOpenChannelsWithBroker(tx *gorm.DB) ([]Channel, error) {
+	var channels []Channel
+	if err := tx.Where("participant_b = ? AND status = ?", BrokerAddress, ChannelStatusOpen).Find(&channels).Error; err != nil {
+		return nil, fmt.Errorf("error retrieving open channels for broker: %w", err)
+	}
+	return channels, nil
+}
