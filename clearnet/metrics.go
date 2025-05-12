@@ -36,7 +36,6 @@ type Metrics struct {
 
 	// Smart contract metrics
 	BrokerBalanceAvailable *prometheus.GaugeVec
-	BrokerBalanceLocked    *prometheus.GaugeVec
 	BrokerChannelCount     *prometheus.GaugeVec
 }
 
@@ -98,13 +97,6 @@ func NewMetrics() *Metrics {
 			prometheus.GaugeOpts{
 				Name: "clearnet_broker_balance_available",
 				Help: "Available balance of the broker on the custody contract",
-			},
-			[]string{"network", "token"},
-		),
-		BrokerBalanceLocked: promauto.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "clearnet_broker_balance_locked",
-				Help: "Locked balance of the broker on the custody contract",
 			},
 			[]string{"network", "token"},
 		),
@@ -176,23 +168,6 @@ func GetUniqueTokenAddresses(db *gorm.DB) []common.Address {
 		if tokenStr != "" {
 			addresses = append(addresses, common.HexToAddress(tokenStr))
 		}
-	}
-
-	// Add ETH as a default token to monitor
-	ethAddress := common.HexToAddress("0x0000000000000000000000000000000000000000")
-
-	// Check if ETH is already in the list
-	ethFound := false
-	for _, addr := range addresses {
-		if addr == ethAddress {
-			ethFound = true
-			break
-		}
-	}
-
-	// Add ETH if not found
-	if !ethFound {
-		addresses = append(addresses, ethAddress)
 	}
 
 	return addresses
