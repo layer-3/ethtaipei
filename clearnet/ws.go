@@ -24,11 +24,13 @@ type UnifiedWSHandler struct {
 	connections   map[string]*websocket.Conn
 	connectionsMu sync.RWMutex
 	authManager   *AuthManager
+	metrics       *Metrics
 }
 
 func NewUnifiedWSHandler(
 	signer *Signer,
 	ledger *Ledger,
+	metrics *Metrics,
 ) *UnifiedWSHandler {
 	return &UnifiedWSHandler{
 		signer: signer,
@@ -42,6 +44,7 @@ func NewUnifiedWSHandler(
 		},
 		connections: make(map[string]*websocket.Conn),
 		authManager: NewAuthManager(),
+		metrics:     metrics,
 	}
 }
 
@@ -54,6 +57,11 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	}
 	defer conn.Close()
 
+	// Increment connection metrics
+	h.metrics.ConnectionsTotal.Inc()
+	h.metrics.ConnectedClients.Inc()
+	defer h.metrics.ConnectedClients.Dec()
+
 	var address string
 	var authenticated bool
 
@@ -65,6 +73,9 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
+		// Increment received message counter
+		h.metrics.MessageReceived.Inc()
+
 		var rpcMsg RPCRequest
 		if err := json.Unmarshal(message, &rpcMsg); err != nil {
 			log.Printf("Invalid message format: %v", err)
@@ -75,11 +86,15 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// Handle message based on the method
 		switch rpcMsg.Req.Method {
 		case "auth_request":
+			// Track auth request metrics
+			h.metrics.AuthRequests.Inc()
+
 			// Client is initiating authentication
 			err := HandleAuthRequest(h.signer, conn, &rpcMsg, h.authManager)
 			if err != nil {
 				log.Printf("Auth initialization failed: %v", err)
 				h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, err.Error())
+				h.metrics.AuthFailure.Inc()
 			}
 			continue
 
@@ -89,12 +104,14 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			if err != nil {
 				log.Printf("Authentication verification failed: %v", err)
 				h.sendErrorResponse(rpcMsg.Req.RequestID, "error", conn, err.Error())
+				h.metrics.AuthFailure.Inc()
 				continue
 			}
 
 			// Authentication successful
 			address = authAddr
 			authenticated = true
+			h.metrics.AuthSuccess.Inc()
 
 		default:
 			// Reject any other messages before authentication
@@ -129,6 +146,9 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			}
 			break
 		}
+
+		// Increment received message counter
+		h.metrics.MessageReceived.Inc()
 
 		// Check if session is still valid
 		if !h.authManager.ValidateSession(address) {
@@ -168,6 +188,9 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 		var rpcResponse = &RPCResponse{}
 		var handlerErr error
+
+		// Track RPC request by method
+		h.metrics.RPCRequests.WithLabelValues(rpcRequest.Req.Method).Inc()
 
 		switch rpcRequest.Req.Method {
 		case "ping":
@@ -262,6 +285,9 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			log.Printf("Error closing writer for response: %v", err)
 			continue
 		}
+
+		// Increment sent message counter
+		h.metrics.MessageSent.Inc()
 	}
 }
 
@@ -390,12 +416,16 @@ func forwardMessage(appID string, rpcData RPCData, signatures []string, msg []by
 				continue
 			}
 
+			// Increment sent message counter for each forwarded message
+			h.metrics.MessageSent.Inc()
+
 			log.Printf("Successfully forwarded message to %s", recipient)
 		} else {
 			log.Printf("Recipient %s not connected", recipient)
 			continue
 		}
 	}
+
 	return nil
 }
 
@@ -434,6 +464,9 @@ func (h *UnifiedWSHandler) sendErrorResponse(requestID uint64, method string, co
 	if err := w.Close(); err != nil {
 		log.Printf("Error closing writer for error response: %v", err)
 	}
+
+	// Increment sent message counter
+	h.metrics.MessageSent.Inc()
 
 	// Reset the write deadline
 	conn.SetWriteDeadline(time.Time{})

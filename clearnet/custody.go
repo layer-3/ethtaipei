@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/gorm"
 )
 
@@ -302,5 +303,49 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 
 	default:
 		fmt.Println("Unknown event ID:", eventID.Hex())
+	}
+}
+
+// UpdateBalanceMetrics fetches the broker's account information from the smart contract and updates metrics
+func (c *Custody) UpdateBalanceMetrics(ctx context.Context, tokens []common.Address, metrics *Metrics) {
+	if metrics == nil {
+		log.Printf("Metrics not initialized for custody client on network %s", c.networkID)
+		return
+	}
+
+	brokerAddr := common.HexToAddress(BrokerAddress)
+
+	for _, token := range tokens {
+		// Create a call opts with the provided context
+		callOpts := &bind.CallOpts{
+			Context: ctx,
+		}
+
+		// Call getAccountInfo on the custody contract
+		info, err := c.custody.GetAccountInfo(callOpts, brokerAddr, token)
+		if err != nil {
+			log.Printf("Failed to get account info for token %s on network %s: %v",
+				token.Hex(), c.networkID, err)
+			continue
+		}
+
+		// Update the metrics
+		metrics.BrokerBalanceAvailable.With(prometheus.Labels{
+			"network": c.networkID,
+			"token":   token.Hex(),
+		}).Set(float64(info.Available.Int64()))
+
+		metrics.BrokerBalanceLocked.With(prometheus.Labels{
+			"network": c.networkID,
+			"token":   token.Hex(),
+		}).Set(float64(info.Locked.Int64()))
+
+		metrics.BrokerChannelCount.With(prometheus.Labels{
+			"network": c.networkID,
+			"token":   token.Hex(),
+		}).Set(float64(info.ChannelCount.Int64()))
+
+		log.Printf("Updated contract balance metrics for token %s on network %s: available=%s, locked=%s, channels=%s",
+			token.Hex(), c.networkID, info.Available.String(), info.Locked.String(), info.ChannelCount.String())
 	}
 }
