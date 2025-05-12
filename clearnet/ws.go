@@ -65,7 +65,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		var rpcMsg RPCMessage
+		var rpcMsg RPCRequest
 		if err := json.Unmarshal(message, &rpcMsg); err != nil {
 			log.Printf("Invalid message format: %v", err)
 			h.sendErrorResponse(0, "error", conn, "Invalid message format")
@@ -141,7 +141,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		h.authManager.UpdateSession(address)
 
 		// Forward request or response for internal vApp communication.
-		var rpcRequest RPCMessage
+		var rpcRequest RPCRequest
 		if err := json.Unmarshal(messageBytes, &rpcRequest); err != nil {
 			var rpcRes RPCResponse
 			if err := json.Unmarshal(messageBytes, &rpcRes); err == nil && rpcRes.AccountID != "" {
@@ -462,7 +462,7 @@ type AuthVerifyParams struct {
 }
 
 // HandleAuthRequest initializes the authentication process by generating a challenge
-func HandleAuthRequest(signer *Signer, conn *websocket.Conn, rpc *RPCMessage, authManager *AuthManager) error {
+func HandleAuthRequest(signer *Signer, conn *websocket.Conn, rpc *RPCRequest, authManager *AuthManager) error {
 	// Parse the parameters
 	if len(rpc.Req.Params) < 1 {
 		return errors.New("missing parameters")
@@ -498,7 +498,7 @@ func HandleAuthRequest(signer *Signer, conn *websocket.Conn, rpc *RPCMessage, au
 }
 
 // HandleAuthVerify verifies an authentication response to a challenge
-func HandleAuthVerify(conn *websocket.Conn, rpc *RPCMessage, authManager *AuthManager, signer *Signer) (string, error) {
+func HandleAuthVerify(conn *websocket.Conn, rpc *RPCRequest, authManager *AuthManager, signer *Signer) (string, error) {
 	if len(rpc.Req.Params) < 1 {
 		return "", errors.New("missing parameters")
 	}

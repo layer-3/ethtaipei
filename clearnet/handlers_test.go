@@ -114,7 +114,7 @@ func setupTestDB(t testing.TB) (*gorm.DB, func()) {
 // TestHandlePing tests the ping handler functionality
 func TestHandlePing(t *testing.T) {
 	// Test case 1: Simple ping with no parameters
-	rpcRequest1 := &RPCMessage{
+	rpcRequest1 := &RPCRequest{
 		Req: RPCData{
 			RequestID: 1,
 			Method:    "ping",
@@ -213,7 +213,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 	paramsJSON, err := json.Marshal(closeParams)
 	require.NoError(t, err)
 
-	req := &RPCMessage{
+	req := &RPCRequest{
 		Req: RPCData{
 			RequestID: 1,
 			Method:    "close_app_session",
@@ -341,7 +341,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 		Allocations: []int64{100, 200}, // Combined allocations
 	}
 
-	rpcReq := &RPCMessage{
+	rpcReq := &RPCRequest{
 		Req: RPCData{
 			RequestID: 42,
 			Method:    "create_app_session",
@@ -470,7 +470,7 @@ func TestHandleListParticipants(t *testing.T) {
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	rpcRequest := &RPCMessage{
+	rpcRequest := &RPCRequest{
 		Req: RPCData{
 			RequestID: 1,
 			Method:    "get_ledger_balances",
@@ -516,7 +516,7 @@ func TestHandleListParticipants(t *testing.T) {
 
 // TestHandleGetConfig tests the get config handler functionality
 func TestHandleGetConfig(t *testing.T) {
-	rpcRequest := &RPCMessage{
+	rpcRequest := &RPCRequest{
 		Req: RPCData{
 			RequestID: 1,
 			Method:    "get_config",

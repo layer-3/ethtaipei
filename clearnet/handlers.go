@@ -88,6 +88,13 @@ type ResizeChannelResponse struct {
 	Signature   Signature    `json:"server_signature"`
 }
 
+// Allocation represents a token allocation for a specific participant
+type Allocation struct {
+	Participant  string   `json:"destination"`
+	TokenAddress string   `json:"token"`
+	Amount       *big.Int `json:"amount,string"`
+}
+
 type ResizeChannelSignData struct {
 	RequestID uint64
 	Method    string
@@ -135,7 +142,7 @@ type BrokerConfig struct {
 }
 
 // HandleGetConfig returns the broker configuration
-func HandleGetConfig(rpc *RPCMessage) (*RPCResponse, error) {
+func HandleGetConfig(rpc *RPCRequest) (*RPCResponse, error) {
 	config := BrokerConfig{
 		BrokerAddress: BrokerAddress,
 	}
@@ -145,12 +152,12 @@ func HandleGetConfig(rpc *RPCMessage) (*RPCResponse, error) {
 }
 
 // HandlePing responds to a ping request with a pong response in RPC format
-func HandlePing(rpc *RPCMessage) (*RPCResponse, error) {
+func HandlePing(rpc *RPCRequest) (*RPCResponse, error) {
 	return CreateResponse(rpc.Req.RequestID, "pong", []any{}, time.Now()), nil
 }
 
 // HandleGetLedgerBalances returns a list of participants and their balances for a ledger account
-func HandleGetLedgerBalances(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
+func HandleGetLedgerBalances(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
 	var accountID string
 
 	if len(rpc.Req.Params) > 0 {
@@ -173,7 +180,7 @@ func HandleGetLedgerBalances(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 }
 
 // HandleCreateApplication creates a virtual application between participants
-func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
+func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
@@ -326,7 +333,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 }
 
 // HandleCloseApplication closes a virtual app and redistributes funds to participants
-func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
+func HandleCloseApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
@@ -450,7 +457,7 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 }
 
 // HandleGetAppDefinition returns the application definition for a ledger account
-func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
+func HandleGetAppDefinition(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, error) {
 	var accountID string
 
 	if len(rpc.Req.Params) > 0 {
@@ -490,7 +497,7 @@ func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 }
 
 // HandleResizeChannel processes a request to resize a payment channel
-func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
+func HandleResizeChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
@@ -615,7 +622,7 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 }
 
 // HandleCloseChannel processes a request to close a payment channel
-func HandleCloseChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
+func HandleCloseChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCResponse, error) {
 	if len(rpc.Req.Params) < 1 {
 		return nil, errors.New("missing parameters")
 	}
