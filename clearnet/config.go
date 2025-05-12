@@ -62,7 +62,6 @@ func LoadConfig() (*Config, error) {
 	if privateKeyHex == "" {
 		log.Println("BROKER_PRIVATE_KEY environment variable is required")
 	}
-	log.Printf("Using broker address derived from private key: %s", BrokerAddress)
 
 	config := Config{
 		networks:      make(map[string]*NetworkConfig),

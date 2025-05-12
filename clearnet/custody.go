@@ -309,7 +309,7 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 // UpdateBalanceMetrics fetches the broker's account information from the smart contract and updates metrics
 func (c *Custody) UpdateBalanceMetrics(ctx context.Context, tokens []common.Address, metrics *Metrics) {
 	if metrics == nil {
-		log.Printf("Metrics not initialized for custody client on network %s", c.networkID)
+		logger.Errorw("Metrics not initialized for custody client", "network", c.networkID)
 		return
 	}
 
@@ -321,11 +321,11 @@ func (c *Custody) UpdateBalanceMetrics(ctx context.Context, tokens []common.Addr
 			Context: ctx,
 		}
 
+		logger.Infow("Fetching account info", "network", c.networkID, "token", token.Hex(), "broker", brokerAddr.Hex())
 		// Call getAccountInfo on the custody contract
 		info, err := c.custody.GetAccountInfo(callOpts, brokerAddr, token)
 		if err != nil {
-			log.Printf("Failed to get account info for token %s on network %s: %v",
-				token.Hex(), c.networkID, err)
+			logger.Errorw("Failed to get account info", "network", c.networkID, "token", token.Hex(), "error", err)
 			continue
 		}
 
@@ -335,17 +335,11 @@ func (c *Custody) UpdateBalanceMetrics(ctx context.Context, tokens []common.Addr
 			"token":   token.Hex(),
 		}).Set(float64(info.Available.Int64()))
 
-		metrics.BrokerBalanceLocked.With(prometheus.Labels{
-			"network": c.networkID,
-			"token":   token.Hex(),
-		}).Set(float64(info.Locked.Int64()))
-
 		metrics.BrokerChannelCount.With(prometheus.Labels{
 			"network": c.networkID,
 			"token":   token.Hex(),
 		}).Set(float64(info.ChannelCount.Int64()))
 
-		log.Printf("Updated contract balance metrics for token %s on network %s: available=%s, locked=%s, channels=%s",
-			token.Hex(), c.networkID, info.Available.String(), info.Locked.String(), info.ChannelCount.String())
+		logger.Infow("Updated contract balance metrics", "network", c.networkID, "token", token.Hex(), "available", info.Available.String(), "channels", info.ChannelCount.String())
 	}
 }
