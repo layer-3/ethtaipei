@@ -152,27 +152,30 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// Update session activity timestamp
 		h.authManager.UpdateSession(address)
 
-		// Forward request or response if it is intended for other participants
+		// Forward request or response for internal vApp communication.
+		// Rule: this is a req or res appID is specified -> forward to the participants of vApp.
 		var rpcRequest RPCMessage
-		err = json.Unmarshal(messageBytes, &rpcRequest)
-		if err == nil && rpcRequest.Req.AppID != "" {
-			if err := forwardMessage(rpcRequest.Req, rpcRequest.Sig, messageBytes, address, h); err != nil {
-				log.Printf("Error forwarding message: %v", err)
-				h.sendErrorResponse(0, "error", conn, "Failed to forward message: "+err.Error())
-				continue
-			}
-		} else {
+		if err := json.Unmarshal(messageBytes, &rpcRequest); err != nil {
 			var rpcRes RPCResponse
-			if err2 := json.Unmarshal(messageBytes, &rpcRes); err2 == nil && rpcRes.Res.AppID != "" {
-				if err := forwardMessage(rpcRes.Res, rpcRes.Sig, messageBytes, address, h); err != nil {
+			if err := json.Unmarshal(messageBytes, &rpcRes); err == nil && rpcRes.AccountID != "" {
+				if err := forwardMessage(rpcRes.AccountID, rpcRes.Res, rpcRes.Sig, messageBytes, address, h); err != nil {
 					log.Printf("Error forwarding message: %v", err)
 					h.sendErrorResponse(0, "error", conn, "Failed to forward message: "+err.Error())
 					continue
 				}
+				continue
 			}
-		}
-		if err != nil {
+
 			h.sendErrorResponse(0, "error", conn, "Invalid message format")
+			continue
+		}
+
+		if rpcRequest.AccountID != "" {
+			if err := forwardMessage(rpcRequest.AccountID, rpcRequest.Req, rpcRequest.Sig, messageBytes, address, h); err != nil {
+				log.Printf("Error forwarding message: %v", err)
+				h.sendErrorResponse(0, "error", conn, "Failed to forward message: "+err.Error())
+				continue
+			}
 			continue
 		}
 
@@ -276,7 +279,7 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 }
 
 // forwardMessage forwards an RPC message to all recipients in a virtual app
-func forwardMessage(rpcData RPCData, signatures []string, msg []byte, fromAddress string, h *UnifiedWSHandler) error {
+func forwardMessage(appID string, rpcData RPCData, signatures []string, msg []byte, fromAddress string, h *UnifiedWSHandler) error {
 	reqBytes, err := json.Marshal(rpcData)
 	if err != nil {
 		return errors.New("Error validating signature: " + err.Error())
@@ -291,16 +294,22 @@ func forwardMessage(rpcData RPCData, signatures []string, msg []byte, fromAddres
 		recoveredAddresses[addr] = true
 	}
 
+	if !recoveredAddresses[fromAddress] {
+		return errors.New("unauthorized: invalid signature or sender is not a participant of this vApp")
+	}
+
 	var participants []string
 	err = h.ledger.db.Transaction(func(tx *gorm.DB) error {
 		var vApp VApp
-		if err := tx.Where("app_id = ?", rpcData.AppID).First(&vApp).Error; err != nil {
+		if err := tx.Where("app_id = ?", appID).First(&vApp).Error; err != nil {
 			return errors.New("failed to find virtual app: " + err.Error())
 		}
 		participants = vApp.Participants
 
+		// TODO: we currently skip intent as in current rpc it is not securely signed.
+		intent := []int64{}
 		// Update ledger with the new intent if present
-		if len(rpcData.Intent) != 0 {
+		if len(intent) != 0 {
 			participantWeights := make(map[string]int64, len(vApp.Participants))
 			for i, addr := range vApp.Participants {
 				participantWeights[strings.ToLower(addr)] = vApp.Weights[i]
@@ -313,37 +322,38 @@ func forwardMessage(rpcData RPCData, signatures []string, msg []byte, fromAddres
 				}
 			}
 
+			// Update only if the quorum is met
 			if totalWeight < int64(vApp.Quorum) {
 				return fmt.Errorf("quorum to apply intent is not met: %d/%d", totalWeight, vApp.Quorum)
 			}
 
-			if len(participants) != len(rpcData.Intent) {
+			if len(participants) != len(intent) {
 				return errors.New("Invalid intent length")
 			}
 
 			var totalIntent int64 = 0
-			for _, value := range rpcData.Intent {
+			for _, value := range intent {
 				totalIntent += value
 			}
 			if totalIntent != 0 {
 				return errors.New("Invalid intent: sum of all intents must be 0")
 			}
 
-			participantsBalances, err := GetAccountBalances(tx, rpcData.AppID)
+			participantsBalances, err := GetAccountBalances(tx, appID)
 			if err != nil {
 				return errors.New("Failed to get participant balance: " + err.Error())
 			}
 
 			for i, participantBalance := range participantsBalances {
-				if participantBalance.Amount+rpcData.Intent[i] < 0 {
+				if participantBalance.Amount+intent[i] < 0 {
 					return errors.New("Invalid intent: insufficient balance for participant " + participantBalance.Address)
 				}
 			}
 
 			// Iterate over participants to keep same order with intent
 			for i, participant := range participants {
-				account := h.ledger.SelectBeneficiaryAccount(rpcData.AppID, participant)
-				if err := account.Record(rpcData.Intent[i]); err != nil {
+				account := h.ledger.SelectBeneficiaryAccount(appID, participant)
+				if err := account.Record(intent[i]); err != nil {
 					return errors.New("Failed to record intent: " + err.Error())
 				}
 			}

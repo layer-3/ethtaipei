@@ -38,12 +38,11 @@ type CreateAppSignData struct {
 	RequestID uint64
 	Method    string
 	Params    []CreateApplicationParams
-	Intent    []int64
 	Timestamp uint64
 }
 
 func (r CreateAppSignData) MarshalJSON() ([]byte, error) {
-	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp, r.Intent}
+	arr := []interface{}{r.RequestID, r.Method, r.Params, r.Timestamp}
 	return json.Marshal(arr)
 }
 
@@ -199,7 +198,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		return nil, errors.New("number of allocations must be equal to participants")
 	}
 
-	if len(createApp.Allocations) != len(rpc.Req.Intent) {
+	if len(createApp.Allocations) != len(rpc.Intent) {
 		return nil, errors.New("number of allocations must be equal to intents")
 	}
 
@@ -230,7 +229,6 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		Method:    rpc.Req.Method,
 		Params:    []CreateApplicationParams{{Definition: createApp.Definition, Token: createApp.Token, Allocations: createApp.Allocations}},
 		Timestamp: rpc.Req.Timestamp,
-		Intent:    rpc.Req.Intent,
 	}
 
 	reqBytes, err := json.Marshal(req)
@@ -258,7 +256,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			}
 			allocation := big.NewInt(createApp.Allocations[i])
 
-			if allocation.Cmp(big.NewInt(rpc.Req.Intent[i])) != 0 {
+			if allocation.Cmp(big.NewInt(rpc.Intent[i])) != 0 {
 				return errors.New("intent must match allocation")
 			}
 
@@ -454,24 +452,24 @@ func HandleCloseApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, erro
 
 // HandleGetAppDefinition returns the application definition for a ledger account
 func HandleGetAppDefinition(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, error) {
-	var appID string
+	var accountID string
 
 	if len(rpc.Req.Params) > 0 {
 		paramsJSON, err := json.Marshal(rpc.Req.Params[0])
 		if err == nil {
 			var params map[string]string
 			if err := json.Unmarshal(paramsJSON, &params); err == nil {
-				appID = params["app_id"]
+				accountID = params["acc"]
 			}
 		}
 	}
 
-	if appID == "" {
+	if accountID == "" {
 		return nil, errors.New("missing account ID")
 	}
 
 	var vApp VApp
-	if err := ledger.db.Where("app_id = ?", appID).First(&vApp).Error; err != nil {
+	if err := ledger.db.Where("app_id = ?", accountID).First(&vApp).Error; err != nil {
 		return nil, fmt.Errorf("failed to find application: %w", err)
 	}
 

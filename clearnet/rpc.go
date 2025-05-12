@@ -9,14 +9,12 @@ import (
 )
 
 // RPCData represents the common structure for both requests and responses
-// Format: [request_id, method, params, ts, intent(optional), app_id(optional)]
+// Format: [request_id, method, params, ts]
 type RPCData struct {
 	RequestID uint64
 	Method    string
 	Params    []any
 	Timestamp uint64
-	Intent    []int64
-	AppID     string // If specified, message is sent into the virtual app with this ID.
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for RPCMessage
@@ -27,9 +25,9 @@ func (m *RPCData) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Validate array length (4, 5, or 6 elements)
-	if len(rawMsg) < 4 || len(rawMsg) > 6 {
-		return errors.New("invalid message format: expected 4, 5, or 6 elements")
+	// Validate array length
+	if len(rawMsg) != 4 {
+		return errors.New("invalid message format: expected 4 elements")
 	}
 
 	// Parse RequestID (uint64)
@@ -56,55 +54,12 @@ func (m *RPCData) UnmarshalJSON(data []byte) error {
 	}
 	m.Timestamp = uint64(timestamp)
 
-	// Parse Intent if present ([]int64)
-	if len(rawMsg) >= 5 {
-		var intent []int64
-		if err := json.Unmarshal(rawMsg[4], &intent); err != nil {
-			return fmt.Errorf("invalid intent: %w", err)
-		}
-		m.Intent = intent
-	}
-
-	// Parse AccountID if present (string)
-	if len(rawMsg) == 6 {
-		if err := json.Unmarshal(rawMsg[5], &m.AppID); err != nil {
-			return fmt.Errorf("invalid channel_id: %w", err)
-		}
-	}
-
 	return nil
 }
 
 // MarshalJSON implements the json.Marshaler interface for RPCMessage
 func (m RPCData) MarshalJSON() ([]byte, error) {
-	// Create array representation based on what fields are present
-	if len(m.Intent) > 0 && m.AppID != "" {
-		return json.Marshal([]any{
-			m.RequestID,
-			m.Method,
-			m.Params,
-			m.Timestamp,
-			m.Intent,
-			m.AppID,
-		})
-	} else if len(m.Intent) > 0 {
-		return json.Marshal([]any{
-			m.RequestID,
-			m.Method,
-			m.Params,
-			m.Timestamp,
-			m.Intent,
-		})
-	} else if m.AppID != "" {
-		return json.Marshal([]any{
-			m.RequestID,
-			m.Method,
-			m.Params,
-			m.Timestamp,
-			[]int64{},
-			m.AppID,
-		})
-	}
+	// Create array representation
 	return json.Marshal([]any{
 		m.RequestID,
 		m.Method,
@@ -115,8 +70,10 @@ func (m RPCData) MarshalJSON() ([]byte, error) {
 
 // RPCMessage represents a complete message in the RPC protocol, including request data and signatures
 type RPCMessage struct {
-	Req RPCData  `json:"req"`
-	Sig []string `json:"sig"`
+	Req       RPCData  `json:"req"`
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
+	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	Sig       []string `json:"sig"`
 }
 
 // Allocation represents a token allocation for a specific participant
@@ -128,8 +85,10 @@ type Allocation struct {
 
 // RPCResponse represents a response in the RPC protocol
 type RPCResponse struct {
-	Res RPCData  `json:"res"`
-	Sig []string `json:"sig"`
+	Res       RPCData  `json:"res"`
+	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
+	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
+	Sig       []string `json:"sig"`
 }
 
 // ParseRPCMessage parses a JSON string into a RPCRequest
