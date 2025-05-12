@@ -25,10 +25,9 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 - The broker sets up message routing between participants
 
 ### 3. Virtual Application Operations
-- Participants send messages to each other through virtual applications using WebSocket connections
-- The broker maintains a real-time communication layer for message routing
-- Virtual applications have versioning and expiration mechanisms to ensure security
-- Participants can update the state of their application off-chain without requiring blockchain transactions
+- Participants send both requests and responses to each other through virtual applications using WebSocket connections
+- Any message (request or response) with an AppID specified is forwarded to all other participants
+- The broker maintains a real-time bidirectional communication layer for message routing
 
 ### 4. Virtual Application Closure and Settlement
 - When participants wish to close a virtual application, all designated signers must provide signatures to authorize the closure
@@ -464,6 +463,8 @@ Adjusts the capacity of a channel.
 
 ## Peer-to-Peer Messaging
 
+The broker supports bi-directional peer-to-peer messaging between participants in a virtual application. Both requests and responses can be forwarded between participants when they include AppID.
+
 ### Send Message in Virtual Application
 
 Sends a message to all participants in a virtual application.
@@ -480,7 +481,21 @@ Sends a message to all participants in a virtual application.
 }
 ```
 
-This message is not acknowledged by the broker but is instead forwarded to all other participants in the specified virtual application.
+### Send Response in Virtual Application
+
+Responses can also be forwarded to all participants in a virtual application by including the AppID field:
+
+```json
+{
+  "res": [6, "message", [{
+    "message": "I confirm that I have received your message!"
+  }], 1619123456789],
+  "acc": "0x3456789012abcdef...", // Virtual application ID
+  "sig": ["0x9876fedcba..."]
+}
+```
+
+These messages are not acknowledged by the broker but is instead forwarded to all other participants in the specified virtual application.
 
 ## Utility Methods
 
