@@ -208,7 +208,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 
 	closeParams := CloseApplicationParams{
 		AppID: vAppID,
-		FinalAllocations: []vAllocation{{
+		FinalAllocations: []VAppAllocation{{
 			ChannelID: channelA.ChannelID,
 			Amount:    big.NewInt(250),
 		}, {
@@ -348,7 +348,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	createParams := CreateApplicationParams{
 		Definition: appDefinition,
 		Token:      tokenAddress,
-		Allocations: []vAllocation{{
+		Allocations: []VAppAllocation{{
 			ChannelID: channelA.ChannelID,
 			Amount:    big.NewInt(100),
 		}, {

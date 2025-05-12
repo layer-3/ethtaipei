@@ -29,12 +29,12 @@ type AppDefinition struct {
 
 // CreateApplicationParams represents parameters needed for virtual app creation
 type CreateApplicationParams struct {
-	Definition  AppDefinition `json:"definition"`
-	Token       string        `json:"token"`
-	Allocations []vAllocation `json:"allocations"`
+	Definition  AppDefinition    `json:"definition"`
+	Token       string           `json:"token"`
+	Allocations []VAppAllocation `json:"allocations"`
 }
 
-type vAllocation struct {
+type VAppAllocation struct {
 	ChannelID string   `json:"channel_id"` // We can specify either (channel_id) or (token, participant, network).
 	Amount    *big.Int `json:"amount,string"`
 }
@@ -53,8 +53,8 @@ func (r CreateAppSignData) MarshalJSON() ([]byte, error) {
 
 // CloseApplicationParams represents parameters needed for virtual app closure
 type CloseApplicationParams struct {
-	AppID            string        `json:"app_id"`
-	FinalAllocations []vAllocation `json:"allocations"`
+	AppID            string           `json:"app_id"`
+	FinalAllocations []VAppAllocation `json:"allocations"`
 }
 
 type CloseAppSignData struct {
