@@ -183,7 +183,7 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 
 		account := c.ledger.SelectBeneficiaryAccount(channelID, participantA)
 
-		if err := account.Record(tokenAmount); err != nil {
+		if err := account.Record(tokenAddress, c.networkID, tokenAmount); err != nil {
 			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
 			return
 		}
@@ -253,13 +253,13 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 
 			account := c.ledger.SelectBeneficiaryAccount(channelID, channel.ParticipantA)
 			account.db = tx
-			balance, err := account.Balance()
+			balance, err := account.Balance(channel.Token, c.networkID)
 			if err != nil {
 				log.Printf("[Closed] Error getting balances for participant: %v", err)
 				return err
 			}
 
-			if err := account.Record(-balance); err != nil {
+			if err := account.Record(channel.Token, c.networkID, -balance); err != nil {
 				log.Printf("[Closed] Error recording initial balance for participant A: %v", err)
 				return err
 			}

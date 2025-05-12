@@ -359,17 +359,17 @@ func forwardMessage(appID string, rpcData RPCData, signatures []string, msg []by
 
 			for i, participantBalance := range participantsBalances {
 				if participantBalance.Amount+intent[i] < 0 {
-					return errors.New("Invalid intent: insufficient balance for participant " + participantBalance.Address)
+					return errors.New("Invalid intent: insufficient balance for participant " + participantBalance.Beneficiary)
 				}
 			}
 
-			// Iterate over participants to keep same order with intent
-			for i, participant := range participants {
-				account := h.ledger.SelectBeneficiaryAccount(appID, participant)
-				if err := account.Record(intent[i]); err != nil {
-					return errors.New("Failed to record intent: " + err.Error())
-				}
-			}
+			// // Iterate over participants to keep same order with intent
+			// for i, participant := range participants {
+			// 	account := h.ledger.SelectBeneficiaryAccount(appID, participant)
+			// 	if err := account.Record(intent[i]); err != nil {
+			// 		return errors.New("Failed to record intent: " + err.Error())
+			// 	}
+			// }
 
 			// Update the virtual app version in the database
 			if rpcData.Timestamp <= vApp.Version {

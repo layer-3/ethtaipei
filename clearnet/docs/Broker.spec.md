@@ -8,9 +8,9 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 ### 1. Blockchain Channels and Credit
 - The protocol accepts blockchain channels to credit participants' balances in the database ledger
 - Participants create on-chain channels through custody contracts (supported on multiple chains including Polygon and Celo)
-- Channel creation events from the blockchain are received through webhooks and processed by the `EventHandler`
+- Channel creation events from the blockchain are received and processed by the custody client
 - These events credit participants' balances in the internal ledger system
-- Each participant has an `Account` in the ledger tied to their address, channel ID, and token address
+- Each participant has an `Account` in the ledger tied to their address, channel ID, token address, and network ID
 
 ### 2. Virtual Application Creation
 - After being credited from on-chain channels, participants can create virtual applications with other participants
@@ -46,7 +46,7 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 - The system uses ECDSA signatures compatible with Ethereum accounts
 - Virtual applications implement a multi-signature scheme:
   - Application creation requires signatures from participating parties
-  - Application closure requires signatures from all designated signers
+  - Application closure requires signatures meeting or exceeding the quorum threshold
 - Weight-based quorum signatures are supported for application governance:
   - Each signer can be assigned a weight
   - A quorum threshold determines the minimum total weight required for valid decisions
@@ -58,12 +58,26 @@ The ClearNet broker protocol is a system for managing payment channels and virtu
 - The system supports multiple blockchain networks (currently Polygon and Celo)
 - Each network has its own custody contract address and connection details
 - Network IDs are tracked with channels to ensure proper chain association
+- Ledger entries include network ID to maintain separation between different blockchain networks
+
+## Monitoring and Metrics
+- The broker implements Prometheus metrics for monitoring system performance and state
+- Metrics include:
+  - Connection statistics (connected clients, total connections, message counts)
+  - Authentication statistics (requests, successes, failures)
+  - Channel statistics (total, open, closed channels)
+  - RPC request counts by method
+  - Application session counts
+  - Broker balance metrics from the custody contract (available, locked)
+  - Broker channel counts from the custody contract
 
 ## Benefits
 - Efficient, low-cost transactions by keeping most operations off-chain
 - Security guarantees of blockchain when needed
 - Participants can freely transact within their allocated funds in virtual applications
 - On-chain settlement only occurs when participants choose to materialize their balances
+- Real-time monitoring of system health and performance via Prometheus metrics
+- Multi-chain support enables transactions across different blockchain networks
 
 ## API Endpoints
 
@@ -93,13 +107,11 @@ All messages exchanged between clients and Clearnet brokers follow this standard
 {
   "req": [REQUEST_ID, METHOD, [PARAMETERS], TIMESTAMP],
   "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
-  "int": [INTENT], // Optional allocation intent change
   "sig": ["SIGNATURE"]  // Client's signature of the entire "req" object
 }
 ```
 
 - The `acc` field serves as both the subject and destination pubsub topic for the message. There is a one-to-one mapping between topics and ledger accounts.
-- The `int` field can be omitted if there is no allocation change in this request.
 - The `sig` field contains the rpcHash signature, ensuring proof-of-history integrity.
 
 ### Response Message
@@ -108,7 +120,6 @@ All messages exchanged between clients and Clearnet brokers follow this standard
 {
   "res": [REQUEST_ID, METHOD, [RESPONSE_DATA], TIMESTAMP],
   "acc": "ACCOUNT_ID", // AppId for Virtual Ledgers for Internal Communication
-  "int": [INTENT],// Allocation intent change
   "sig": ["SIGNATURE"]
 }
 ```
@@ -120,7 +131,6 @@ The structure breakdown:
 - `PARAMETERS`/`RESPONSE_DATA`: An array of parameters/response data (array)
 - `TIMESTAMP`: Unix timestamp of the request/response (uint64)
 - `ACCOUNT_ID` (`acc`): Ledger account identifier that serves as the destination pubsub topic for the message
-- `INTENT` (`int`): Optional allocation intent change for token distributions between participants
 - `SIGNATURE`: Cryptographic signature of the message.
 
 ## App Definition
@@ -138,21 +148,6 @@ The structure breakdown:
   "nonce": 1
 }
 ```
-
-### Intent Format
-
-Intent specifies token distributions for a ledger allocation change.
-Values are arranged in the same order as the participants array.
-
-#### Example
-
-```json
-[-10, +10]
-```
-
-When creating a new app, the first Intent represents the initial allocation.
-The token type is defined by the funding account source (which is a ledger channel).
-Each channel supports only one currency type.
 
 ## Authentication Flow
 
@@ -282,10 +277,14 @@ Retrieves the balances of all participants in a specific ledger account.
   "res": [2, "get_ledger_balances", [[
     {
       "address": "0x1234567890abcdef...",
+      "token": "0xTokenAddress",
+      "network": "137",
       "amount": 100000
     },
     {
       "address": "0x2345678901abcdef...",
+      "token": "0xTokenAddress",
+      "network": "137",
       "amount": 200000
     }
   ]], 1619123456789],
@@ -316,9 +315,17 @@ Creates a virtual application between participants.
       "nonce": 1
     },
     "token": "0xTokenAddress",
-    "allocations": [100, 100]
+    "allocations": [
+      {
+        "channel_id": "0xChannelA",
+        "amount": "100"
+      },
+      {
+        "channel_id": "0xChannelB",
+        "amount": "100"
+      }
+    ]
   }], 1619123456789],
-  "int": [100, 100], // Initial funding intent from 0, 0
   "sig": ["0x9876fedcba..."]
 }
 ```
@@ -345,9 +352,17 @@ Closes a virtual application and redistributes funds.
 {
   "req": [4, "close_app_session", [{
     "app_id": "0x3456789012abcdef...",
-    "allocations": [0, 200]
+    "allocations": [
+      {
+        "channel_id": "0xChannelA",
+        "amount": "0"
+      },
+      {
+        "channel_id": "0xChannelB",
+        "amount": "200"
+      }
+    ]
   }], 1619123456789],
-  "int": [0, 200],
   "sig": ["0x9876fedcba...", "0x8765fedcba..."]
 }
 ```
@@ -392,12 +407,12 @@ Closes a channel between a participant and the broker.
     "allocations": [
       {
         "destination": "0x1234567890abcdef...",
-        "token": "0xeeee567890abcdef...",
+        "tokenAddress": "0xeeee567890abcdef...",
         "amount": "50000"
       },
       {
         "destination": "0xbbbb567890abcdef...", // Broker address
-        "token": "0xeeee567890abcdef...",
+        "tokenAddress": "0xeeee567890abcdef...",
         "amount": "50000"
       }
     ],
@@ -441,12 +456,12 @@ Adjusts the capacity of a channel.
     "allocations": [
       {
         "destination": "0x1234567890abcdef...",
-        "token": "0xeeee567890abcdef...",
+        "tokenAddress": "0xeeee567890abcdef...",
         "amount": "100000"
       },
       {
         "destination": "0xbbbb567890abcdef...", // Broker address
-        "token": "0xeeee567890abcdef...",
+        "tokenAddress": "0xeeee567890abcdef...",
         "amount": "0"
       }
     ],
@@ -568,6 +583,7 @@ When an error occurs, the server responds with an error message:
 6. **Address Binding**: Each challenge is stored with the address that requested it
 7. **Random Challenge Strings**: Secure, random strings are used as challenge tokens
 8. **Quorum Signatures**: Application closure requires signatures meeting or exceeding the quorum threshold
+9. **Network Isolation**: Ledger entries include network ID to separate balances across different blockchains
 
 ## Client Implementation Guidelines
 

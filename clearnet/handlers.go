@@ -31,7 +31,12 @@ type AppDefinition struct {
 type CreateApplicationParams struct {
 	Definition  AppDefinition `json:"definition"`
 	Token       string        `json:"token"`
-	Allocations []int64       `json:"allocations"`
+	Allocations []vAllocation `json:"allocations"`
+}
+
+type vAllocation struct {
+	ChannelID string   `json:"channel_id"` // We can specify either (channel_id) or (token, participant, network).
+	Amount    *big.Int `json:"amount,string"`
 }
 
 type CreateAppSignData struct {
@@ -48,8 +53,8 @@ func (r CreateAppSignData) MarshalJSON() ([]byte, error) {
 
 // CloseApplicationParams represents parameters needed for virtual app closure
 type CloseApplicationParams struct {
-	AppID            string  `json:"app_id"`
-	FinalAllocations []int64 `json:"allocations"`
+	AppID            string        `json:"app_id"`
+	FinalAllocations []vAllocation `json:"allocations"`
 }
 
 type CloseAppSignData struct {
@@ -77,6 +82,13 @@ type ResizeChannelParams struct {
 	FundsDestination  string   `json:"funds_destination"`
 }
 
+// Allocation represents a token allocation for a specific participant
+type Allocation struct {
+	Participant  string   `json:"destination"`
+	TokenAddress string   `json:"token"`
+	Amount       *big.Int `json:"amount,string"`
+}
+
 // ResizeChannelResponse represents the response for resizing a channel
 type ResizeChannelResponse struct {
 	ChannelID   string       `json:"channel_id"`
@@ -86,13 +98,6 @@ type ResizeChannelResponse struct {
 	Allocations []Allocation `json:"allocations"`
 	StateHash   string       `json:"state_hash"`
 	Signature   Signature    `json:"server_signature"`
-}
-
-// Allocation represents a token allocation for a specific participant
-type Allocation struct {
-	Participant  string   `json:"destination"`
-	TokenAddress string   `json:"token"`
-	Amount       *big.Int `json:"amount,string"`
 }
 
 type ResizeChannelSignData struct {
@@ -132,8 +137,10 @@ type Signature struct {
 
 // AvailableBalance represents a participant's availability for virtual apps
 type AvailableBalance struct {
-	Address string `json:"address"`
-	Amount  int64  `json:"amount"`
+	Beneficiary string `json:"address"`
+	Token       string `json:"token"`
+	NetworkID   string `json:"network"`
+	Amount      int64  `json:"amount"`
 }
 
 // BrokerConfig represents the broker configuration information
@@ -204,10 +211,6 @@ func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, err
 		return nil, errors.New("number of allocations must be equal to participants")
 	}
 
-	if len(createApp.Allocations) != len(rpc.Intent) {
-		return nil, errors.New("number of allocations must be equal to intents")
-	}
-
 	if len(createApp.Definition.Weights) != len(createApp.Definition.Participants) {
 		return nil, errors.New("number of weights must be equal to participants")
 	}
@@ -254,40 +257,48 @@ func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, err
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
 		ledgerTx := &Ledger{db: tx}
 
-		for i, participant := range createApp.Definition.Participants {
-			participantChannel, err := getChannelForParticipant(tx, participant)
+		// Iterate over each allocation and verify that its channel's participantA is present in the app definition
+		for _, alloc := range createApp.Allocations {
+			// Retrieve the channel associated with this allocation
+			channel, err := GetChannelByID(tx, alloc.ChannelID)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get channel %s: %w", alloc.ChannelID, err)
 			}
 
-			allocation := big.NewInt(createApp.Allocations[i])
-
-			if allocation.Cmp(big.NewInt(rpc.Intent[i])) != 0 {
-				return errors.New("intent must match allocation")
-			}
-
-			if allocation.Sign() < 0 {
-				return errors.New("invalid allocation")
-			}
-
-			if allocation.Sign() > 0 {
-				if !recoveredAddresses[participant] {
-					return fmt.Errorf("missing signature for participant %s", participant)
+			// Verify that the channel’s participantA is included in the app definition participants
+			found := false
+			for _, participant := range createApp.Definition.Participants {
+				if strings.EqualFold(participant, channel.ParticipantA) {
+					found = true
+					break
 				}
 			}
-
-			account := ledgerTx.SelectBeneficiaryAccount(participantChannel.ChannelID, participant)
-			balance, err := account.Balance()
-			if err != nil {
-				return fmt.Errorf("failed to check participant balance: %w", err)
+			if !found {
+				return fmt.Errorf("allocation error: participant %s for channel %s is not in the application definition", channel.ParticipantA, alloc.ChannelID)
 			}
-			if balance < allocation.Int64() {
+
+			// Validate the allocation amount
+			if alloc.Amount.Sign() < 0 {
+				return errors.New("invalid allocation: negative amount")
+			}
+
+			networkID := channel.NetworkID
+			token := channel.Token
+
+			// Check the participant's account balance
+			account := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+			balance, err := account.Balance(token, networkID)
+			if err != nil {
+				return fmt.Errorf("failed to check balance for participant %s on token %s: %w", channel.ParticipantA, token, err)
+			}
+			if balance < alloc.Amount.Int64() {
 				return errors.New("insufficient funds")
 			}
 
-			toAccount := ledgerTx.SelectBeneficiaryAccount(vAppID.Hex(), participant)
-			if err := account.Transfer(toAccount, allocation.Int64()); err != nil {
-				return fmt.Errorf("failed to transfer funds from participant: %w", err)
+			// Transfer funds from the participant's current channel to the virtual app account
+			toAccount := ledgerTx.SelectBeneficiaryAccount(vAppID.Hex(), channel.ParticipantA)
+			if err := account.Transfer(token, networkID, toAccount, alloc.Amount.Int64()); err != nil {
+				return fmt.Errorf("failed to transfer funds for token %s from participant %s: %w", token, channel.ParticipantA, err)
 			}
 		}
 
@@ -304,7 +315,6 @@ func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, err
 			Status:       ChannelStatusOpen,
 			Challenge:    createApp.Definition.Challenge,
 			Weights:      weights,
-			Token:        createApp.Token,
 			Quorum:       createApp.Definition.Quorum,
 			Nonce:        createApp.Definition.Nonce,
 			Version:      rpc.Req.Timestamp,
@@ -396,44 +406,60 @@ func HandleCloseApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, erro
 
 		fmt.Println("Quorum met:", totalWeight, "of", vApp.Quorum)
 
-		if len(params.FinalAllocations) != len(vApp.Participants) {
-			return errors.New("number of allocations must match number of participants")
-		}
-
 		// Process allocations
-		totalVirtualAppBalance, sumAllocations := int64(0), int64(0)
-		for i, participant := range vApp.Participants {
-			allocation := params.FinalAllocations[i]
-			if allocation < 0 {
-				return errors.New("invalid allocation")
+		totalVirtualAppBalance := map[string]int64{}
+		sumAllocations := map[string]int64{}
+
+		for _, finalAllocation := range params.FinalAllocations {
+			// Retrieve the channel associated with this allocation
+			channel, err := GetChannelByID(tx, finalAllocation.ChannelID)
+			if err != nil {
+				return fmt.Errorf("failed to get channel %s: %w", finalAllocation.ChannelID, err)
 			}
+
+			// Verify that the channel’s participantA is included in the app definition participants
+			found := false
+			for _, participant := range vApp.Participants {
+				if strings.EqualFold(participant, channel.ParticipantA) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("allocation error: participant %s for channel %s is not in the application definition", channel.ParticipantA, finalAllocation.ChannelID)
+			}
+
+			// Validate the allocation amount
+			if finalAllocation.Amount.Sign() < 0 {
+				return errors.New("invalid allocation: negative amount")
+			}
+
+			networkID := channel.NetworkID
+			token := channel.Token
 
 			// Adjust balances
-			virtualBalance := ledgerTx.SelectBeneficiaryAccount(vApp.AppID, participant)
-			participantBalance, err := virtualBalance.Balance()
+			virtualBalance := ledgerTx.SelectBeneficiaryAccount(vApp.AppID, channel.ParticipantA)
+			participantBalance, err := virtualBalance.Balance(token, networkID)
 			if err != nil {
-				return fmt.Errorf("failed to check balance for %s: %w", participant, err)
+				return fmt.Errorf("failed to check balance for %s: %w", channel.ParticipantA, err)
 			}
-			totalVirtualAppBalance += participantBalance
+			totalVirtualAppBalance[token+networkID] += participantBalance
 
-			if err := virtualBalance.Record(-participantBalance); err != nil {
-				return fmt.Errorf("failed to adjust virtual balance for %s: %w", participant, err)
-			}
-
-			channel, err := getChannelForParticipant(tx, participant)
-			if err != nil {
-				return fmt.Errorf("failed to find channel for %s: %w", participant, err)
+			if err := virtualBalance.Record(token, networkID, -participantBalance); err != nil {
+				return fmt.Errorf("failed to adjust virtual balance for %s: %w", channel.ParticipantA, err)
 			}
 
-			toAccount := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, participant)
-			if err := toAccount.Record(allocation); err != nil {
-				return fmt.Errorf("failed to adjust balance for %s: %w", participant, err)
+			toAccount := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+			if err := toAccount.Record(token, networkID, finalAllocation.Amount.Int64()); err != nil {
+				return fmt.Errorf("failed to adjust balance for %s: %w", channel.ParticipantA, err)
 			}
-			sumAllocations += allocation
+			sumAllocations[token+networkID] += finalAllocation.Amount.Int64()
 		}
 
-		if sumAllocations != totalVirtualAppBalance {
-			return errors.New("allocation mismatch with virtual app balance")
+		for tokenNetworkBalance, amount := range totalVirtualAppBalance {
+			if sumAllocations[tokenNetworkBalance] != amount {
+				return errors.New("allocation mismatch with virtual app balance")
+			}
 		}
 
 		// Close the virtual app
@@ -540,7 +566,7 @@ func HandleResizeChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCR
 
 	// Get current account balance
 	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
-	balance, err := account.Balance()
+	balance, err := account.Balance(channel.Token, channel.NetworkID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
@@ -653,7 +679,7 @@ func HandleCloseChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCRe
 	}
 
 	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
-	balance, err := account.Balance()
+	balance, err := account.Balance(channel.Token, channel.NetworkID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}

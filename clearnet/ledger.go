@@ -13,6 +13,8 @@ type Entry struct {
 	ID          uint   `gorm:"primaryKey"`
 	AccountID   string `gorm:"column:account_id;not null"`
 	Beneficiary string `gorm:"column:beneficiary;not null"`
+	Token       string `gorm:"column:token;not null"`
+	NetworkID   string `gorm:"column:network_id;not null"`
 	Credit      int64  `gorm:"column:credit;not null"`
 	Debit       int64  `gorm:"column:debit;not null"`
 	CreatedAt   time.Time
@@ -52,12 +54,11 @@ func (l *Ledger) SelectBeneficiaryAccount(channelID, beneficiary string) *Benefi
 }
 
 // Balance returns the current balance (credit - debit) for this account
-func (a *BeneficiaryAccount) Balance() (int64, error) {
+func (a *BeneficiaryAccount) Balance(token, networkID string) (int64, error) {
 	var creditSum, debitSum int64
 
 	err := a.db.Model(&Entry{}).
-		Where("account_id = ? AND beneficiary = ?",
-			a.AccountID, a.Beneficiary).
+		Where("account_id = ? AND beneficiary = ? AND token = ? AND network_id", a.AccountID, a.Beneficiary, token, networkID).
 		Select("COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
 		Row().Scan(&creditSum, &debitSum)
 
@@ -72,6 +73,8 @@ func (a *BeneficiaryAccount) Balance() (int64, error) {
 func GetAccountBalances(db *gorm.DB, accountID string) ([]AvailableBalance, error) {
 	type BalanceResult struct {
 		Beneficiary string
+		Token       string
+		NetworkID   string
 		CreditSum   int64
 		DebitSum    int64
 	}
@@ -79,8 +82,8 @@ func GetAccountBalances(db *gorm.DB, accountID string) ([]AvailableBalance, erro
 	var results []BalanceResult
 	err := db.Model(&Entry{}).
 		Where("account_id = ?", accountID).
-		Select("beneficiary, COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
-		Group("beneficiary").
+		Select("beneficiary, token, network_id, COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
+		Group("beneficiary, token, network_id").
 		Scan(&results).Error
 
 	if err != nil {
@@ -90,8 +93,10 @@ func GetAccountBalances(db *gorm.DB, accountID string) ([]AvailableBalance, erro
 	var balances []AvailableBalance
 	for _, r := range results {
 		balances = append(balances, AvailableBalance{
-			Address: r.Beneficiary,
-			Amount:  r.CreditSum - r.DebitSum,
+			Beneficiary: r.Beneficiary,
+			Token:       r.Token,
+			NetworkID:   r.NetworkID,
+			Amount:      r.CreditSum - r.DebitSum,
 		})
 	}
 
@@ -100,10 +105,12 @@ func GetAccountBalances(db *gorm.DB, accountID string) ([]AvailableBalance, erro
 
 // Record creates a new ledger entry for this account
 // If amount > 0, it records a credit; if amount < 0, it records a debit
-func (a *BeneficiaryAccount) Record(amount int64) error {
+func (a *BeneficiaryAccount) Record(token, networkID string, amount int64) error {
 	entry := &Entry{
 		AccountID:   a.AccountID,
 		Beneficiary: a.Beneficiary,
+		Token:       token,
+		NetworkID:   networkID,
 		Credit:      0,
 		Debit:       0,
 		CreatedAt:   time.Now(),
@@ -121,14 +128,14 @@ func (a *BeneficiaryAccount) Record(amount int64) error {
 }
 
 // Transfer moves funds from this account to another account
-func (a *BeneficiaryAccount) Transfer(toAccount *BeneficiaryAccount, amount int64) error {
+func (a *BeneficiaryAccount) Transfer(token, networkID string, toAccount *BeneficiaryAccount, amount int64) error {
 	fmt.Println("transferring amount:", amount)
 	if amount < 0 {
 		return errors.New("transfer amount must be positive")
 	}
 
 	// Check if the source account has sufficient funds
-	balance, err := a.Balance()
+	balance, err := a.Balance(token, networkID)
 	if err != nil {
 		return err
 	}
@@ -153,12 +160,12 @@ func (a *BeneficiaryAccount) Transfer(toAccount *BeneficiaryAccount, amount int6
 		}
 
 		// Debit the source account
-		if err := fromAccount.Record(-amount); err != nil {
+		if err := fromAccount.Record(token, networkID, -amount); err != nil {
 			return err
 		}
 
 		// Credit the destination account
-		if err := toAccountTx.Record(amount); err != nil {
+		if err := toAccountTx.Record(token, networkID, amount); err != nil {
 			return err
 		}
 

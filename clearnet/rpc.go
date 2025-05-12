@@ -11,7 +11,6 @@ import (
 type RPCRequest struct {
 	Req       RPCData  `json:"req"`
 	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
-	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
 	Sig       []string `json:"sig"`
 }
 
@@ -19,7 +18,6 @@ type RPCRequest struct {
 type RPCResponse struct {
 	Res       RPCData  `json:"res"`
 	AccountID string   `json:"acc,omitempty"` // If specified, message is sent into the virtual app.
-	Intent    []int64  `json:"int,omitempty"` // Allocation intent change
 	Sig       []string `json:"sig"`
 }
 

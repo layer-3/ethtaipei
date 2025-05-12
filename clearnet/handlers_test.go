@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -164,6 +165,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		ParticipantB: BrokerAddress,
 		Status:       ChannelStatusOpen,
 		Token:        tokenAddress,
+		NetworkID:    "137",
 		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -176,6 +178,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		ParticipantB: BrokerAddress,
 		Status:       ChannelStatusOpen,
 		Token:        tokenAddress,
+		NetworkID:    "137",
 		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -190,7 +193,6 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		Status:       ChannelStatusOpen,
 		Challenge:    60,
 		Weights:      []int64{100, 0},
-		Token:        tokenAddress,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 		Quorum:       100,
@@ -199,14 +201,20 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 
 	// Add funds to the virtual app
 	accountA := ledger.SelectBeneficiaryAccount(vAppID, participantA)
-	require.NoError(t, accountA.Record(200))
+	require.NoError(t, accountA.Record(tokenAddress, "137", 200))
 
 	accountB := ledger.SelectBeneficiaryAccount(vAppID, participantB)
-	require.NoError(t, accountB.Record(300))
+	require.NoError(t, accountB.Record(tokenAddress, "137", 300))
 
 	closeParams := CloseApplicationParams{
-		AppID:            vAppID,
-		FinalAllocations: []int64{250, 250},
+		AppID: vAppID,
+		FinalAllocations: []vAllocation{{
+			ChannelID: channelA.ChannelID,
+			Amount:    big.NewInt(250),
+		}, {
+			ChannelID: channelB.ChannelID,
+			Amount:    big.NewInt(250),
+		}},
 	}
 
 	// Create RPC request
@@ -250,23 +258,23 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 
 	// Check that funds were transferred back to channels according to allocations
 	directAccountA := ledger.SelectBeneficiaryAccount(channelA.ChannelID, participantA)
-	balanceA, err := directAccountA.Balance()
+	balanceA, err := directAccountA.Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceA)
 
 	directAccountB := ledger.SelectBeneficiaryAccount(channelB.ChannelID, participantB)
-	balanceB, err := directAccountB.Balance()
+	balanceB, err := directAccountB.Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceB)
 
 	// Check that virtual app accounts are empty
 	virtualAccountA := ledger.SelectBeneficiaryAccount(vAppID, participantA)
-	virtualBalanceA, err := virtualAccountA.Balance()
+	virtualBalanceA, err := virtualAccountA.Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceA)
 
 	virtualAccountB := ledger.SelectBeneficiaryAccount(vAppID, participantB)
-	virtualBalanceB, err := virtualAccountB.Balance()
+	virtualBalanceB, err := virtualAccountB.Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), virtualBalanceB)
 }
@@ -296,6 +304,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 		ParticipantB: BrokerAddress,
 		Status:       ChannelStatusOpen,
 		Token:        tokenAddress,
+		NetworkID:    "137",
 		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -308,6 +317,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 		ParticipantB: BrokerAddress,
 		Status:       ChannelStatusOpen,
 		Token:        tokenAddress,
+		NetworkID:    "137",
 		Nonce:        1,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -317,9 +327,9 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	// Create ledger and fund channels
 	ledger := NewLedger(db)
 	acctA := ledger.SelectBeneficiaryAccount(channelA.ChannelID, addrA)
-	require.NoError(t, acctA.Record(100))
+	require.NoError(t, acctA.Record(tokenAddress, "137", 100))
 	acctB := ledger.SelectBeneficiaryAccount(channelB.ChannelID, addrB)
-	require.NoError(t, acctB.Record(200))
+	require.NoError(t, acctB.Record(tokenAddress, "137", 200))
 
 	// Create common timestamp for all signatures - will also be used as nonce
 	timestamp := uint64(time.Now().Unix())
@@ -336,9 +346,15 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 
 	// Create the RPC request with the combined application parameters
 	createParams := CreateApplicationParams{
-		Definition:  appDefinition,
-		Token:       tokenAddress,
-		Allocations: []int64{100, 200}, // Combined allocations
+		Definition: appDefinition,
+		Token:      tokenAddress,
+		Allocations: []vAllocation{{
+			ChannelID: channelA.ChannelID,
+			Amount:    big.NewInt(100),
+		}, {
+			ChannelID: channelB.ChannelID,
+			Amount:    big.NewInt(200),
+		}},
 	}
 
 	rpcReq := &RPCRequest{
@@ -348,7 +364,6 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 			Params:    []any{createParams},
 			Timestamp: timestamp,
 		},
-		Intent: []int64{100, 200},
 	}
 
 	// Create the CreateAppSignData object exactly as it's created in HandleCreateApplication
@@ -400,24 +415,23 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	require.NoError(t, db.
 		Where("app_id = ?", appResp.AppID).
 		First(&vApp).Error)
-	assert.Equal(t, tokenAddress, vApp.Token)
 	assert.ElementsMatch(t, []string{addrA, addrB}, vApp.Participants)
 	assert.Equal(t, ChannelStatusOpen, vApp.Status)
 
 	// Check balances: channels drained, virtual app funded
-	directBalA, err := ledger.SelectBeneficiaryAccount(channelA.ChannelID, addrA).Balance()
+	directBalA, err := ledger.SelectBeneficiaryAccount(channelA.ChannelID, addrA).Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), directBalA, "channel A should be drained")
 
-	directBalB, err := ledger.SelectBeneficiaryAccount(channelB.ChannelID, addrB).Balance()
+	directBalB, err := ledger.SelectBeneficiaryAccount(channelB.ChannelID, addrB).Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), directBalB, "channel B should be drained")
 
-	virtBalA, err := ledger.SelectBeneficiaryAccount(appResp.AppID, addrA).Balance()
+	virtBalA, err := ledger.SelectBeneficiaryAccount(appResp.AppID, addrA).Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(100), virtBalA, "virtual app A balance")
 
-	virtBalB, err := ledger.SelectBeneficiaryAccount(appResp.AppID, addrB).Balance()
+	virtBalB, err := ledger.SelectBeneficiaryAccount(appResp.AppID, addrB).Balance(tokenAddress, "137")
 	require.NoError(t, err)
 	assert.Equal(t, int64(200), virtBalB, "virtual app B balance")
 }
@@ -458,7 +472,7 @@ func TestHandleListParticipants(t *testing.T) {
 		// Add funds if needed
 		if p.initialBalance > 0 {
 			account := ledger.SelectBeneficiaryAccount(p.channelID, p.address)
-			err = account.Record(p.initialBalance)
+			err = account.Record("btc", "137", p.initialBalance)
 			require.NoError(t, err)
 		}
 	}
@@ -490,25 +504,24 @@ func TestHandleListParticipants(t *testing.T) {
 	responseParams = response.Res.Params
 	require.NotEmpty(t, responseParams)
 
-	// First parameter should be an array of ChannelAvailabilityResponse
-	channelsArray, ok := responseParams[0].([]AvailableBalance)
-	require.True(t, ok, "Response should contain an array of ChannelAvailabilityResponse")
+	balances, ok := responseParams[0].([]AvailableBalance)
+	require.True(t, ok, "Response should contain an array of AvailableBalance")
 
 	// We should have 4 channels with positive balances (excluding closed one)
-	assert.Equal(t, 1, len(channelsArray), "Should have 4 channels")
+	assert.Equal(t, 1, len(balances), "Should have 4 channel balances")
 
 	// Check the contents of each channel response
 	expectedAddresses := map[string]int64{
 		"0xParticipant1": 1000,
 	}
 
-	for _, ch := range channelsArray {
-		expectedBalance, exists := expectedAddresses[ch.Address]
-		assert.True(t, exists, "Unexpected address in response: %s", ch.Address)
-		assert.Equal(t, expectedBalance, ch.Amount, "Incorrect balance for address %s", ch.Address)
-
+	for _, ch := range balances {
+		expectedBalance, exists := expectedAddresses[ch.Beneficiary]
+		assert.True(t, exists, "Unexpected address in response: %s", ch.Beneficiary)
+		assert.Equal(t, expectedBalance, ch.Amount, "Incorrect balance for address %s", ch.Beneficiary)
+		assert.Equal(t, "btc", ch.Token, "Incorrect token address for address %s", ch.Beneficiary)
 		// Remove from map to ensure each address appears only once
-		delete(expectedAddresses, ch.Address)
+		delete(expectedAddresses, ch.Beneficiary)
 	}
 
 	assert.Empty(t, expectedAddresses, "Not all expected addresses were found in the response")

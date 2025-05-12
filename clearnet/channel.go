@@ -79,16 +79,6 @@ func GetChannelByID(tx *gorm.DB, channelID string) (*Channel, error) {
 	return &channel, nil
 }
 
-// getChannelForParticipant finds the channel between a participant and the broker
-func getChannelForParticipant(tx *gorm.DB, participant string) (*Channel, error) {
-	var channel Channel
-	if err := tx.Where("participant_a = ? AND participant_b = ? AND status = ?",
-		participant, BrokerAddress, ChannelStatusOpen).Order("nonce DESC").First(&channel).Error; err != nil {
-		return nil, fmt.Errorf("no open channel found for participant %s: %w", participant, err)
-	}
-	return &channel, nil
-}
-
 // CheckExistingChannels checks if there is an existing open channel on the same network between participant A and B
 func CheckExistingChannels(tx *gorm.DB, participantA, participantB, networkID string) (*Channel, error) {
 	var channel Channel
