@@ -107,18 +107,19 @@ func (c *Custody) Join(channelID string, lastStateData []byte) error {
 // handleBlockChainEvent processes different event types received from the blockchain
 func (c *Custody) handleBlockChainEvent(l types.Log) {
 	log.Printf("Received event: %+v\n", l)
+
 	eventID := l.Topics[0]
 	switch eventID {
 	case custodyAbi.Events["Created"].ID:
 		ev, err := c.custody.ParseCreated(l)
-		log.Printf("[ChannelCreated] Event data: %+v\n", ev)
+		log.Printf("[Created] Event data: %+v\n", ev)
 		if err != nil {
-			fmt.Println("error parsing ChannelCreated event:", err)
+			fmt.Println("error parsing Created event:", err)
 			return
 		}
 
 		if len(ev.Channel.Participants) < 2 {
-			log.Println("[ChannelCreated] Error: not enough participants in the channel")
+			log.Println("[Created] Error: not enough participants in the channel")
 			return
 		}
 
@@ -135,28 +136,28 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 		// Check if there is already existing open channel with the broker
 		existingOpenChannel, err := CheckExistingChannels(c.ledger.db, participantA, participantB, c.networkID)
 		if err != nil {
-			log.Printf("[ChannelCreated] Error checking channels in database: %v", err)
+			log.Printf("[Created] Error checking channels in database: %v", err)
 			return
 		}
 
 		if existingOpenChannel != nil {
-			log.Printf("[ChannelCreated] An open channel with broker already exists: %s", existingOpenChannel.ChannelID)
+			log.Printf("[Created] An open channel with broker already exists: %s", existingOpenChannel.ChannelID)
 			return
 		}
 
 		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
-		tokenAmount := ev.Initial.Allocations[0].Amount
+		tokenAmount := ev.Initial.Allocations[0].Amount.Int64()
 
-		channelID := common.BytesToHash(ev.ChannelId[:])
+		channelID := common.BytesToHash(ev.ChannelId[:]).Hex()
 		err = CreateChannel(
 			c.ledger.db,
-			channelID.Hex(),
+			channelID,
 			participantA,
 			nonce,
 			ev.Channel.Adjudicator.Hex(),
 			c.networkID,
 			tokenAddress,
-			tokenAmount.Int64(),
+			tokenAmount,
 		)
 		if err != nil {
 			log.Printf("[ChannelCreated] Error creating/updating channel in database: %v", err)
@@ -169,8 +170,7 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		// TODO: We need to join on "Created" event, but record channel creation in the db om Joined event.
-		if err := c.Join(channelID.Hex(), encodedState); err != nil {
+		if err := c.Join(channelID, encodedState); err != nil {
 			log.Printf("[ChannelCreated] Error joining channel: %v", err)
 			return
 		}
@@ -180,9 +180,9 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
 			channelID, c.networkID)
 
-		account := c.ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
+		account := c.ledger.SelectBeneficiaryAccount(channelID, participantA)
 
-		if err := account.Record(tokenAmount.Int64()); err != nil {
+		if err := account.Record(tokenAmount); err != nil {
 			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
 			return
 		}
@@ -195,6 +195,32 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 		}
 		log.Printf("Joined event data: %+v\n", ev)
 
+		channelID := common.BytesToHash(ev.ChannelId[:]).Hex()
+		err = c.ledger.db.Transaction(func(tx *gorm.DB) error {
+			var channel Channel
+			result := tx.Where("channel_id = ?", channelID).First(&channel)
+			if result.Error != nil {
+				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+					return fmt.Errorf("channel with ID %s not found", channelID)
+				}
+				return fmt.Errorf("error finding channel: %w", result.Error)
+			}
+
+			// Update the channel status to "open"
+			channel.Status = ChannelStatusOpen
+			channel.UpdatedAt = time.Now()
+			if err := tx.Save(&channel).Error; err != nil {
+				return fmt.Errorf("failed to close channel: %w", err)
+			}
+			log.Printf("Joined channel with ID: %s", channelID)
+
+			return nil
+		})
+		if err != nil {
+			log.Printf("[Joined] Error closing channel in database: %v", err)
+			return
+		}
+
 	case custodyAbi.Events["Closed"].ID:
 		ev, err := c.custody.ParseClosed(l)
 		if err != nil {
@@ -203,11 +229,11 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 		}
 		log.Printf("Closed event data: %+v\n", ev)
 
-		channelID := common.BytesToHash(ev.ChannelId[:])
+		channelID := common.BytesToHash(ev.ChannelId[:]).Hex()
 
 		err = c.ledger.db.Transaction(func(tx *gorm.DB) error {
 			var channel Channel
-			result := tx.Where("channel_id = ?", channelID.Hex()).First(&channel)
+			result := tx.Where("channel_id = ?", channelID).First(&channel)
 			if result.Error != nil {
 				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 					return fmt.Errorf("channel with ID %s not found", channelID)
@@ -217,7 +243,6 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 
 			// Update the channel status to "closed"
 			channel.Status = ChannelStatusClosed
-			participantA := channel.ParticipantA
 			channel.Amount = 0
 			channel.UpdatedAt = time.Now()
 			channel.Version++
@@ -225,7 +250,7 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 				return fmt.Errorf("failed to close channel: %w", err)
 			}
 
-			account := c.ledger.SelectBeneficiaryAccount(channelID.Hex(), participantA)
+			account := c.ledger.SelectBeneficiaryAccount(channelID, channel.ParticipantA)
 			account.db = tx
 			balance, err := account.Balance()
 			if err != nil {
@@ -246,13 +271,14 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 			log.Printf("[Closed] Error closing channel in database: %v", err)
 			return
 		}
+
 	case custodyAbi.Events["Resized"].ID:
 		ev, err := c.custody.ParseResized(l)
 		if err != nil {
 			log.Println("error parsing ChannelJoined event:", err)
 			return
 		}
-		log.Printf("Closed event data: %+v\n", ev)
+		log.Printf("Resized event data: %+v\n", ev)
 
 		channelID := common.BytesToHash(ev.ChannelId[:])
 
@@ -273,6 +299,7 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 			log.Printf("[Resized] Error saving channel in database: %v", err)
 			return
 		}
+
 	default:
 		fmt.Println("Unknown event ID:", eventID.Hex())
 	}

@@ -17,7 +17,6 @@ import (
 )
 
 // UnifiedWSHandler manages WebSocket connections with authentication
-// and subsequent communication.
 type UnifiedWSHandler struct {
 	signer        *Signer
 	ledger        *Ledger
@@ -27,7 +26,6 @@ type UnifiedWSHandler struct {
 	authManager   *AuthManager
 }
 
-// NewUnifiedWSHandler creates a new unified WebSocket handler.
 func NewUnifiedWSHandler(
 	signer *Signer,
 	ledger *Ledger,
@@ -56,20 +54,17 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	}
 	defer conn.Close()
 
-	// Wait for authentication to complete
 	var address string
 	var authenticated bool
 
-	// Continue reading messages until authentication completes
+	// Read messages until authentication completes
 	for !authenticated {
-		// Read message
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("Error reading message: %v", err)
 			return
 		}
 
-		// Parse the message
 		var rpcMsg RPCMessage
 		if err := json.Unmarshal(message, &rpcMsg); err != nil {
 			log.Printf("Invalid message format: %v", err)
@@ -146,7 +141,6 @@ func (h *UnifiedWSHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		h.authManager.UpdateSession(address)
 
 		// Forward request or response for internal vApp communication.
-		// Rule: this is a req or res appID is specified -> forward to the participants of vApp.
 		var rpcRequest RPCMessage
 		if err := json.Unmarshal(messageBytes, &rpcRequest); err != nil {
 			var rpcRes RPCResponse

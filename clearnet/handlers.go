@@ -135,19 +135,18 @@ type BrokerConfig struct {
 }
 
 // HandleGetConfig returns the broker configuration
-func HandleGetConfig(req *RPCMessage) (*RPCResponse, error) {
+func HandleGetConfig(rpc *RPCMessage) (*RPCResponse, error) {
 	config := BrokerConfig{
 		BrokerAddress: BrokerAddress,
 	}
 
-	rpcResponse := CreateResponse(req.Req.RequestID, "get_config", []any{config}, time.Now())
+	rpcResponse := CreateResponse(rpc.Req.RequestID, "get_config", []any{config}, time.Now())
 	return rpcResponse, nil
 }
 
 // HandlePing responds to a ping request with a pong response in RPC format
-func HandlePing(req *RPCMessage) (*RPCResponse, error) {
-	rpcResponse := CreateResponse(req.Req.RequestID, "pong", []any{}, time.Now())
-	return rpcResponse, nil
+func HandlePing(rpc *RPCMessage) (*RPCResponse, error) {
+	return CreateResponse(rpc.Req.RequestID, "pong", []any{}, time.Now()), nil
 }
 
 // HandleGetLedgerBalances returns a list of participants and their balances for a ledger account
@@ -215,14 +214,13 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 		createApp.Definition.Nonce = rpc.Req.Timestamp
 	}
 
-	// Generate a unique ID for the virtual application (TODO: rethink app ID generation)
-	nitroliteChannel := nitrolite.Channel{
+	// Generate a unique ID for the virtual application
+	vAppID := nitrolite.GetChannelID(nitrolite.Channel{
 		Participants: participantsAddresses,
 		Adjudicator:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Challenge:    createApp.Definition.Challenge,
 		Nonce:        createApp.Definition.Nonce,
-	}
-	vAppID := nitrolite.GetChannelID(nitroliteChannel)
+	})
 
 	req := CreateAppSignData{
 		RequestID: rpc.Req.RequestID,
@@ -254,6 +252,7 @@ func HandleCreateApplication(rpc *RPCMessage, ledger *Ledger) (*RPCResponse, err
 			if err != nil {
 				return err
 			}
+
 			allocation := big.NewInt(createApp.Allocations[i])
 
 			if allocation.Cmp(big.NewInt(rpc.Intent[i])) != 0 {
@@ -589,8 +588,6 @@ func HandleResizeChannel(rpc *RPCMessage, ledger *Ledger, signer *Signer) (*RPCR
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign state: %w", err)
 	}
-
-	// TODO: Before that block balance operations until Resized event confirmation.
 
 	response := ResizeChannelResponse{
 		ChannelID: channel.ChannelID,

@@ -13,8 +13,9 @@ import (
 type ChannelStatus string
 
 var (
-	ChannelStatusOpen   ChannelStatus = "open"
-	ChannelStatusClosed ChannelStatus = "closed"
+	ChannelStatusJoining ChannelStatus = "joining"
+	ChannelStatusOpen    ChannelStatus = "open"
+	ChannelStatusClosed  ChannelStatus = "closed"
 )
 
 // Channel represents a state channel between participants
@@ -48,7 +49,7 @@ func CreateChannel(tx *gorm.DB, channelID, participantA string, nonce uint64, ad
 		ParticipantA: participantA,
 		ParticipantB: BrokerAddress, // Always use broker address for channels
 		NetworkID:    networkID,     // Set the network ID for channels
-		Status:       ChannelStatusOpen,
+		Status:       ChannelStatusJoining,
 		Nonce:        nonce,
 		Adjudicator:  adjudicator,
 		Token:        tokenAddress,
@@ -83,7 +84,7 @@ func getChannelForParticipant(tx *gorm.DB, participant string) (*Channel, error)
 	var channel Channel
 	if err := tx.Where("participant_a = ? AND participant_b = ? AND status = ?",
 		participant, BrokerAddress, ChannelStatusOpen).Order("nonce DESC").First(&channel).Error; err != nil {
-		return nil, fmt.Errorf("no channel found for participant %s: %w", participant, err)
+		return nil, fmt.Errorf("no open channel found for participant %s: %w", participant, err)
 	}
 	return &channel, nil
 }
