@@ -13,10 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var (
-	BrokerAddress string
-	blockSync     blocksync.Store
-)
+var BrokerAddress string
 
 func main() {
 	config, err := LoadConfig()
@@ -35,7 +32,7 @@ func main() {
 		log.Fatalf("failed to initialise signer: %v", err)
 	}
 
-	blockSync = blocksync.NewGormStore(db)
+	blockSyncStore := blocksync.NewGormStore(db)
 
 	// Initialize Prometheus metrics
 	metrics := NewMetrics()
@@ -49,7 +46,7 @@ func main() {
 			continue
 		}
 		custodyClients[name] = client
-		go client.ListenEvents()
+		go client.ListenEvents(blockSyncStore)
 	}
 
 	go metrics.RecordMetricsPeriodically(db, custodyClients)

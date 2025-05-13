@@ -105,7 +105,7 @@ func (c *Custody) Join(channelID string, lastStateData []byte) error {
 }
 
 // ListenEvents initializes event listening for the custody contract
-func (c *Custody) ListenEvents() {
+func (c *Custody) ListenEvents(blockSync blocksync.Store) {
 	chainID, err := c.client.ChainID(context.Background())
 	if err != nil {
 		log.Printf("Failed to get chain ID: %v", err)
