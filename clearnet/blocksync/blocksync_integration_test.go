@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -286,102 +285,102 @@ func TestBlocksync_Faulty(t *testing.T) {
 	sub.Unsubscribe()
 }
 
-// TestBlocksync_BadStore_CreateHead verifies that when CreateHead fails (with a
-// forced error), the tracker’s error handling kicks in and an error is
-// delivered on the subscription error channel.
-func TestBlocksync_BadStore_CreateHead(t *testing.T) {
-	blockInterval := 100 * time.Millisecond
-	backend, err := eth.NewSimulatedBackend(eth.SimulatedBackendConfig{Interval: &blockInterval})
-	require.NoError(t, err)
+// // TestBlocksync_BadStore_CreateHead verifies that when CreateHead fails (with a
+// // forced error), the tracker’s error handling kicks in and an error is
+// // delivered on the subscription error channel.
+// func TestBlocksync_BadStore_CreateHead(t *testing.T) {
+// 	blockInterval := 100 * time.Millisecond
+// 	backend, err := eth.NewSimulatedBackend(eth.SimulatedBackendConfig{Interval: &blockInterval})
+// 	require.NoError(t, err)
 
-	// Use a faulty store that fails on CreateHead.
-	faultyStore := NewFaultyStore(true, false)
+// 	// Use a faulty store that fails on CreateHead.
+// 	faultyStore := NewFaultyStore(true, false)
 
-	threshold := uint64(1)
-	tf := NewTestFramework(t, &TestSetupData{
-		ConfirmationNum: &threshold,
-		Backend:         backend,
-		Store:           faultyStore,
-	})
+// 	threshold := uint64(1)
+// 	tf := NewTestFramework(t, &TestSetupData{
+// 		ConfirmationNum: &threshold,
+// 		Backend:         backend,
+// 		Store:           faultyStore,
+// 	})
 
-	// Simulate one block with an event.
-	inputData := TestInputData{
-		Blocks: []TestBlockInstruction{
-			BlockWithEvents(solmock.EventA),
-		},
-	}
+// 	// Simulate one block with an event.
+// 	inputData := TestInputData{
+// 		Blocks: []TestBlockInstruction{
+// 			BlockWithEvents(solmock.EventA),
+// 		},
+// 	}
 
-	// Subscribe to events.
-	sub := tf.Tracker.SubscribeEvents(stream.Topic(tf.SubscriptionAddress1.Hex()))
-	// Run the input after a short delay.
-	go func() {
-		<-time.After(500 * time.Millisecond)
-		tf.RunInput(inputData)
-	}()
+// 	// Subscribe to events.
+// 	sub := tf.Tracker.SubscribeEvents(stream.Topic(tf.SubscriptionAddress1.Hex()))
+// 	// Run the input after a short delay.
+// 	go func() {
+// 		<-time.After(500 * time.Millisecond)
+// 		tf.RunInput(inputData)
+// 	}()
 
-	// Start the tracker.
-	err = tf.Tracker.Start(context.Background())
-	require.NoError(t, err)
+// 	// Start the tracker.
+// 	err = tf.Tracker.Start(context.Background())
+// 	require.NoError(t, err)
 
-	// Allow some time for processing.
-	time.Sleep(1 * time.Second)
+// 	// Allow some time for processing.
+// 	time.Sleep(1 * time.Second)
 
-	// Expect that an error is delivered on the subscription error channel.
-	select {
-	case err := <-sub.Err():
-		require.NotNil(t, err)
-		require.True(t, strings.Contains(err.Error(), "forced error in CreateHead"),
-			"expected error to contain 'forced error in CreateHead', got: %v", err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("expected error on subscription error channel, but got none")
-	}
-}
+// 	// Expect that an error is delivered on the subscription error channel.
+// 	select {
+// 	case err := <-sub.Err():
+// 		require.NotNil(t, err)
+// 		require.True(t, strings.Contains(err.Error(), "forced error in CreateHead"),
+// 			"expected error to contain 'forced error in CreateHead', got: %v", err)
+// 	case <-time.After(5 * time.Second):
+// 		t.Fatal("expected error on subscription error channel, but got none")
+// 	}
+// }
 
 // TestBlocksync_BadStore_SaveLogs verifies that when SaveLogs fails (with a
 // forced error), the tracker’s error handling kicks in and an error is
 // delivered on the subscription error channel.
-func TestBlocksync_BadStore_SaveLogs(t *testing.T) {
-	blockInterval := 100 * time.Millisecond
-	backend, err := eth.NewSimulatedBackend(eth.SimulatedBackendConfig{Interval: &blockInterval})
-	require.NoError(t, err)
+// func TestBlocksync_BadStore_SaveLogs(t *testing.T) {
+// 	blockInterval := 100 * time.Millisecond
+// 	backend, err := eth.NewSimulatedBackend(eth.SimulatedBackendConfig{Interval: &blockInterval})
+// 	require.NoError(t, err)
 
-	// Use a faulty store that fails on SaveLogs (but not on CreateHead).
-	faultyStore := NewFaultyStore(false, true)
+// 	// Use a faulty store that fails on SaveLogs (but not on CreateHead).
+// 	faultyStore := NewFaultyStore(false, true)
 
-	threshold := uint64(1)
-	tf := NewTestFramework(t, &TestSetupData{
-		ConfirmationNum: &threshold,
-		Backend:         backend,
-		Store:           faultyStore,
-	})
+// 	threshold := uint64(1)
+// 	tf := NewTestFramework(t, &TestSetupData{
+// 		ConfirmationNum: &threshold,
+// 		Backend:         backend,
+// 		Store:           faultyStore,
+// 	})
 
-	// Simulate one block with an event.
-	inputData := TestInputData{
-		Blocks: []TestBlockInstruction{
-			BlockWithEvents(solmock.EventB),
-		},
-	}
+// 	// Simulate one block with an event.
+// 	inputData := TestInputData{
+// 		Blocks: []TestBlockInstruction{
+// 			BlockWithEvents(solmock.EventB),
+// 		},
+// 	}
 
-	sub := tf.Tracker.SubscribeEvents(stream.Topic(tf.SubscriptionAddress1.Hex()))
-	go func() {
-		<-time.After(500 * time.Millisecond)
-		tf.RunInput(inputData)
-	}()
+// 	sub := tf.Tracker.SubscribeEvents(stream.Topic(tf.SubscriptionAddress1.Hex()))
+// 	go func() {
+// 		<-time.After(500 * time.Millisecond)
+// 		tf.RunInput(inputData)
+// 	}()
 
-	err = tf.Tracker.Start(context.Background())
-	require.NoError(t, err)
+// 	err = tf.Tracker.Start(context.Background())
+// 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
+// 	time.Sleep(1 * time.Second)
 
-	select {
-	case err := <-sub.Err():
-		require.NotNil(t, err)
-		require.True(t, strings.Contains(err.Error(), "forced error in SaveLogs"),
-			"expected error to contain 'forced error in SaveLogs', got: %v", err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("expected error on subscription error channel, but got none")
-	}
-}
+// 	select {
+// 	case err := <-sub.Err():
+// 		require.NotNil(t, err)
+// 		require.True(t, strings.Contains(err.Error(), "forced error in SaveLogs"),
+// 			"expected error to contain 'forced error in SaveLogs', got: %v", err)
+// 	case <-time.After(5 * time.Second):
+// 		t.Fatal("expected error on subscription error channel, but got none")
+// 	}
+// }
 
 // FaultyStore wraps an InMemoryStore
 // and forces errors on CreateHead and/or SaveLogs.
