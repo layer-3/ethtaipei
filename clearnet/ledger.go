@@ -42,6 +42,66 @@ func NewLedger(db *gorm.DB) *Ledger {
 	}
 }
 
+func getAssetFromTokenNetwork(tokenAddress, networkID string) (string, bool) {
+	cnf := map[string]string{
+		"137_0x2791bca1f2de4661ed88a30c99a7a9449aa84174":   "usdc", // Polygon
+		"42220_0xcebA9300f2b948710d2653dD7B07f33A8B32118C": "usdc", // Celo
+	}
+	asset, ok := cnf[networkID+"_"+tokenAddress]
+	return asset, ok
+}
+
+type UnifiedAccount struct {
+	Beneficiary string
+	asset       string
+	db          *gorm.DB
+}
+
+func SelectUnifiedAccount(db *gorm.DB, asset, accountID string) *UnifiedAccount {
+	return &UnifiedAccount{
+		Beneficiary: accountID,
+		asset:       asset,
+		db:          db,
+	}
+}
+
+func (a *UnifiedAccount) Record(amount int64) error {
+	entry := &Entry{
+		AccountID:   a.asset + a.Beneficiary,
+		Beneficiary: a.Beneficiary,
+		Credit:      0,
+		Debit:       0,
+		CreatedAt:   time.Now(),
+	}
+
+	if amount > 0 {
+		entry.Credit = amount
+	} else if amount < 0 {
+		entry.Debit = -amount // Convert negative to positive for debit
+	} else {
+		// return errors.New("amount cannot be zero") // Uncomment if you want to disallow zero amounts
+	}
+
+	return a.db.Create(entry).Error
+}
+
+// Balance returns the current balance (credit - debit) for this account
+func (a *UnifiedAccount) Balance() (int64, error) {
+	var creditSum, debitSum int64
+
+	err := a.db.Model(&Entry{}).
+		Where("account_id = ?",
+			a.asset+a.Beneficiary).
+		Select("COALESCE(SUM(credit), 0) as credit_sum, COALESCE(SUM(debit), 0) as debit_sum").
+		Row().Scan(&creditSum, &debitSum)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return creditSum - debitSum, nil
+}
+
 // Account creates an Account instance for the given parameters
 func (l *Ledger) SelectBeneficiaryAccount(channelID, beneficiary string) *BeneficiaryAccount {
 	return &BeneficiaryAccount{

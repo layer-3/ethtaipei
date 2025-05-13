@@ -16,7 +16,7 @@ type VApp struct {
 	Status       ChannelStatus  `gorm:"column:status;not null"`
 	Challenge    uint64         `gorm:"column:challenge;"`
 	Nonce        uint64         `gorm:"column:nonce;not null"`
-	Token        string         `gorm:"column:token;not null"`
+	Asset        string         `gorm:"column:token;not null"`
 	Weights      pq.Int64Array  `gorm:"type:integer[];column:weights"`
 	Quorum       uint64         `gorm:"column:quorum;default:100"`
 	Version      uint64         `gorm:"column:version;default:1"`
