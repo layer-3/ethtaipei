@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/layer-3/ethtaipei/clearnet/blocksync"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -136,8 +137,8 @@ func setupDatabase(dsn string) (*gorm.DB, error) {
 		&Channel{},
 		&VApp{},
 		&blocksync.HeadModel{},
-		&blocksync.LogModel{}
-		); err != nil {
+		&blocksync.LogModel{},
+	); err != nil {
 		return nil, err
 	}
 

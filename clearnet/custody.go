@@ -75,12 +75,6 @@ func NewCustody(signer *Signer, ledger *Ledger, infuraURL, custodyAddressStr, ne
 	}, nil
 }
 
-// ListenEvents initializes event listening for the custody contract
-func (c *Custody) ListenEvents(ctx context.Context) {
-	// TODO: store processed events in a database
-	listenEvents(ctx, c.client, c.networkID, c.custodyAddr, c.networkID, 0, c.handleBlockChainEvent)
-}
-
 // Join calls the join method on the custody contract
 func (c *Custody) Join(channelID string, lastStateData []byte) error {
 	// Convert string channelID to bytes32
@@ -110,6 +104,7 @@ func (c *Custody) Join(channelID string, lastStateData []byte) error {
 	return nil
 }
 
+// ListenEvents initializes event listening for the custody contract
 func (c *Custody) ListenEvents() {
 	chainID, err := c.client.ChainID(context.Background())
 	if err != nil {
