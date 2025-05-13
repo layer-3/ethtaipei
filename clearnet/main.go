@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/layer-3/ethtaipei/clearnet/blocksync"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -31,6 +32,8 @@ func main() {
 		log.Fatalf("failed to initialise signer: %v", err)
 	}
 
+	blockSyncStore := blocksync.NewGormStore(db)
+
 	// Initialize Prometheus metrics
 	metrics := NewMetrics()
 	// Map to store custody clients for later reference
@@ -43,7 +46,7 @@ func main() {
 			continue
 		}
 		custodyClients[name] = client
-		go client.ListenEvents(context.Background())
+		go client.ListenEvents(blockSyncStore)
 	}
 
 	go metrics.RecordMetricsPeriodically(db, custodyClients)
