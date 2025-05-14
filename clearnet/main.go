@@ -30,6 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialise signer: %v", err)
 	}
+	rpcStore := NewRPCStore(db)
 
 	// Initialize Prometheus metrics
 	metrics := NewMetrics()
@@ -48,7 +49,7 @@ func main() {
 
 	go metrics.RecordMetricsPeriodically(db, custodyClients)
 
-	unifiedWSHandler := NewUnifiedWSHandler(signer, ledger, metrics)
+	unifiedWSHandler := NewUnifiedWSHandler(signer, ledger, metrics, rpcStore)
 	http.HandleFunc("/ws", unifiedWSHandler.HandleConnection)
 
 	// Set up a separate mux for metrics

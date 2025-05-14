@@ -721,3 +721,5 @@ func HandleCloseChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCRe
 	rpcResponse := CreateResponse(rpc.Req.RequestID, rpc.Req.Method, []any{response}, time.Now())
 	return rpcResponse, nil
 }
+
+// TODO: update RPC and add a handler returning RPC history.
