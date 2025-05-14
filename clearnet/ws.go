@@ -47,6 +47,7 @@ func NewUnifiedWSHandler(
 		connections: make(map[string]*websocket.Conn),
 		authManager: NewAuthManager(),
 		metrics:     metrics,
+		rpcStore:    rpcStore,
 	}
 }
 
