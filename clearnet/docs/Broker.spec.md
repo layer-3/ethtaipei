@@ -263,13 +263,15 @@ If authentication is successful, the server responds:
 ### Get Ledger Balances
 
 Retrieves the balances of all participants in a specific ledger account.
+- AccountID for unified balance is `asset+participant_address`.
+- AccountID for balance in a specific channel is `channelID`.
 
 **Request:**
 
 ```json
 {
   "req": [2, "get_ledger_balances", [{
-    "acc": "0x1234567890abcdef..."
+    "acc": "usdc0x1234567890abcdef..."
   }], 1619123456789],
   "sig": ["0x9876fedcba..."]
 }
@@ -281,11 +283,11 @@ Retrieves the balances of all participants in a specific ledger account.
 {
   "res": [2, "get_ledger_balances", [[
     {
-      "address": "0x1234567890abcdef...",
+      "address": "usdc0x1234567890abcdef...",
       "amount": 100000
     },
     {
-      "address": "0x2345678901abcdef...",
+      "address": "usdc0x2345678901abcdef...",
       "amount": 200000
     }
   ]], 1619123456789],
@@ -315,7 +317,7 @@ Creates a virtual application between participants.
       "challenge": 86400,
       "nonce": 1
     },
-    "token": "0xTokenAddress",
+    "token": "usdc",
     "allocations": [100, 100]
   }], 1619123456789],
   "int": [100, 100], // Initial funding intent from 0, 0
