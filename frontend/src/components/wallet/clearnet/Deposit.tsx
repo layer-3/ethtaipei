@@ -1,20 +1,23 @@
 'use client';
 
-import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSnapshot } from 'valtio';
-import Image from 'next/image';
-import NitroliteStore from '@/store/NitroliteStore';
-import { AssetsStore } from '@/store';
+import { formatSignificantWithSeparators } from '@/components/ui/Decimal';
 import APP_CONFIG from '@/config/app';
-import WalletStore from '@/store/WalletStore';
-import NetworkSelector from './NetworkSelector';
-import { Address } from 'viem';
-import SettingsStore from '@/store/SettingsStore';
-import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
 import { chains } from '@/config/chains';
-import { generateKeyPair, createEthersSigner } from '@/websocket';
-import { useChannelCreate } from '@/hooks';
+import { useChannelCreate, useDeviceDetection } from '@/hooks';
+import { AssetsStore } from '@/store';
+import { fetchAssets, fetchBalances } from '@/store/AssetsStore';
+import NitroliteStore from '@/store/NitroliteStore';
+import SettingsStore from '@/store/SettingsStore';
+import WalletStore from '@/store/WalletStore';
+import { createEthersSigner, generateKeyPair } from '@/websocket';
+import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
+import Image from 'next/image';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSnapshot } from 'valtio';
+import { Address } from 'viem';
+import NetworkSelector from './NetworkSelector';
+import { cleanPositiveFloatInput } from '@/helpers/clearPositiveFloatInput';
+import { precisionRegExp } from '@/helpers/precisionRegExp';
 
 interface DepositProps {
     isOpen: boolean;
@@ -22,6 +25,7 @@ interface DepositProps {
 }
 
 export default function Deposit({ isOpen, onClose }: DepositProps) {
+    const inputRef = useRef<HTMLInputElement>(null);
     const [value, setValue] = useState<string>('0');
     const [transactionStatus, setTransactionStatus] = useState<'idle' | 'processing' | 'success'>('idle');
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -31,6 +35,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
     const { walletAddress } = useSnapshot(WalletStore.state);
     const { activeChain } = useSnapshot(SettingsStore.state);
     const { handleDepositToChannel, handleCreateChannel } = useChannelCreate();
+    const { isMobile } = useDeviceDetection();
 
     // Get USDC balance or fallback to first token
     const usdcBalance = useMemo(() => {
@@ -39,9 +44,19 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         return usdc || (balances && balances.length > 0 ? balances[0] : null);
     }, [balances]);
 
+    const nativeBalance = useMemo(() => {
+        const native = balances?.find(
+            (asset) => asset.symbol.toUpperCase() === activeChain?.nativeCurrency?.symbol?.toUpperCase(),
+        );
+
+        return native ?? null;
+    }, [balances, activeChain]);
+
     // Always set Polygon when component opens and fetch assets
     useEffect(() => {
         if (isOpen) {
+            !isMobile && setTimeout(() => inputRef?.current?.focus(), 100);
+
             const polygonChain = chains.find((chain) => chain.id === 137);
 
             if (polygonChain) {
@@ -114,6 +129,23 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 setValue(newValue);
             }
         }
+    }, []);
+
+    const moveCaretToEnd = useCallback(() => {
+        const input = inputRef.current;
+        if (input) {
+            const len = input.value.length;
+            input.setSelectionRange(len, len);
+        }
+    }, [inputRef]);
+
+    const handleAmountInput = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const cleanedValue = cleanPositiveFloatInput(event.target.value);
+
+        setValue(cleanedValue);
     }, []);
 
     // Initialize keys and WebSocket connection
@@ -237,9 +269,22 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         return (
             <div className="flex flex-col justify-between h-full">
                 <div className="flex-1 flex flex-col items-center justify-center mb-12">
-                    <div className="flex gap-2 text-gray-800 items-start">
+                    <div
+                        onClick={() => !isMobile && inputRef?.current?.focus()}
+                        className="flex gap-2 text-gray-800 items-start">
                         <span className="text-2xl font-bold">$</span>
                         <span className="text-6xl font-bold">{value}</span>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?"
+                            aria-label="Deposit amount"
+                            value={value}
+                            onFocus={moveCaretToEnd}
+                            onChange={handleAmountInput}
+                            className="sr-only"
+                        />
                     </div>
                     <div className="text-sm text-gray-500 mt-1">
                         {hasInsufficientBalance && <span className="text-red-500">Insufficient balance</span>}
@@ -253,6 +298,12 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                     <span className="font-medium">
                         Available: {availableBalance.toFixed(4)} {usdcBalance?.symbol || 'USDC'}
                     </span>
+                    {nativeBalance && (
+                        <span className="text-sm text-gray-600">
+                            {formatSignificantWithSeparators(nativeBalance?.balance)} {nativeBalance?.symbol} (for
+                            network fees)
+                        </span>
+                    )}
                 </div>
 
                 <button
@@ -265,7 +316,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <NumberPad value={value} onChange={handleChange} />
             </div>
         );
-    }, [value, onDeposit, handleChange, usdcBalance]);
+    }, [value, onDeposit, handleChange, usdcBalance, nativeBalance, handleAmountInput, moveCaretToEnd, isMobile]);
 
     // Processing component
     const processingComponent = useMemo(

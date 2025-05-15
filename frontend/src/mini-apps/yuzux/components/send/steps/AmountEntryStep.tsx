@@ -1,6 +1,7 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import { NumberPad } from '@worldcoin/mini-apps-ui-kit-react';
 import { QuickAmountButtons } from './QuickAmountButtons';
+import { useDeviceDetection } from '@/hooks';
 
 interface AmountEntryStepProps {
     amount: string;
@@ -8,6 +9,7 @@ interface AmountEntryStepProps {
     availableBalance: string;
     onAmountChange: (value: string) => void;
     onSubmit: () => void;
+    handleAmountInput?: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
@@ -16,7 +18,19 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
     availableBalance,
     onAmountChange,
     onSubmit,
+    handleAmountInput,
 }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const { isMobile } = useDeviceDetection();
+
+    const moveCaretToEnd = useCallback(() => {
+        const input = inputRef.current;
+        if (input) {
+            const len = input.value.length;
+            input.setSelectionRange(len, len);
+        }
+    }, [inputRef]);
+
     // Check if amount exceeds available balance
     const isExceedingBalance = useMemo(() => {
         if (!amount || !availableBalance) {
@@ -73,9 +87,22 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
         <div className="flex flex-col h-full">
             <div className="flex-1 flex flex-col pt-8">
                 <div className="flex-1 flex flex-col items-center justify-center mb-4">
-                    <div className="flex gap-1 text-white items-start">
+                    <div
+                        onClick={() => !isMobile && inputRef?.current?.focus()}
+                        className="flex gap-1 text-white items-start">
                         <span className="text-5xl font-bold">$</span>
                         <span className="text-5xl font-bold">{amount}</span>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?"
+                            aria-label="Send amount"
+                            value={amount}
+                            onFocus={moveCaretToEnd}
+                            onChange={handleAmountInput}
+                            className="sr-only"
+                        />
                     </div>
                     <div className="mt-2 text-sm text-white">Available: {availableBalance}</div>
 
@@ -92,8 +119,7 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
                     <button
                         disabled={!canPay}
                         onClick={onSubmit}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4"
-                    >
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                         Pay
                     </button>
 

@@ -1,3 +1,4 @@
+import { cleanPositiveFloatInput } from '@/helpers/clearPositiveFloatInput';
 import { useState, useCallback } from 'react';
 
 export function useAmountInput(initialValue: string = '0') {
@@ -38,9 +39,19 @@ export function useAmountInput(initialValue: string = '0') {
         }
     }, []);
 
+    const handleAmountInput = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const cleanedValue = cleanPositiveFloatInput(event.target.value);
+
+        setAmount(cleanedValue);
+    }, []);
+
     return {
         amount,
         setAmount,
+        handleAmountInput,
         handleAmountChange,
     };
 }

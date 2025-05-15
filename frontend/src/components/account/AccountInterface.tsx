@@ -1,24 +1,25 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import Link from 'next/link';
-import { useSnapshot } from 'valtio';
-import { WalletStore, SettingsStore, NitroliteStore, AppStore } from '@/store';
-import { useChannelClose } from '@/hooks/channel';
-import { useWebSocket } from '@/hooks/websocket';
-import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
-import APP_CONFIG from '@/config/app';
-import { useGetAccountInfo } from '@/hooks/channel/useGetAccountInfo';
-import Deposit from '../wallet/clearnet/Deposit';
-import AssetsStore, { fetchAssets } from '@/store/AssetsStore';
-import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
-import { ActionButton } from '../ui/ActionButton';
-import { Address, Hex } from 'viem';
-import { Allocation, createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
-import { WalletSigner } from '@/websocket';
+import APP_CONFIG from '@/config/app';
+import { useChannelClose } from '@/hooks/channel';
+import { useGetAccountInfo } from '@/hooks/channel/useGetAccountInfo';
+import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { useResize } from '@/hooks/channel/useResize';
+import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { useWebSocket } from '@/hooks/websocket';
+import { AppStore, NitroliteStore, SettingsStore, WalletStore } from '@/store';
+import AssetsStore, { fetchAssets } from '@/store/AssetsStore';
+import { WalletSigner } from '@/websocket';
+import { Allocation, createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSnapshot } from 'valtio';
+import { Address, Hex } from 'viem';
+import { ActionButton } from '../ui/ActionButton';
+import Deposit from '../wallet/clearnet/Deposit';
+import { AddressItem } from './AccountAddressItem';
 
 export function AccountInterface() {
     const walletSnap = useSnapshot(WalletStore.state);
@@ -414,21 +415,22 @@ export function AccountInterface() {
                 <div className="rounded p-6 mb-6 border border-gray-300">
                     <h2 className="text-xl font-semibold text-dark mb-4">Addresses</h2>
 
-                    {/* Wallet Address */}
-                    <div className="mb-4">
-                        <h3 className="text-md text-dark mb-2 text-gray-800">Local Wallet Address</h3>
-                        <div className="p-3 rounded border border-gray-300 font-mono text-sm text-gray-800 break-all">
-                            {localStorageAddress}
-                        </div>
-                    </div>
-
                     {/* Privy Address */}
-                    <div className="mb-4">
-                        <h3 className="text-md text-dark mb-2 text-gray-800">EOA Address</h3>
-                        <div className=" p-3 rounded border border-gray-300 font-mono text-sm text-gray-800 break-all">
-                            {walletSnap?.walletAddress ? walletSnap.walletAddress : 'Not connected'}
-                        </div>
-                    </div>
+                    <AddressItem
+                        key="EOA Address"
+                        title="EOA Address"
+                        desc="External Owned Account – use this address to receive funds."
+                        address={walletSnap?.walletAddress}
+                    />
+
+                    {/* Wallet Address */}
+                    <AddressItem
+                        debugOnly
+                        key="Local Wallet Address"
+                        title="Local Wallet Address"
+                        desc="Debug only – do NOT send funds here."
+                        address={localStorageAddress}
+                    />
                 </div>
 
                 {/* Action Buttons */}

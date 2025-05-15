@@ -28,7 +28,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
     const chainId = settingsSnap.activeChain?.id;
 
     const { sendRequest, isConnected } = useWebSocket();
-    const { amount, handleAmountChange } = useAmountInput();
+    const { amount, handleAmountChange, handleAmountInput } = useAmountInput();
 
     const { processPayment, processingError } = usePaymentFlow({
         isConnected,
@@ -52,7 +52,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
         const displayValue = formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount);
 
         return displayValue;
-    }, [chainId, nitroSnap.accountInfo.locked]);
+    }, [chainId, isOpen]);
 
     // Reset state when modal opens
     useEffect(() => {
@@ -140,6 +140,7 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
                         recipientAddress={recipientAddress}
                         onAmountChange={handleAmountChange}
                         onSubmit={handleSend}
+                        handleAmountInput={handleAmountInput}
                         availableBalance={availableBalance}
                     />
                 );
