@@ -34,6 +34,8 @@ export function NitroliteClientWrapper({ children }: NitroliteClientWrapperProps
                 try {
                     keyPair = JSON.parse(savedKeys);
                 } catch (error) {
+                    console.error('Error while parsing savedKeys', error);
+
                     keyPair = null;
                 }
             }

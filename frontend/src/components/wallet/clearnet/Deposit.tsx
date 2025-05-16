@@ -17,7 +17,6 @@ import { useSnapshot } from 'valtio';
 import { Address } from 'viem';
 import NetworkSelector from './NetworkSelector';
 import { cleanPositiveFloatInput } from '@/helpers/clearPositiveFloatInput';
-import { precisionRegExp } from '@/helpers/precisionRegExp';
 
 interface DepositProps {
     isOpen: boolean;
@@ -133,8 +132,10 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
     const moveCaretToEnd = useCallback(() => {
         const input = inputRef.current;
+
         if (input) {
             const len = input.value.length;
+
             input.setSelectionRange(len, len);
         }
     }, [inputRef]);
@@ -160,6 +161,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 try {
                     keyPair = JSON.parse(savedKeys);
                 } catch (error) {
+                    console.error('Error while parsing savedKeys', error);
+
                     keyPair = null;
                 }
             }
@@ -167,6 +170,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             // Generate new keys if none exist
             if (!keyPair) {
                 keyPair = await generateKeyPair();
+
                 if (typeof window !== 'undefined') {
                     localStorage.setItem(CRYPTO_KEYPAIR_KEY, JSON.stringify(keyPair));
                 }
@@ -179,6 +183,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
             return { keyPair };
         } catch (error) {
+            console.error('Error while initializing keys', error);
+
             return null;
         }
     }, []);
@@ -230,8 +236,6 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
             setTransactionStatus('success');
             console.log('Deposit successful');
         } catch (error) {
-            const errorMsg = String(error).toLowerCase();
-
             setTransactionStatus('idle');
 
             // Handle specific errors with friendly messages

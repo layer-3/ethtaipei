@@ -51,7 +51,7 @@ export class AdjudicatorApp implements AppLogic<bigint> {
      * @param nextState New application state
      * @returns Whether the transition is valid
      */
-    public validateTransition(_channel: Channel, prevState: bigint, nextState: bigint): boolean {
+    public validateTransition(_channel: Channel, _prevState: bigint, _nextState: bigint): boolean {
         return true;
     }
 

@@ -25,8 +25,10 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
 
     const moveCaretToEnd = useCallback(() => {
         const input = inputRef.current;
+
         if (input) {
             const len = input.value.length;
+
             input.setSelectionRange(len, len);
         }
     }, [inputRef]);

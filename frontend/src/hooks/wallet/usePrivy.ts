@@ -28,7 +28,7 @@ export function usePrivyWallet() {
     const walletSnap = useSnapshot(WalletStore.state);
     const settingsSnap = useSnapshot(SettingsStore.state);
 
-    const { login, authenticated, ready, user, logout } = usePrivy();
+    const { login, authenticated, ready, logout } = usePrivy();
     const { wallets } = useWallets();
 
     // Check if Privy is ready

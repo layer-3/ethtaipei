@@ -56,10 +56,6 @@ export function AccountInterface() {
         sendRequest,
     });
 
-    const handleOpenDeposit = useCallback(() => {
-        AppStore.openDeposit();
-    }, []);
-
     const handleCloseDeposit = useCallback(() => {
         AppStore.closeDeposit();
     }, []);
@@ -102,7 +98,7 @@ export function AccountInterface() {
     }, [getAccountInfo, getParticipants]);
 
     useEffect(() => {
-        const crypto_keypair = localStorage.getItem('crypto_keypair');
+        const crypto_keypair = localStorage?.getItem('crypto_keypair');
 
         if (crypto_keypair) {
             const keypairs = JSON.parse(crypto_keypair);
@@ -111,31 +107,48 @@ export function AccountInterface() {
         }
     }, []);
 
+    const walletNotConnected = useMemo(
+        () => !isConnected || !walletSnap.walletAddress,
+        [isConnected, walletSnap.walletAddress],
+    );
+
+    const getChannelInfo = useCallback(() => {
+        // Define localStorage keys - must match those in useChannelCreate and useChannelClose
+        const STORAGE_KEYS = {
+            CHANNEL: 'nitrolite_channel',
+            CHANNEL_STATE: 'nitrolite_channel_state',
+            CHANNEL_ID: 'nitrolite_channel_id',
+        };
+
+        // Get channel ID from localStorage
+        const channelId = localStorage?.getItem(STORAGE_KEYS.CHANNEL_ID) as Hex;
+
+        const savedChannelState = localStorage?.getItem(STORAGE_KEYS.CHANNEL_STATE);
+
+        return { channelId, savedChannelState };
+    }, []);
+
+    const isHandleChallengeDisabled = useMemo(() => {
+        const { channelId, savedChannelState } = getChannelInfo();
+
+        return walletNotConnected || !nitroSnap.client || loading.challenge || !channelId || !savedChannelState;
+    }, [walletNotConnected, nitroSnap.client, loading.challenge]);
+
     const handleChallenge = useCallback(async () => {
-        if (!isConnected || !walletSnap.walletAddress || !nitroSnap.client) {
+        if (walletNotConnected || !nitroSnap.client) {
             console.error('WebSocket not connected, wallet not connected, or client not initialized');
             return;
         }
 
         setLoading((prev) => ({ ...prev, challenge: true }));
         try {
-            // Define localStorage keys - must match those in useChannelCreate and useChannelClose
-            const STORAGE_KEYS = {
-                CHANNEL: 'nitrolite_channel',
-                CHANNEL_STATE: 'nitrolite_channel_state',
-                CHANNEL_ID: 'nitrolite_channel_id',
-            };
-
             // Get channel ID from localStorage
-            const channelId = localStorage.getItem(STORAGE_KEYS.CHANNEL_ID) as Hex;
+            const { channelId, savedChannelState } = getChannelInfo();
 
             if (!channelId) {
                 console.error('No channel ID found in localStorage');
                 return;
             }
-
-            // Get and parse channel state from localStorage
-            const savedChannelState = localStorage.getItem(STORAGE_KEYS.CHANNEL_STATE);
 
             if (!savedChannelState) {
                 console.error('No channel state found in localStorage');
@@ -167,12 +180,21 @@ export function AccountInterface() {
         } finally {
             setLoading((prev) => ({ ...prev, challenge: false }));
         }
-    }, [isConnected, walletSnap.walletAddress, nitroSnap.client, getAccountInfo, getParticipants]);
+    }, [walletNotConnected, nitroSnap.client, getAccountInfo, getParticipants, isHandleChallengeDisabled]);
+
+    const isCloseChannelDisabled = useMemo(
+        () =>
+            walletNotConnected ||
+            !localStorage?.getItem('nitrolite_channel_id') ||
+            !nitroSnap.stateSigner ||
+            loading.close,
+        [walletNotConnected, nitroSnap.stateSigner, loading.clos],
+    );
 
     const closeChannel = useCallback(async () => {
         const signer: WalletSigner = nitroSnap.stateSigner;
 
-        if (!isConnected || !walletSnap.walletAddress) {
+        if (walletNotConnected) {
             console.error('WebSocket not connected or wallet not connected');
             return;
         }
@@ -180,7 +202,7 @@ export function AccountInterface() {
         setLoading((prev) => ({ ...prev, close: true }));
 
         try {
-            const channelId = localStorage.getItem('nitrolite_channel_id') || '';
+            const channelId = localStorage?.getItem('nitrolite_channel_id') || '';
 
             if (!channelId) {
                 throw new Error('No channel ID found. Please create a channel first.');
@@ -206,12 +228,29 @@ export function AccountInterface() {
         } finally {
             setLoading((prev) => ({ ...prev, close: false }));
         }
-    }, [isConnected, walletSnap.walletAddress, sendRequest, handleCloseChannel, getAccountInfo, getParticipants]);
+    }, [
+        walletNotConnected,
+        walletSnap.walletAddress,
+        sendRequest,
+        handleCloseChannel,
+        getAccountInfo,
+        getParticipants,
+    ]);
+
+    const isResizeDisabled = useMemo(
+        () =>
+            walletNotConnected ||
+            !localStorage?.getItem('nitrolite_channel_state') ||
+            !localStorage?.getItem('nitrolite_channel_id') ||
+            !nitroSnap.stateSigner ||
+            loading.resize,
+        [walletNotConnected, nitroSnap.stateSigner, loading.resize],
+    );
 
     const resizeChannel = useCallback(async () => {
         const signer: WalletSigner = nitroSnap.stateSigner;
 
-        if (!isConnected || !walletSnap.walletAddress) {
+        if (walletNotConnected) {
             console.error('WebSocket not connected or wallet not connected');
             return;
         }
@@ -219,8 +258,8 @@ export function AccountInterface() {
         setLoading((prev) => ({ ...prev, close: true }));
 
         try {
-            const channelId = localStorage.getItem('nitrolite_channel_id') || '';
-            const state = localStorage.getItem('nitrolite_channel_state') || '';
+            const channelId = localStorage?.getItem('nitrolite_channel_id') || '';
+            const state = localStorage?.getItem('nitrolite_channel_state') || '';
 
             if (!state) {
                 throw new Error('No channel state found. Please create a channel first.');
@@ -324,10 +363,17 @@ export function AccountInterface() {
         } finally {
             setLoading((prev) => ({ ...prev, close: false }));
         }
-    }, [isConnected, walletSnap.walletAddress, sendRequest, handleCloseChannel, getAccountInfo, getParticipants]);
+    }, [
+        walletNotConnected,
+        walletSnap.walletAddress,
+        sendRequest,
+        handleCloseChannel,
+        getAccountInfo,
+        getParticipants,
+    ]);
 
     const handleWithdrawal = useCallback(async () => {
-        if (!isConnected || !walletSnap.walletAddress || !nitroSnap.client || !chainId) {
+        if (walletNotConnected || !nitroSnap.client || !chainId) {
             console.error('WebSocket not connected, wallet not connected, client not initialized, or no active chain');
             return;
         }
@@ -349,15 +395,7 @@ export function AccountInterface() {
         } finally {
             setLoading((prev) => ({ ...prev, withdrawal: false }));
         }
-    }, [
-        isConnected,
-        walletSnap.walletAddress,
-        nitroSnap.client,
-        nitroSnap.accountInfo,
-        chainId,
-        getAccountInfo,
-        getParticipants,
-    ]);
+    }, [walletNotConnected, nitroSnap.client, nitroSnap.accountInfo, chainId, getAccountInfo, getParticipants]);
 
     return (
         <>
@@ -435,7 +473,7 @@ export function AccountInterface() {
 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-4">
-                    <ActionButton onClick={resizeChannel} disabled={loading.resize}>
+                    <ActionButton onClick={resizeChannel} disabled={isResizeDisabled}>
                         {loading.challenge ? 'Resizing...' : 'Resize'}
                     </ActionButton>
                     <ActionButton
@@ -447,10 +485,10 @@ export function AccountInterface() {
                         }>
                         {loading.withdrawal ? 'Processing...' : 'Withdrawal'}
                     </ActionButton>
-                    <ActionButton onClick={handleChallenge} disabled={loading.challenge}>
+                    <ActionButton onClick={handleChallenge} disabled={isHandleChallengeDisabled}>
                         {loading.challenge ? 'Challenging...' : 'Challenge'}
                     </ActionButton>
-                    <ActionButton onClick={closeChannel} disabled={loading.close}>
+                    <ActionButton onClick={closeChannel} disabled={isCloseChannelDisabled}>
                         {loading.close ? 'Closing...' : 'Close Channel'}
                     </ActionButton>
                 </div>
