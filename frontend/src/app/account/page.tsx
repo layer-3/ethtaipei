@@ -1,6 +1,11 @@
 'use client';
 
-import { AccountInterface } from '@/components/account/AccountInterface';
+import dynamic from 'next/dynamic';
+
+const AccountInterface = dynamic(
+    () => import('@/components/account/AccountInterface').then((mod) => mod.AccountInterface),
+    { ssr: false },
+);
 
 export default function AccountPage() {
     return (

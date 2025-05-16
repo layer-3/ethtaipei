@@ -61,10 +61,22 @@ export function AppCarousel() {
                 <h3 className="text-2xl font-bold text-gray-900">Featured Apps</h3>
                 <div className="flex space-x-2">
                     <button onClick={prevSlide} className="transform rotate-180" aria-label="Previous slide">
-                        <img src="/images/apps/carousel-arrow.svg" alt="Previous" className="w-10 h-10" />
+                        <Image
+                            width={40}
+                            height={40}
+                            src="/images/apps/carousel-arrow.svg"
+                            alt="Previous"
+                            className="w-10 h-10"
+                        />
                     </button>
                     <button onClick={nextSlide} aria-label="Next slide">
-                        <img src="/images/apps/carousel-arrow.svg" alt="Next" className="w-10 h-10" />
+                        <Image
+                            width={40}
+                            height={40}
+                            src="/images/apps/carousel-arrow.svg"
+                            alt="Next"
+                            className="w-10 h-10"
+                        />
                     </button>
                 </div>
             </div>
@@ -72,8 +84,7 @@ export function AppCarousel() {
             <div className="relative overflow-hidden">
                 <div
                     className="flex transition-transform duration-500 ease-in-out"
-                    style={{ transform: `translateX(-${currentSlide * 50}%)` }}
-                >
+                    style={{ transform: `translateX(-${currentSlide * 50}%)` }}>
                     {apps.map((app) => (
                         <div key={app.id} className="w-1/2 flex-shrink-0 px-3">
                             <div className="flex flex-col bg-white rounded-[3px] overflow-hidden transform transition-all hover:scale-[1.02] cursor-pointer shadow-lg hover:shadow-xl border border-gray-200 hover:border-gray-300 h-full">

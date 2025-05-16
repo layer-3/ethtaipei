@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useSnapshot } from 'valtio';
-import { AppStore, NitroliteStore, WalletStore, SettingsStore } from '@/store';
+import { AppStore, NitroliteStore, WalletStore } from '@/store';
 import { MinimizedApps, MainHeader, AppCatalog, YuzuxSection, YuzuxAppContainer } from '@/components';
 import { Deposit } from '@/components/wallet/clearnet';
 import { fetchAssets } from '@/store/AssetsStore';

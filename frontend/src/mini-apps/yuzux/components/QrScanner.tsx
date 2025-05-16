@@ -66,22 +66,11 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
         let html5QrcodeScanner: Html5Qrcode | null = null;
 
-        // Function to calculate viewport dimensions
-        const getViewportDimensions = () => {
-            return {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                aspectRatio: window.innerWidth / window.innerHeight,
-            };
-        };
-
         const startScanner = async () => {
             try {
                 // Create an instance of the scanner
                 html5QrcodeScanner = new Html5Qrcode(scannerDivId);
                 scannerRef.current = html5QrcodeScanner;
-
-                const viewport = getViewportDimensions();
 
                 // Using fixed size for QR box to ensure consistent scanning
 
@@ -159,16 +148,14 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         return (
             <div
                 className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0"
-                style={{ zIndex: 5 }}
-            >
+                style={{ zIndex: 5 }}>
                 <div className="text-center mb-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
+                        stroke="currentColor">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -194,16 +181,14 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
         return (
             <div
                 className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-4 fixed inset-0"
-                style={{ zIndex: 5 }}
-            >
+                style={{ zIndex: 5 }}>
                 <div className="text-center mb-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-16 w-16 mx-auto mb-4"
                         fill="none"
                         viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
+                        stroke="currentColor">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"

@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { NitroliteStore, WalletStore } from '@/store';
 import { Allocation } from '@erc7824/nitrolite';
-import { Address } from 'viem';
 
 // Define localStorage keys - must match those in useChannelCreate
 const STORAGE_KEYS = {

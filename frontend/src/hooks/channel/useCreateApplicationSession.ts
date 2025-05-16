@@ -1,9 +1,8 @@
 import { useCallback } from 'react';
 import { Hex } from 'viem'; // Assuming Hex type is available
 
-import APP_CONFIG from '@/config/app';
 import { parseTokenUnits } from '@/hooks/utils/tokenDecimals'; // Assuming this returns bigint
-import { createAppSessionMessage, AppDefinition, Intent, CreateAppSessionRequest } from '@erc7824/nitrolite';
+import { createAppSessionMessage, AppDefinition, Intent } from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket/crypto';
 import { useSnapshot } from 'valtio';
 import { SettingsStore } from '@/store';

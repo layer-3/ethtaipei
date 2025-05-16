@@ -95,11 +95,11 @@ export function YuzuxApp() {
 
     useEffect(() => {
         // Fetch data only if connected and chainId is available
-        if (isConnected && chainId) {
+        if (isConnected && chainId && !appSnap?.isReceiveOpen && !appSnap?.isSendOpen) {
             getAccountInfo();
             getParticipants();
         }
-    }, [isConnected, chainId, getAccountInfo, getParticipants]); // Added isConnected dependency
+    }, [isConnected, chainId, getAccountInfo, getParticipants, appSnap?.isReceiveOpen, appSnap?.isSendOpen]); // Added isConnected dependency
 
     const currentBalance = useMemo(() => {
         if (!nitroSnap.userAccountFromParticipants || !chainId) return '0'; // Check chainId too
