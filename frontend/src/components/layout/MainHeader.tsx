@@ -1,31 +1,14 @@
 import { useSnapshot } from 'valtio';
 import Link from 'next/link';
-import { WalletStore, NitroliteStore, SettingsStore } from '@/store';
+import { WalletStore, NitroliteStore } from '@/store';
 import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
-import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
-import APP_CONFIG from '@/config/app';
 import { ProfileIcon } from '@/assets/images/ProfileIcon';
 
 export function MainHeader() {
     const walletSnap = useSnapshot(WalletStore.state);
     const nitroSnap = useSnapshot(NitroliteStore.state);
-    const settingsSnap = useSnapshot(SettingsStore.state);
     const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
-
-    const formattedBalance = (() => {
-        if (!nitroSnap.userAccountFromParticipants || !settingsSnap.activeChain?.id) {
-            return '0';
-        }
-
-        const chainId = settingsSnap.activeChain.id;
-        const tokenAddress = APP_CONFIG.TOKENS[chainId];
-
-        if (!tokenAddress) return '0';
-
-        // Get the user's channel balance
-        return formatTokenUnits(tokenAddress, nitroSnap.userAccountFromParticipants.amount);
-    })();
 
     return (
         <header className="flex justify-between items-center mb-2 md:mb-2 max-w-full 3xl:w-[1250px] 2xl:w-[1155px] xl:w-[921px] mx-auto w-full">
@@ -53,7 +36,7 @@ export function MainHeader() {
                             <div className="flex flex-col">
                                 <span className="text-sm text-text-color-90 font-metro-medium">Account</span>
                                 <span className="text-xs font-metro-regular text-text-color-60 group-hover:text-text-color-90 transition-colors">
-                                    Balance: ${formattedBalance}
+                                    Balance: ${nitroSnap.userAccountFromParticipants.amount ?? 0}
                                 </span>
                             </div>
                         </div>

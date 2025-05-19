@@ -60,17 +60,7 @@ const HeaderWidget: FC<IHeaderProps> = ({
     const settingsSnap = useSnapshot(SettingsStore.state);
 
     const formattedBalance = useMemo(() => {
-        if (!nitroSnap.userAccountFromParticipants || !settingsSnap.activeChain?.id) {
-            return '0';
-        }
-
-        const chainId = settingsSnap.activeChain.id;
-        const tokenAddress = APP_CONFIG.TOKENS[chainId];
-
-        if (!tokenAddress) return '0';
-
-        // Get the user's channel balance
-        return formatTokenUnits(tokenAddress, nitroSnap.userAccountFromParticipants.amount);
+        return nitroSnap.userAccountFromParticipants?.amount ?? 0;
     }, [
         nitroSnap.userAccountFromParticipants,
         nitroSnap?.userAccountFromParticipants?.amount,

@@ -9,7 +9,7 @@ import { Address } from 'viem';
 export const APP_CONFIG = {
     // WebSocket configuration for real-time communication
     WEBSOCKET: {
-        URL: 'https://ethtaipei-production.up.railway.app/ws',
+        URL: 'wss://clearnode-multichain-production.up.railway.app/ws',
     },
 
     // Channel configuration

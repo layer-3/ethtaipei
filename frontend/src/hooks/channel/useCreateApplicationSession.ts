@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 import { Hex } from 'viem'; // Assuming Hex type is available
 
-import { parseTokenUnits } from '@/hooks/utils/tokenDecimals'; // Assuming this returns bigint
-import { createAppSessionMessage, AppDefinition, Intent } from '@erc7824/nitrolite';
+import { createAppSessionMessage, AppDefinition, AppSessionAllocation } from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket/crypto';
 import { useSnapshot } from 'valtio';
 import { SettingsStore } from '@/store';
@@ -24,7 +23,6 @@ export function useCreateApplicationSession() {
             participantA: string,
             participantB: string,
             amount: string,
-            tokenAddress: Hex,
         ) => {
             try {
                 if (!activeChainId) {
@@ -32,13 +30,6 @@ export function useCreateApplicationSession() {
                 }
 
                 const challenge = 0;
-
-                if (!tokenAddress) {
-                    throw new Error('Invalid token address for the active chain.');
-                }
-
-                const amountBigInt: any = Number(parseTokenUnits(tokenAddress, amount));
-                const zeroBigInt: any = 0;
 
                 const appDefinition: AppDefinition = {
                     protocol: DEFAULT_PROTOCOL,
@@ -49,24 +40,30 @@ export function useCreateApplicationSession() {
                     nonce: Date.now(),
                 };
 
-                const initialIntent: Intent = [amountBigInt, zeroBigInt];
+                const allocations: AppSessionAllocation[] = [
+                    {
+                        participant: participantA as Hex,
+                        asset: 'usdc',
+                        amount,
+                    },
+                    {
+                        participant: participantB as Hex,
+                        asset: 'usdc',
+                        amount: '0',
+                    },
+                ];
 
-                const signedMessage = await createAppSessionMessage(
-                    signer.sign,
-                    [
-                        {
-                            definition: appDefinition,
-                            token: tokenAddress,
-                            allocations: [amountBigInt, zeroBigInt],
-                        },
-                    ],
-                    initialIntent,
-                );
+                const signedMessage = await createAppSessionMessage(signer.sign, [
+                    {
+                        definition: appDefinition,
+                        allocations: allocations,
+                    },
+                ]);
                 const response = await sendRequest(signedMessage);
 
-                if (response && response[0].app_id) {
-                    localStorage.setItem('app_id', response[0].app_id);
-                    return { success: true, app_id: response[0].channel_id, response };
+                if (response && response[0].app_session_id) {
+                    localStorage.setItem('app_session_id', response[0].app_session_id);
+                    return { success: true, app_id: response[0].app_session_id, response };
                 } else {
                     return { success: true, response };
                 }

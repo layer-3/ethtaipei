@@ -12,8 +12,6 @@ import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { SendStep } from '../../types';
 import { Address } from 'viem';
 import { ScanStep, ManualEntryStep, AmountEntryStep, ProcessingStep, SuccessStep } from './steps';
-import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
-import APP_CONFIG from '@/config/app';
 
 interface SendContainerProps {
     isOpen: boolean;
@@ -45,11 +43,8 @@ export const SendContainer: React.FC<SendContainerProps> = ({ isOpen, onClose })
     const [recipientAddress, setRecipientAddress] = useState('');
 
     const availableBalance = useMemo(() => {
-        if (!nitroSnap.userAccountFromParticipants || !chainId) return '0';
-        const tokenConfig = APP_CONFIG.TOKENS[chainId];
-
-        if (!tokenConfig) return '0';
-        const displayValue = formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount);
+        if (!nitroSnap.userAccountFromParticipants) return '0';
+        const displayValue = nitroSnap.userAccountFromParticipants.amount;
 
         return displayValue;
     }, [chainId, isOpen]);

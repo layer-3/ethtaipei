@@ -103,14 +103,11 @@ export function YuzuxApp() {
     }, [isConnected, chainId, getAccountInfo, getParticipants, appSnap?.isReceiveOpen, appSnap?.isSendOpen]); // Added isConnected dependency
 
     const currentBalance = useMemo(() => {
-        if (!nitroSnap.userAccountFromParticipants || !chainId) return '0'; // Check chainId too
-        const tokenConfig = APP_CONFIG.TOKENS[chainId];
-
-        if (!tokenConfig) return '0'; // Handle case where token config might not be ready
-        const displayValue = formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount);
+        if (!nitroSnap.userAccountFromParticipants) return '0';
+        const displayValue = nitroSnap.userAccountFromParticipants.amount;
 
         return displayValue;
-    }, [chainId, nitroSnap.userAccountFromParticipants]);
+    }, [nitroSnap.userAccountFromParticipants]);
 
     return (
         <div

@@ -2,6 +2,7 @@
 
 import { AppCatalog, MinimizedApps, YuzuxAppContainer, YuzuxSection } from '@/components';
 import { Deposit } from '@/components/wallet/clearnet';
+import { useGetLedgerChannels } from '@/hooks/channel/useGetChannels';
 import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { useWebSocket } from '@/hooks/websocket';
 import { AppStore, NitroliteStore, WalletStore } from '@/store';
@@ -22,6 +23,11 @@ export default function HomeClient() {
     const { isConnected, sendRequest } = useWebSocket();
 
     const { getParticipants } = useGetParticipants({
+        signer: nitroliteSnapshot.stateSigner,
+        sendRequest,
+    });
+
+    const { getLedgerChannels } = useGetLedgerChannels({
         signer: nitroliteSnapshot.stateSigner,
         sendRequest,
     });
@@ -58,6 +64,14 @@ export default function HomeClient() {
 
         return () => clearInterval(intervalId);
     }, [walletSnap.connected, isConnected, getParticipants]);
+
+    useEffect(() => {
+        if (!walletSnap.connected || !isConnected) return;
+
+        if (!nitroliteSnapshot.ledgerChannels.length) {
+            getLedgerChannels();
+        }
+    }, [walletSnap.connected, isConnected, getLedgerChannels]);
 
     return (
         <div className="min-h-screen">
