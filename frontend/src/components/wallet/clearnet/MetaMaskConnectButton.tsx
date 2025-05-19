@@ -45,8 +45,7 @@ export const MetaMaskConnectButton: React.FC = () => {
         return (
             <button
                 onClick={disconnectMetaMask}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary"
-            >
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-divider-color-20 hover:border-primary-hover transition-colors bg-primary-cta-color-60">
                 <Image
                     src={chainImageURLById(settingsSnapshot.activeChain?.id)}
                     alt="chain-icon"
@@ -54,7 +53,7 @@ export const MetaMaskConnectButton: React.FC = () => {
                     height={24}
                 />
 
-                <span className="text-black">{shortenHex(account)}</span>
+                <span className="text-primary-cta-layer-color-90 font-metro-regular">{shortenHex(account)}</span>
             </button>
         );
     }
@@ -62,10 +61,9 @@ export const MetaMaskConnectButton: React.FC = () => {
     return (
         <button
             onClick={connectWallet}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary-hover transition-colors bg-primary"
-        >
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-divider-color-20 hover:border-primary-hover transition-colors bg-primary-cta-color-60">
             <Image src="/metamask.svg" alt="Metamask" width={24} height={24} />
-            <span className="text-black font-normal">MetaMask</span>
+            <span className="text-primary-cta-layer-color-90 font-metro-regular">MetaMask</span>
         </button>
     );
 };

@@ -92,8 +92,8 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
                     <div
                         onClick={() => !isMobile && inputRef?.current?.focus()}
                         className="flex gap-1 text-white items-start">
-                        <span className="text-5xl font-bold">$</span>
-                        <span className="text-5xl font-bold">{amount}</span>
+                        <span className="text-5xl font-gilmer-bold">$</span>
+                        <span className="text-5xl font-gilmer-bold">{amount}</span>
                         <input
                             ref={inputRef}
                             type="text"
@@ -106,22 +106,24 @@ export const AmountEntryStep: React.FC<AmountEntryStepProps> = ({
                             className="sr-only"
                         />
                     </div>
-                    <div className="mt-2 text-sm text-white">Available: {availableBalance}</div>
+                    <div className="mt-2 text-sm text-white font-metro-regular">Available: {availableBalance}</div>
 
                     {/* Display error message if exceeding balance */}
                     {isExceedingBalance && (
-                        <div className="mt-2 text-sm text-red-500">Amount exceeds your available balance</div>
+                        <div className="mt-2 text-sm text-system-red-60 font-metro-regular">
+                            Amount exceeds your available balance
+                        </div>
                     )}
                 </div>
                 <div className="text-center">
-                    <div className="mt-2 text-sm text-white">to: {recipientAddress}</div>
+                    <div className="mt-2 text-sm text-white font-metro-regular">to: {recipientAddress}</div>
                 </div>
 
                 <div className="p-4">
                     <button
                         disabled={!canPay}
                         onClick={onSubmit}
-                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-normal border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
+                        className="w-full bg-white text-black py-4 rounded-md hover:bg-gray-200 transition-colors text-lg font-metro-regular border border-white disabled:opacity-50 disabled:cursor-not-allowed mb-4">
                         Pay
                     </button>
 

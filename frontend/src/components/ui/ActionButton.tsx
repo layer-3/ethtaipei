@@ -10,7 +10,7 @@ export const ActionButton = memo(({ onClick, children, disabled }: ActionButtonP
     <button
         onClick={onClick}
         disabled={disabled}
-        className="bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-neutral-200 disabled:text-gray-700 disabled:pointer-events-none px-8 transition-colors font-normal">
+        className="bg-primary-cta-color-60 text-primary-cta-layer-color-90 py-2 rounded-md hover:bg-primary-cta-color-80 disabled:bg-neutral-control-color-40 disabled:text-neutral-control-layer-color-80 disabled:pointer-events-none px-8 transition-colors font-normal">
         {children}
     </button>
 ));

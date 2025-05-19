@@ -3,7 +3,7 @@ import { AppCard } from '@/components/ui/AppCard';
 export function AppCatalog() {
     return (
         <>
-            <h3 className="font-medium text-xl md:text-2xl md:font-bold text-gray-900 mb-4 md:mb-6">
+            <h3 className="font-gilmer-medium text-xl md:text-2xl md:font-gilmer-bold text-text-color-90 mb-4 md:mb-6">
                 Financial Services
             </h3>
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-6 lg:gap-8">
@@ -27,7 +27,7 @@ export function AppCatalog() {
                 />
             </section>
 
-            <h3 className="mt-8 md:mt-8 lg:mt-8 mb-4 md:mb-6 font-medium text-xl md:text-2xl md:font-bold text-gray-900">
+            <h3 className="mt-8 md:mt-8 lg:mt-8 mb-4 md:mb-6 font-gilmer-medium text-xl md:text-2xl md:font-gilmer-bold text-text-color-90">
                 Blockchain Utilities
             </h3>
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-6 lg:gap-8">
@@ -51,7 +51,7 @@ export function AppCatalog() {
                 />
             </section>
 
-            <h3 className="mt-8 md:mt-8 lg:mt-8 mb-4 md:mb-6 font-medium text-xl md:text-2xl md:font-bold text-gray-900">
+            <h3 className="mt-8 md:mt-8 lg:mt-8 mb-4 md:mb-6 font-gilmer-medium text-xl md:text-2xl md:font-gilmer-bold text-text-color-90">
                 Entertainment
             </h3>
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 lg:gap-6">

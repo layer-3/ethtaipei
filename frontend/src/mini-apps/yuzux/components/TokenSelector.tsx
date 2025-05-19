@@ -33,15 +33,13 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
         <div className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center justify-between w-full px-4 py-3 border border-white rounded-md bg-black text-white"
-            >
+                className="flex items-center justify-between w-full px-4 py-3 border border-white rounded-md bg-black text-white">
                 <span>{selectedToken.symbol}</span>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     viewBox="0 0 20 20"
-                    fill="currentColor"
-                >
+                    fill="currentColor">
                     <path
                         fillRule="evenodd"
                         d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
@@ -57,11 +55,10 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                             <li
                                 key={token.id}
                                 className={`px-4 py-3 cursor-pointer hover:bg-gray-900 ${token.id === selectedToken.id ? 'bg-gray-900' : ''}`}
-                                onClick={() => handleSelect(token)}
-                            >
+                                onClick={() => handleSelect(token)}>
                                 <div className="flex justify-between">
-                                    <span className="font-medium text-white">{token.symbol}</span>
-                                    <span className="text-gray-400">{token.name}</span>
+                                    <span className="font-metro-medium text-white">{token.symbol}</span>
+                                    <span className="text-gray-400 font-metro-regular">{token.name}</span>
                                 </div>
                             </li>
                         ))}

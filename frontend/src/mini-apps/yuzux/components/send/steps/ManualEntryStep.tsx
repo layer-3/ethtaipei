@@ -73,7 +73,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
             <div className="flex-1 p-6">
                 <div className="flex flex-col space-y-6">
                     <div className="">
-                        <label className="block text-sm font-medium text-white mb-2">Recipient Address</label>
+                        <label className="block text-sm font-metro-medium text-white mb-2">Recipient Address</label>
 
                         <div className="relative">
                             <div className="rounded-md transition-all duration-300">
@@ -85,18 +85,17 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                                         onChange={handleAddressValidation}
                                         onFocus={() => setIsFocused(true)}
                                         onBlur={() => setIsFocused(false)}
-                                        className={`block w-full px-4 py-4 bg-black rounded-md text-white shadow-sm border ${validationError ? 'border-red-500' : isAddressValid ? 'border-green-500' : isFocused ? 'border-white' : 'border-gray-500'} focus:outline-none text-lg pr-24 transition-all duration-200 font-mono`}
+                                        className={`block w-full px-4 py-4 bg-black rounded-md text-white shadow-sm border ${validationError ? 'border-system-red-60' : isAddressValid ? 'border-system-green-60' : isFocused ? 'border-white' : 'border-gray-500'} focus:outline-none text-lg pr-24 transition-all duration-200 font-metro-regular`}
                                         autoFocus={!isMobile}
                                     />
                                     <button
                                         onClick={handlePaste}
                                         disabled={isPasting}
-                                        className={`absolute inset-y-0 right-0 px-3 m-1 rounded-md border-none transition-all duration-200 flex items-center justify-center space-x-1 ${
+                                        className={`absolute inset-y-0 right-0 px-3 m-1 rounded-md border-none transition-all duration-200 flex items-center justify-center space-x-1 font-metro-regular ${
                                             isPasting
                                                 ? 'bg-gray-200 text-gray-600'
                                                 : 'bg-white text-black hover:bg-gray-100 active:bg-gray-200'
-                                        }`}
-                                    >
+                                        }`}>
                                         {isPasting ? (
                                             <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-1" />
                                         ) : (
@@ -105,8 +104,7 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                                                 className="h-4 w-4 mr-1"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
+                                                stroke="currentColor">
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -125,16 +123,14 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                         <div className="min-h-[28px] mt-3">
                             {validationError ? (
                                 <div
-                                    className="flex items-center text-red-500 text-sm "
-                                    style={{ animationDelay: '0.05s' }}
-                                >
+                                    className="flex items-center text-system-red-60 text-sm "
+                                    style={{ animationDelay: '0.05s' }}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="h-4 w-4 mr-1 flex-shrink-0"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
+                                        stroke="currentColor">
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -146,16 +142,14 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                                 </div>
                             ) : recipientAddress && isAddressValid ? (
                                 <div
-                                    className="flex items-center text-green-500 text-sm "
-                                    style={{ animationDelay: '0.05s' }}
-                                >
+                                    className="flex items-center text-system-green-60 font-metro-regular text-sm "
+                                    style={{ animationDelay: '0.05s' }}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="h-4 w-4 mr-1 flex-shrink-0"
                                         fill="none"
                                         viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
+                                        stroke="currentColor">
                                         <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -171,14 +165,13 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                     {/* Address format hint */}
                     <div
                         className="bg-gray-900 rounded-lg p-4 text-xs text-gray-400  border border-gray-800"
-                        style={{ animationDelay: '0.2s' }}
-                    >
-                        <p className="font-medium text-white mb-1">Address Format</p>
+                        style={{ animationDelay: '0.2s' }}>
+                        <p className="font-metro-medium text-white mb-1">Address Format</p>
                         <p>
                             Ethereum addresses start with &quot;0x&quot; followed by 40 hexadecimal characters (0-9,
                             a-f).
                         </p>
-                        <p className="mt-1 text-gray-500 font-mono text-xs">
+                        <p className="mt-1 text-gray-500 font-metro-regular text-xs">
                             Example: 0x71C7656EC7ab88b098defB751B7401B5f6d8976F
                         </p>
                     </div>
@@ -190,28 +183,25 @@ export const ManualEntryStep: React.FC<ManualEntryStepProps> = ({
                 <button
                     onClick={onAddressSubmit}
                     disabled={!isAddressValid}
-                    className={`w-full py-4 rounded-md transition-all duration-200 text-lg font-medium
+                    className={`w-full py-4 rounded-md transition-all duration-200 text-lg font-metro-medium
                         ${
                             isAddressValid
                                 ? 'bg-white text-black hover:bg-gray-200 active:bg-gray-300'
                                 : 'disabled:opacity-50 disabled:cursor-not-allowed'
-                        }`}
-                >
+                        }`}>
                     Continue
                 </button>
 
                 {isMobile && (
                     <button
                         onClick={onSwitchToScan}
-                        className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-900 transition-colors text-lg font-medium border border-gray-800 mt-2"
-                    >
+                        className="w-full bg-transparent text-white py-4 rounded-md hover:bg-gray-900 transition-colors text-lg font-metro-medium border border-gray-800 mt-2">
                         <div className="flex items-center justify-center">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 className="h-5 w-5 mr-2"
                                 viewBox="0 0 20 20"
-                                fill="currentColor"
-                            >
+                                fill="currentColor">
                                 <path
                                     fillRule="evenodd"
                                     d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"

@@ -13,9 +13,8 @@ export const QuickAmountButtons: React.FC<QuickAmountButtonsProps> = ({ onSelect
                 <button
                     key={percentage}
                     onClick={() => onSelectAmount(percentage)}
-                    className="flex-1 py-1.5 px-1 rounded-md transition-all text-sm font-medium
-                        bg-black text-white border border-white/30 hover:border-white hover:bg-white hover:text-black"
-                >
+                    className="flex-1 py-1.5 px-1 rounded-md transition-all text-sm font-metro-medium
+                        bg-black text-white border border-white/30 hover:border-white hover:bg-white hover:text-black">
                     {percentage === 100 ? 'MAX' : `${percentage}%`}
                 </button>
             ))}
