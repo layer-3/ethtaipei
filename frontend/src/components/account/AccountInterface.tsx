@@ -457,7 +457,7 @@ export function AccountInterface() {
                     <AddressItem
                         key="EOA Address"
                         title="EOA Address"
-                        desc="External Owned Account – use this address to receive funds."
+                        desc="External Owned Account – used for the on-chain transactions."
                         address={walletSnap?.walletAddress}
                     />
 
@@ -466,7 +466,7 @@ export function AccountInterface() {
                         debugOnly
                         key="Local Wallet Address"
                         title="Local Wallet Address"
-                        desc="Debug only – do NOT send funds here."
+                        desc="Local Wallet for the off-chain transactions."
                         address={localStorageAddress}
                     />
                 </div>
