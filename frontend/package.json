@@ -13,7 +13,7 @@
         "prettier": "prettier --write ."
     },
     "dependencies": {
-        "@erc7824/nitrolite": "0.0.3",
+        "@erc7824/nitrolite": "0.1.3",
         "@eslint/compat": "1.2.8",
         "@privy-io/react-auth": "2.0.4",
         "@sentry/nextjs": "^9.19.0",

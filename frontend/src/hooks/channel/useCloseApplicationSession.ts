@@ -1,8 +1,11 @@
 import { useCallback } from 'react';
-import { Hex } from 'viem';
 
-import { parseTokenUnits } from '@/hooks/utils/tokenDecimals';
-import { createCloseAppSessionMessage, Intent, CloseAppSessionRequest, AccountID } from '@erc7824/nitrolite';
+import {
+    createCloseAppSessionMessage,
+    CloseAppSessionRequest,
+    AccountID,
+    AppSessionAllocation,
+} from '@erc7824/nitrolite';
 import { WalletSigner } from '@/websocket/crypto';
 
 /**
@@ -13,39 +16,29 @@ export function useCloseApplicationSession() {
         async (
             signer: WalletSigner,
             sendRequest: (signedMessage: string) => Promise<any>,
-            appId: AccountID,
-            finalAllocationStr: string[],
-            tokenAddress: Hex,
+            appSessionId: AccountID,
+            finalAllocations: AppSessionAllocation[],
         ) => {
             try {
-                if (!appId) {
+                if (!appSessionId) {
                     throw new Error('Application ID is required to close the session.');
                 }
-                if (!tokenAddress) {
-                    throw new Error('Token address is required to parse allocation units.');
-                }
-                if (!finalAllocationStr || finalAllocationStr.length === 0) {
+
+                if (!finalAllocations || finalAllocations.length === 0) {
                     throw new Error('Final allocation amounts are required.');
                 }
 
-                const finalAllocations: any = [
-                    Number(finalAllocationStr[0]),
-                    Number(parseTokenUnits(tokenAddress, finalAllocationStr[1])),
-                ];
-
                 const closeRequest: CloseAppSessionRequest = {
-                    app_id: appId,
+                    app_session_id: appSessionId,
                     allocations: finalAllocations,
                 };
 
-                const finalIntent: Intent = finalAllocations;
-
-                const signedMessage = await createCloseAppSessionMessage(signer.sign, [closeRequest], finalIntent);
+                const signedMessage = await createCloseAppSessionMessage(signer.sign, [closeRequest]);
 
                 const response = await sendRequest(signedMessage);
 
-                if (response && response[0].app_id) {
-                    localStorage.removeItem('app_id');
+                if (response && response[0].app_session_id) {
+                    localStorage.removeItem('app_session_id');
                     return { success: true, response };
                 }
             } catch (error) {

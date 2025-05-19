@@ -38,8 +38,23 @@ export interface AccountInfo {
 }
 
 export interface Participant {
-    address: Address;
+    asset: string;
+    amount: string;
+}
+
+export interface LedgerChannel {
+    channel_id: string;
+    participant: string;
+    status: string;
+    token: string;
     amount: bigint;
+    chain_id: number;
+    adjudicator: string;
+    challenge: number;
+    nonce: number;
+    version: number;
+    created_at: string;
+    updated_at: string;
 }
 
 export type ParticipantsResponse = [[Participant]];
@@ -51,6 +66,7 @@ export interface NitroliteState {
     accountInfo: AccountInfo;
     openChannelIds: ChannelId[];
     participants: Participant[];
+    ledgerChannels: LedgerChannel[];
     userAccountFromParticipants: Participant | null;
 }
 

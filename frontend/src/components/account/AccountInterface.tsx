@@ -5,18 +5,19 @@ import { useChannelClose } from '@/hooks/channel';
 import { useGetAccountInfo } from '@/hooks/channel/useGetAccountInfo';
 import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
 import { useResize } from '@/hooks/channel/useResize';
-import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
+import { formatTokenUnits, parseTokenUnits } from '@/hooks/utils/tokenDecimals';
 import { useWebSocket } from '@/hooks/websocket';
 import { AppStore, NitroliteStore, SettingsStore, WalletStore } from '@/store';
 import AssetsStore, { fetchAssets } from '@/store/AssetsStore';
 import { WalletSigner } from '@/websocket';
-import { Allocation, createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
+import { Allocation, createCloseChannelMessage, createResizeChannelMessage, ResizeChannel } from '@erc7824/nitrolite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSnapshot } from 'valtio';
 import { Address, Hex } from 'viem';
 import { ActionButton } from '../ui/ActionButton';
 import Deposit from '../wallet/clearnet/Deposit';
 import { AddressItem } from './AccountAddressItem';
+import { LedgerChannel } from '@/store/types';
 
 export function AccountInterface() {
     const walletSnap = useSnapshot(WalletStore.state);
@@ -60,9 +61,7 @@ export function AccountInterface() {
         const tokenConfig = APP_CONFIG.TOKENS[chainId];
 
         return {
-            availableBalance: nitroSnap.userAccountFromParticipants
-                ? formatTokenUnits(tokenConfig, nitroSnap.userAccountFromParticipants.amount)
-                : 0,
+            availableBalance: nitroSnap.userAccountFromParticipants?.amount || 0,
             available: nitroSnap.accountInfo?.available
                 ? formatTokenUnits(tokenConfig, nitroSnap.accountInfo?.available)
                 : 0,
@@ -256,6 +255,7 @@ export function AccountInterface() {
         try {
             const channelId = localStorage?.getItem('nitrolite_channel_id') || '';
             const state = localStorage?.getItem('nitrolite_channel_state') || '';
+            const tokenAddress = APP_CONFIG.TOKENS[chainId];
 
             if (!state) {
                 throw new Error('No channel state found. Please create a channel first.');
@@ -267,6 +267,18 @@ export function AccountInterface() {
 
             if (!nitroSnap.stateSigner) {
                 throw new Error('State signer not initialized. Please create a channel first.');
+            }
+
+            if (!nitroSnap.ledgerChannels.length) {
+                throw new Error('No ledger channels found. Please create a channel first.');
+            }
+
+            const ledgerChannel = nitroSnap.ledgerChannels.find(
+                (channel: LedgerChannel) => channel.channel_id === channelId,
+            );
+
+            if (!ledgerChannel) {
+                throw new Error('Ledger channel not found. Please create a channel first.');
             }
 
             const fundDestination = walletSnap.walletAddress;
@@ -287,12 +299,17 @@ export function AccountInterface() {
                 throw new Error('User account not found in participants.');
             }
 
-            console.log('parsedState.allocations[0]', parsedState.allocations[0]);
+            // get_ledger_balance - decimal
+            // channel_amount - bigint
+            const ledgerBalance = nitroSnap.userAccountFromParticipants.amount;
+            const channelAmount = ledgerChannel.amount;
+            const ledgerBalanceBigInt = parseTokenUnits(tokenAddress, ledgerBalance);
 
-            const resizeParams: any = [
+            const resizeParams: ResizeChannel[] = [
                 {
                     channel_id: channelId as Hex,
-                    participant_change: 0,
+                    // @ts-ignore
+                    allocate_amount: Number(ledgerBalanceBigInt) - Number(channelAmount),
                     funds_destination: fundDestination as Address,
                 },
             ];

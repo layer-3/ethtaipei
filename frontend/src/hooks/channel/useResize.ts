@@ -4,8 +4,6 @@ import { NitroliteStore } from '@/store';
 export function useResize() {
     const handleResizeChannel = useCallback(async (finalState: any, initState: any) => {
         try {
-            console.log('proofs', initState);
-
             await NitroliteStore.state.client.resizeChannel({
                 resizeState: finalState,
                 proofStates: [initState],

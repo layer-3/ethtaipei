@@ -1,7 +1,7 @@
 import { WalletSigner } from '@/websocket';
 import { NitroliteClient } from '@erc7824/nitrolite';
 import { proxy } from 'valtio';
-import { NitroliteState, ChannelId, AccountInfo, Participant } from './types'; // Added Participant
+import { NitroliteState, ChannelId, AccountInfo, Participant, LedgerChannel } from './types'; // Added Participant
 import { SettingsStore, WalletStore } from './index';
 import { NotificationService } from '@/utils/notificationService';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
@@ -29,6 +29,7 @@ const state = proxy<NitroliteState>({
     },
     openChannelIds: [],
     participants: [],
+    ledgerChannels: [],
     userAccountFromParticipants: null, // Initialized user account
 });
 
@@ -81,35 +82,21 @@ const NitroliteStore = {
      * Set participants list and find the user's account within it.
      */
     setParticipants(participants: Participant[]): void {
-        const userAddress = WalletStore.state.walletAddress;
-        const previousUserAccount = state.userAccountFromParticipants;
-
-        if (userAddress && state.stateSigner) {
-            const userAccount = participants.find(
-                (p) => p.address.toLowerCase() === state.stateSigner.address.toLowerCase(),
-            );
-
-            if (previousUserAccount && userAccount && previousUserAccount.amount !== userAccount.amount) {
-                const amountDiff = userAccount.amount - previousUserAccount.amount;
-                const chainId = SettingsStore.state.activeChain?.id;
-
-                const tokenConfig = APP_CONFIG.TOKENS[chainId];
-
-                const formattedAmount = formatTokenUnits(tokenConfig, amountDiff);
-
-                if (amountDiff > 0n) {
-                    this.notifyUser(`You received $ ${formattedAmount}`);
-                } else if (amountDiff < 0n) {
-                    this.notifyUser(`You sent $ ${formattedAmount.replace('-', '')}`);
-                }
-            }
-
-            state.userAccountFromParticipants = userAccount || null;
-        } else {
-            state.userAccountFromParticipants = null;
+        if (Array.isArray(participants)) {
+            state.participants = [...participants];
+            console.log('Participants:', participants);
+            console.log(participants.find((participant) => participant.asset === 'usdc'));
+            state.userAccountFromParticipants = participants.find((participant) => participant.asset === 'usdc');
         }
+    },
 
-        state.participants = participants;
+    /**
+     * Set Ledger channels list
+     */
+    setLedgerChannels(channels: LedgerChannel[]): void {
+        if (Array.isArray(channels)) {
+            state.ledgerChannels = [...channels];
+        }
     },
 
     /**

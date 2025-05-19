@@ -4,6 +4,7 @@ import { useCreateApplicationSession, useCloseApplicationSession } from '@/hooks
 import { Address, Hex } from 'viem';
 import { WalletSigner } from '@/websocket';
 import APP_CONFIG from '@/config/app';
+import { AppSessionAllocation } from '@erc7824/nitrolite';
 
 interface PaymentFlowOptions {
     isConnected: boolean;
@@ -67,7 +68,6 @@ export function usePaymentFlow({ isConnected, signer, sendRequest }: PaymentFlow
                     participantA,
                     participantB,
                     amount,
-                    tokenAddress,
                 );
 
                 if (!openResult.success) {
@@ -75,28 +75,30 @@ export function usePaymentFlow({ isConnected, signer, sendRequest }: PaymentFlow
                     throw new Error(error);
                 }
 
-                const appId = localStorage.getItem('app_id');
+                const appSessionId = localStorage.getItem('app_session_id');
 
-                if (!appId) {
-                    throw new Error('Failed to open virtual channel.');
+                if (!appSessionId) {
+                    throw new Error('Failed to open app session id.');
                 }
 
-                const allocations = {
-                    participantA: '0',
-                    participantB: amount,
-                };
+                const allocations: AppSessionAllocation[] = [
+                    {
+                        participant: participantA as Hex,
+                        asset: 'usdc',
+                        amount: '0',
+                    },
+                    {
+                        participant: participantB as Hex,
+                        asset: 'usdc',
+                        amount: amount,
+                    },
+                ];
 
-                //    signer: WalletSigner, // Pass the WalletSigner object which includes the sign method
-                //     sendRawMessage: (signedMessage: string) => Promise<any>, // Function to send the pre-signed message string
-                //     appId: AccountID, // The ID of the application to close
-                //     finalAllocationStr: string[], // Final allocation amounts as strings
-                //     tokenAddress: Hex, // Address of the token used in the app (for parsing units)
                 const closeResult = await closeApplicationSession(
                     signer,
                     sendRequest,
-                    appId as Hex,
-                    [allocations.participantA, allocations.participantB],
-                    tokenAddress,
+                    appSessionId as Hex,
+                    allocations,
                 );
 
                 if (!closeResult || !closeResult.success) {
