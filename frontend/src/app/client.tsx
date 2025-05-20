@@ -1,6 +1,7 @@
 'use client';
 
-import { AppCatalog, MinimizedApps, YuzuxAppContainer, YuzuxSection } from '@/components';
+import { AppCatalog, MinimizedApps, YuzuxAppContainer } from '@/components';
+import { YellowPayCard } from '@/components/apps/YellowPayCard';
 import { Deposit } from '@/components/wallet/clearnet';
 import { useGetLedgerChannels } from '@/hooks/channel/useGetChannels';
 import { useGetParticipants } from '@/hooks/channel/useGetParticipants';
@@ -78,10 +79,10 @@ export default function HomeClient() {
             <LayoutWidget>
                 <main className="h-full relative bg-main-background-color text-text-color-100 px-4 md:px-8 lg:px-12 pt-4 flex flex-col pb-40">
                     <div className="max-w-full 3xl:w-[1250px] 2xl:w-[1155px] xl:w-[921px] mx-auto w-full mt-2 md:mt-4 lg:mt-6">
-                        <YuzuxSection onOpenYuzux={handleOpenYuzux} />
+                        <YellowPayCard onOpenYuzux={handleOpenYuzux} />
                     </div>
 
-                    <div className="max-w-full 3xl:w-[1250px] 2xl:w-[1155px] xl:w-[921px] mx-auto w-full mt-6 md:mt-6 lg:mt-6">
+                    <div className="max-w-full 3xl:w-[1250px] 2xl:w-[1155px] xl:w-[921px] mx-auto w-full  mt-20 md:mt-6">
                         <AppCatalog />
                     </div>
                 </main>

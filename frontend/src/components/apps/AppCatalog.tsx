@@ -1,8 +1,10 @@
 import { AppCard } from '@/components/ui/AppCard';
+import { MoreApps } from './MoreApps';
 
 export function AppCatalog() {
     return (
         <>
+            <MoreApps />
             <h3 className="font-gilmer-medium text-xl md:text-2xl md:font-gilmer-bold text-text-color-90 mb-4 md:mb-6">
                 Financial Services
             </h3>
