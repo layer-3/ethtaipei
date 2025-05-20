@@ -1,6 +1,7 @@
+import '../styles/globals.css';
+import '../styles/scss/index.scss';
 import type { Metadata } from 'next';
 import { Poppins, Geist_Mono } from 'next/font/google';
-import './globals.css';
 import MiniKitProvider from '@/providers/minikit';
 import ClientProviders from '@/providers/ClientProviders';
 
@@ -31,9 +32,7 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${poppins.variable} ${geistMono.variable} antialiased`}>
                 <MiniKitProvider>
-                    <ClientProviders>
-                        {children}
-                    </ClientProviders>
+                    <ClientProviders>{children}</ClientProviders>
                 </MiniKitProvider>
             </body>
         </html>

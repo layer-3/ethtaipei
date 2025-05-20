@@ -58,7 +58,7 @@ export function AppCarousel() {
     return (
         <div className="hidden md:block w-full py-6 mb-12">
             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900">Featured Apps</h3>
+                <h3 className="text-2xl font-gilmer-bold text-text-color-90">Featured Apps</h3>
                 <div className="flex space-x-2">
                     <button onClick={prevSlide} className="transform rotate-180" aria-label="Previous slide">
                         <Image
@@ -87,7 +87,7 @@ export function AppCarousel() {
                     style={{ transform: `translateX(-${currentSlide * 50}%)` }}>
                     {apps.map((app) => (
                         <div key={app.id} className="w-1/2 flex-shrink-0 px-3">
-                            <div className="flex flex-col bg-white rounded-[3px] overflow-hidden transform transition-all hover:scale-[1.02] cursor-pointer shadow-lg hover:shadow-xl border border-gray-200 hover:border-gray-300 h-full">
+                            <div className="flex flex-col bg-main-background-color rounded-[3px] overflow-hidden transform transition-all hover:scale-[1.02] cursor-pointer shadow-lg hover:shadow-xl border border-divider-color-20 hover:border-divider-color-40 h-full">
                                 <div className="relative h-[230px] overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-60 z-10" />
 
@@ -100,18 +100,20 @@ export function AppCarousel() {
                                     />
 
                                     <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                                        <span className="inline-block bg-white/80 text-gray-700 text-xs px-2 py-1 rounded-[2px] mb-2">
+                                        <span className="inline-block bg-white/80 text-primary-cta-layer-color-90 font-metro-regular text-xs px-2 py-1 rounded-sm mb-2">
                                             {app.category}
                                         </span>
-                                        <h3 className="font-bold text-white text-xl md:text-2xl">{app.title}</h3>
+                                        <h3 className="font-metro-bold text-white text-xl md:text-2xl">{app.title}</h3>
                                     </div>
                                 </div>
 
                                 <div className="p-4 md:p-5 flex flex-col flex-grow">
-                                    <p className="text-gray-600 text-sm md:text-base mb-6">{app.description}</p>
+                                    <p className="text-text-color-60 font-metro-regular text-sm md:text-base mb-6">
+                                        {app.description}
+                                    </p>
 
                                     <div className="mt-auto flex justify-end">
-                                        <button className="bg-[#FCD000] text-black px-4 py-2 rounded-[2px] hover:bg-[#FFDA33] transition-colors text-sm font-medium">
+                                        <button className="bg-primary-cta-color-60 text-primary-cta-layer-color-90 px-4 py-2 rounded-sm hover:bg-primary-cta-color-80 transition-colors text-sm font-metro-medium">
                                             Launch App
                                         </button>
                                     </div>
@@ -127,7 +129,7 @@ export function AppCarousel() {
                     <button
                         key={index}
                         onClick={() => setCurrentSlide(index)}
-                        className={`w-2 h-2 mx-1 rounded-full ${currentSlide === index ? 'bg-gray-800' : 'bg-gray-300'}`}
+                        className={`w-2 h-2 mx-1 rounded-full ${currentSlide === index ? 'bg-text-color-100' : 'bg-text-color-30'}`}
                         aria-label={`Go to slide ${index + 1}`}
                     />
                 ))}

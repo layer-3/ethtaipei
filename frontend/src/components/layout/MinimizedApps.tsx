@@ -42,13 +42,12 @@ export function MinimizedApps() {
     };
 
     return (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-gray-200 bg-opacity-80 p-2 rounded-lg shadow-lg z-40">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-neutral-control-color-20 bg-opacity-80 p-2 rounded-lg shadow-lg z-40">
             {minimizedApps.map((appName) => (
                 <button
                     key={appName}
                     onClick={() => handleMaximize(appName)}
-                    className="flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-700 transition-colors"
-                >
+                    className="flex items-center gap-2 px-3 py-1 rounded hover:bg-neutral-control-color-40 transition-colors">
                     <Image
                         src={getAppIcon(appName)}
                         alt={getAppLabel(appName)}
@@ -56,7 +55,7 @@ export function MinimizedApps() {
                         height={20}
                         className="w-5 h-5"
                     />
-                    <span className="text-black text-sm font-normal">{getAppLabel(appName)}</span>
+                    <span className="text-text-color-100 font-metro-regular text-sm">{getAppLabel(appName)}</span>
                 </button>
             ))}
         </div>

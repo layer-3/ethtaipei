@@ -73,7 +73,7 @@ export const Receive: React.FC<ReceiveProps> = ({ isOpen, onClose }) => {
                     <div className="mt-auto w-full px-6 pb-4">
                         <button
                             onClick={handleShare}
-                            className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white"
+                            className="w-full bg-white text-black py-3 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center border border-white font-metro-semibold"
                         >
                             Share
                         </button>

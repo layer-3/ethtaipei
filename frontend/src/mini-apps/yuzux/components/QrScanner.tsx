@@ -169,8 +169,10 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                             d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
                         />
                     </svg>
-                    <p className="text-lg font-semibold">No Camera Available</p>
-                    <p className="text-sm mt-2">Your device doesn&apos;t have a camera or access is restricted.</p>
+                    <p className="text-lg font-metro-semibold">No Camera Available</p>
+                    <p className="text-sm mt-2 font-metro-regular">
+                        Your device doesn&apos;t have a camera or access is restricted.
+                    </p>
                 </div>
             </div>
         );
@@ -196,8 +198,8 @@ export const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                         />
                     </svg>
-                    <p className="text-lg font-semibold">Camera Permission Required</p>
-                    <p className="text-sm mt-2">Please allow camera access to scan QR codes.</p>
+                    <p className="text-lg font-metro-semibold">Camera Permission Required</p>
+                    <p className="text-sm mt-2 font-metro-regular">Please allow camera access to scan QR codes.</p>
                 </div>
             </div>
         );

@@ -1,7 +1,5 @@
 'use client';
 
-import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
-import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import APP_CONFIG from '@/config/app';
 import { useChannelClose } from '@/hooks/channel';
 import { useGetAccountInfo } from '@/hooks/channel/useGetAccountInfo';
@@ -13,7 +11,6 @@ import { AppStore, NitroliteStore, SettingsStore, WalletStore } from '@/store';
 import AssetsStore, { fetchAssets } from '@/store/AssetsStore';
 import { WalletSigner } from '@/websocket';
 import { Allocation, createCloseChannelMessage, createResizeChannelMessage } from '@erc7824/nitrolite';
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSnapshot } from 'valtio';
 import { Address, Hex } from 'viem';
@@ -29,7 +26,6 @@ export function AccountInterface() {
     const assetsSnap = useSnapshot(AssetsStore.state);
 
     const chainId = settingsSnap.activeChain?.id;
-    const isPrivyEnabled = process.env.NEXT_PUBLIC_ENABLE_PRIVY === 'true';
 
     const { isConnected, sendRequest } = useWebSocket();
 
@@ -400,58 +396,38 @@ export function AccountInterface() {
     return (
         <>
             <div className="container mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-8">
-                    <div className="flex items-center gap-3">
-                        <Link href="/" className="text-black hover:text-gray-600 transition-colors">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round">
-                                <path d="M19 12H5M12 19l-7-7 7-7" />
-                            </svg>
-                        </Link>
-                    </div>
-                    <div className="flex items-center">
-                        {isPrivyEnabled ? <ConnectButton /> : <MetaMaskConnectButton />}
-                    </div>
-                </div>
-
                 {/* Balance Section */}
-                <div className="rounded p-6 mb-6 border border-gray-300">
+                <div className="rounded p-6 mb-6 border border-divider-color-20">
                     <div className="flex justify-between items-start">
-                        <h2 className="text-xl font-semibold text-black mb-4">Account Balance</h2>
+                        <h2 className="text-xl font-metro-semibold text-text-color-100 mb-4">Account Balance</h2>
                         <button
                             onClick={refreshAccountInfo}
                             disabled={loading.refresh}
-                            className="text-sm px-3 py-1 bg-white text-black rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            className="text-sm px-3 py-1 bg-neutral-control-color-20 text-text-color-100 rounded hover:bg-neutral-control-color-40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[98px]">
                             {loading.refresh ? 'Refreshing...' : 'Refresh'}
                         </button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Available Balance */}
-                        <div className="border border-gray-300 rounded-lg p-4">
-                            <div className="text-sm text-gray-800 mb-1">Available Balance</div>
-                            <div className="text-2xl font-bold text-black">$ {balances.availableBalance}</div>
+                        <div className="border border-divider-color-20 rounded-lg p-4">
+                            <div className="text-sm font-metro-regular text-text-color-80 mb-1">Available Balance</div>
+                            <div className="text-2xl font-metro-bold text-text-color-100">
+                                $ {balances.availableBalance}
+                            </div>
                         </div>
 
                         {/* available Amount */}
-                        <div className="border border-gray-300 rounded-lg p-4">
-                            <div className="text-sm text-gray-800 mb-1">Total available</div>
-                            <div className="text-2xl font-bold text-black">$ {balances.available}</div>
+                        <div className="border border-divider-color-20 rounded-lg p-4">
+                            <div className="text-sm font-metro-regular text-text-color-80 mb-1">Total available</div>
+                            <div className="text-2xl font-metro-bold text-text-color-100">$ {balances.available}</div>
                         </div>
                     </div>
                 </div>
 
                 {/* Addresses Section */}
-                <div className="rounded p-6 mb-6 border border-gray-300">
-                    <h2 className="text-xl font-semibold text-dark mb-4">Addresses</h2>
+                <div className="rounded p-6 mb-6 border border-divider-color-20">
+                    <h2 className="text-xl font-metro-semibold text-text-color-100 mb-4">Addresses</h2>
 
                     {/* Privy Address */}
                     <AddressItem

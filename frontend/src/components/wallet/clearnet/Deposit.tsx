@@ -17,6 +17,7 @@ import { useSnapshot } from 'valtio';
 import { Address } from 'viem';
 import NetworkSelector from './NetworkSelector';
 import { cleanPositiveFloatInput } from '@/helpers/clearPositiveFloatInput';
+import { LeftArrowIcon } from '@/assets/images/LeftArrowIcon';
 
 interface DepositProps {
     isOpen: boolean;
@@ -275,9 +276,9 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <div className="flex-1 flex flex-col items-center justify-center mb-12">
                     <div
                         onClick={() => !isMobile && inputRef?.current?.focus()}
-                        className="flex gap-2 text-gray-800 items-start">
-                        <span className="text-2xl font-bold">$</span>
-                        <span className="text-6xl font-bold">{value}</span>
+                        className="flex gap-2 text-text-color-80 items-start">
+                        <span className="text-2xl font-gilmer-bold">$</span>
+                        <span className="text-6xl font-gilmer-bold">{value}</span>
                         <input
                             ref={inputRef}
                             type="text"
@@ -290,8 +291,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                             className="sr-only"
                         />
                     </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                        {hasInsufficientBalance && <span className="text-red-500">Insufficient balance</span>}
+                    <div className="text-sm font-metro-regular text-text-color-50 mt-1">
+                        {hasInsufficientBalance && <span className="text-system-red-60">Insufficient balance</span>}
                     </div>
                     <div className="mt-6">
                         <NetworkSelector />
@@ -299,11 +300,11 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 </div>
 
                 <div className="flex flex-col gap-1 mb-2">
-                    <span className="font-medium">
+                    <span className="font-metro-medium text-base text-text-color-90">
                         Available: {availableBalance.toFixed(4)} {usdcBalance?.symbol || 'USDC'}
                     </span>
                     {nativeBalance && (
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-text-color-60">
                             {formatSignificantWithSeparators(nativeBalance?.balance)} {nativeBalance?.symbol} (for
                             network fees)
                         </span>
@@ -313,7 +314,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <button
                     disabled={!isValidAmount || hasInsufficientBalance}
                     onClick={onDeposit}
-                    className="w-full bg-primary text-black py-2 rounded-md hover:bg-primary-hover disabled:bg-[#fff7cf] transition-colors font-normal mb-8">
+                    className="w-full bg-primary-cta-color-60 text-primary-cta-layer-color-90 py-2 rounded-md hover:bg-primary-cta-color-80 disabled:bg-neutral-control-color-40 transition-colors font-metro-regular mb-8">
                     Deposit
                 </button>
 
@@ -334,8 +335,8 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 </div>
 
                 <div className="text-center">
-                    <h2 className="text-2xl font-semibold mb-2 text-gray-800">Processing</h2>
-                    <p className="text-gray-600">Processing your deposit</p>
+                    <h2 className="text-2xl font-metro-semibold mb-2 text-text-color-80">Processing</h2>
+                    <p className="font-metro-regular text-text-color-60">Processing your deposit</p>
                 </div>
             </div>
         ),
@@ -347,17 +348,17 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
         () => (
             <div className="flex flex-col items-center justify-center h-full">
                 <div className="mb-6 relative">
-                    <div className="w-16 h-16 border-4 border-green-500 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 border-4 border-system-green-60 rounded-full flex items-center justify-center">
                         <Image src="/check.svg" alt="check" width={36} height={36} />
                     </div>
                 </div>
 
                 <div className="text-center">
-                    <h2 className="text-2xl font-semibold mb-2 text-gray-800">Success!</h2>
-                    <p className="text-gray-600">Your deposit was successful</p>
+                    <h2 className="text-2xl font-metro-semibold mb-2 text-text-color-80">Success!</h2>
+                    <p className="font-metro-semibold text-base text-text-color-60">Your deposit was successful</p>
                 </div>
 
-                <div className="mt-4 text-sm text-gray-500">Closing in a moment...</div>
+                <div className="mt-4 text-sm font-metro-regular text-text-color-50">Closing in a moment...</div>
             </div>
         ),
         [],
@@ -408,7 +409,7 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
 
     return (
         <div
-            className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
+            className={`fixed top-0 right-0 h-full bg-main-background-color shadow-lg z-50 w-full sm:w-96 transition-transform duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             onTouchStart={handleTouchStart}
@@ -418,23 +419,13 @@ export default function Deposit({ isOpen, onClose }: DepositProps) {
                 <div className="flex justify-between items-center mb-4">
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        className="p-2 rounded-full hover:bg-neutral-control-color-20 transition-colors"
                         aria-label="Close">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                            className="w-6 h-6">
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
-                            />
-                        </svg>
+                        <LeftArrowIcon className="w-6 h-6" />
                     </button>
-                    <h1 className="text-black text-sm uppercase tracking-wider font-normal">Open Account</h1>
+                    <h1 className="text-text-color-100 text-sm uppercase tracking-wider font-gilmer-regular">
+                        Open Account
+                    </h1>
                     <div className="w-8" />
                 </div>
 

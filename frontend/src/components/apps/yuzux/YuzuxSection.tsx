@@ -1,3 +1,6 @@
+import { PauseIcon } from '@/assets/images/PauseIcon';
+import { PlayIcon } from '@/assets/images/PlayIcon';
+import { RightChevronIcon } from '@/assets/images/RightChevronIcon';
 import Image from 'next/image';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
@@ -145,16 +148,15 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
             <div className="flex items-center w-full max-w-md gap-x-2 gap-y-0 mt-2 mb-8">
                 <Image src="/logo_yuzux.png" alt="Yuzux Logo" width={32} height={32} />
                 <div>
-                    <h1 className="text-lg font-bold">Yuzux</h1>
-                    <p className="text-gray-600 text-sm">Fast payments via state channels</p>
+                    <h1 className="text-lg text-text-color-100 font-metro-bold">Yuzux</h1>
+                    <p className="text-text-color-70 font-metro-regular text-sm">Fast payments via state channels</p>
                 </div>
             </div>
 
             <button
                 onClick={onOpenYuzux}
-                className="w-full max-w-md bg-[#FCD000] text-black py-2 rounded-[2px] hover:bg-[#FFDA33] transition-all font-normal transform hover:scale-105 duration-200"
-                aria-label="Open Yuzux App"
-            >
+                className="w-full max-w-md bg-primary-cta-color-60 text-primary-cta-layer-color-90 py-2 rounded-sm hover:bg-primary-cta-color-80 transition-all font-metro-regular transform hover:scale-105 duration-200"
+                aria-label="Open Yuzux App">
                 Open App
             </button>
         </section>
@@ -167,27 +169,16 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
             <button
                 onClick={prevSlide}
                 className="absolute left-0 top-1/2 transform -translate-y-1/2 z-40 bg-black/30 hover:bg-black/50 w-12 h-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                aria-label="Previous slide"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="white"
-                    viewBox="0 0 24 24"
-                    className="w-6 h-6 transform rotate-180"
-                >
-                    <path d="M9.354 5.354a.5.5 0 0 0-.707 0l-.704.703a.5.5 0 0 0 0 .707L13.17 12l-5.227 5.236a.5.5 0 0 0 0 .707l.704.703a.5.5 0 0 0 .707 0l6.293-6.292a.5.5 0 0 0 0-.707L9.354 5.353Z" />
-                </svg>
+                aria-label="Previous slide">
+                <RightChevronIcon className="w-6 h-6 transform rotate-180 text-white" />
             </button>
 
             {/* Right navigation button */}
             <button
                 onClick={nextSlide}
                 className="absolute right-0 top-1/2 transform -translate-y-1/2 z-40 bg-black/30 hover:bg-black/50 w-12 h-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                aria-label="Next slide"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" className="w-6 h-6">
-                    <path d="M9.354 5.354a.5.5 0 0 0-.707 0l-.704.703a.5.5 0 0 0 0 .707L13.17 12l-5.227 5.236a.5.5 0 0 0 0 .707l.704.703a.5.5 0 0 0 .707 0l6.293-6.292a.5.5 0 0 0 0-.707L9.354 5.353Z" />
-                </svg>
+                aria-label="Next slide">
+                <RightChevronIcon className="w-6 h-6 transform text-white" />
             </button>
         </>
     );
@@ -199,32 +190,11 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
             <button
                 onClick={togglePause}
                 className="flex items-center justify-center p-1 cursor-pointer group"
-                aria-label={isPaused ? 'Play slideshow' : 'Pause slideshow'}
-            >
+                aria-label={isPaused ? 'Play slideshow' : 'Pause slideshow'}>
                 {isPaused ? (
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-6 h-6 text-gray-500 group-hover:text-gray-700"
-                    >
-                        <path
-                            fillRule="evenodd"
-                            d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z"
-                        />
-                    </svg>
+                    <PauseIcon className="w-6 h-6 text-text-color-50 group-hover:text-text-color-70" />
                 ) : (
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-6 h-6 text-gray-500 group-hover:text-gray-700"
-                    >
-                        <path
-                            fillRule="evenodd"
-                            d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z"
-                        />
-                    </svg>
+                    <PlayIcon className="w-6 h-6 text-text-color-50 group-hover:text-text-color-70" />
                 )}
             </button>
 
@@ -236,12 +206,13 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
                         className="relative h-[3px] w-9 py-2 cursor-pointer"
                         onClick={() => setCurrentSlide(index)}
                         aria-label={`Go to ${slide.title} slide${currentSlide === index ? ', active slide' : ''}`}
-                        aria-controls="carousel-container"
-                    >
+                        aria-controls="carousel-container">
                         <span
                             aria-hidden="true"
                             className={`absolute top-1/2 left-0 right-0 h-[3px] transform -translate-y-1/2 transition-colors duration-300 ${
-                                currentSlide === index ? 'bg-[#FCD000]' : 'bg-gray-300 hover:bg-gray-400'
+                                currentSlide === index
+                                    ? 'bg-primary-cta-color-60'
+                                    : 'bg-neutral-control-color-30 hover:bg-neutral-control-color-40'
                             }`}
                         />
                     </button>
@@ -258,8 +229,7 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
             <section className="hidden md:block relative w-full">
                 <div
                     id="carousel-container"
-                    className="relative w-full h-[320px] lg:h-[360px] overflow-hidden rounded-[4px] group"
-                >
+                    className="relative w-full h-[320px] lg:h-[360px] overflow-hidden rounded-[4px] group">
                     {/* Gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-900/70 to-transparent z-10" />
 
@@ -271,8 +241,7 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
                                 className={`absolute inset-0 transition-opacity duration-1000 ${
                                     index === currentSlide ? 'opacity-100' : 'opacity-0'
                                 }`}
-                                aria-hidden={index !== currentSlide}
-                            >
+                                aria-hidden={index !== currentSlide}>
                                 <Image
                                     src={slide.image.src}
                                     alt={slide.image.alt}
@@ -291,23 +260,25 @@ export function YuzuxSection({ onOpenYuzux }: YuzuxSectionProps) {
                     {carouselSlides.map((slide, index) => (
                         <div
                             key={`content-${slide.id}`}
-                            className={`absolute inset-0 z-30 flex flex-col justify-center px-12 lg:px-16 transition-opacity duration-1000 ${
-                                index === currentSlide ? 'opacity-100' : 'opacity-0'
+                            className={`absolute inset-0 flex flex-col justify-center px-12 lg:px-16 transition-opacity duration-1000 ${
+                                index === currentSlide ? 'z-10 opacity-100' : 'z-0 opacity-0'
                             }`}
-                            aria-hidden={index !== currentSlide}
-                        >
+                            aria-hidden={index !== currentSlide}>
                             <div className="max-w-md">
                                 <div className="flex items-center gap-x-3 mb-3">
-                                    <h1 className="text-3xl lg:text-4xl font-bold text-white">{slide.title}</h1>
+                                    <h1 className="text-3xl lg:text-4xl font-gilmer-bold text-text-color-0">
+                                        {slide.title}
+                                    </h1>
                                 </div>
 
-                                <p className="text-lg text-gray-300 mb-4 md:mb-5">{slide.description}</p>
+                                <p className="text-lg font-metro-regular text-text-color-10 mb-4 md:mb-5">
+                                    {slide.description}
+                                </p>
 
                                 <button
                                     onClick={handleSlideAction}
-                                    className="w-auto bg-[#FCD000] text-black py-2 px-6 rounded-[2px] hover:bg-[#FFDA33] transition-all font-medium transform hover:scale-105 duration-200 text-base"
-                                    aria-label={slide.buttonText}
-                                >
+                                    className="w-auto bg-primary-cta-color-60 text-primary-cta-layer-color-90 py-2 px-6 rounded-sm hover:bg-primary-cta-color-80 hover:transition-all font-metro-medium hover:transform hover:scale-105 text-base"
+                                    aria-label={slide.buttonText}>
                                     {slide.buttonText}
                                 </button>
                             </div>

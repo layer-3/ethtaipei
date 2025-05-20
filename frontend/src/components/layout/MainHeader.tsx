@@ -5,6 +5,7 @@ import { ConnectButton } from '@/components/wallet/clearnet/ConnectButton';
 import { MetaMaskConnectButton } from '@/components/wallet/clearnet/MetaMaskConnectButton';
 import { formatTokenUnits } from '@/hooks/utils/tokenDecimals';
 import APP_CONFIG from '@/config/app';
+import { ProfileIcon } from '@/assets/images/ProfileIcon';
 
 export function MainHeader() {
     const walletSnap = useSnapshot(WalletStore.state);
@@ -27,10 +28,10 @@ export function MainHeader() {
     })();
 
     return (
-        <header className="flex justify-between items-center mb-2 md:mb-2 max-w-7xl mx-auto w-full">
+        <header className="flex justify-between items-center mb-2 md:mb-2 max-w-full 3xl:w-[1250px] 2xl:w-[1155px] xl:w-[921px] mx-auto w-full">
             <div className="flex items-center">
                 <Link href="/" className="flex items-center">
-                    <span className="ml-2 font-bold text-2xl text-gray-900">ClearNet</span>
+                    <span className="ml-2 font-gilmer-bold text-2xl text-text-color-90">ClearNet</span>
                 </Link>
             </div>
 
@@ -45,24 +46,13 @@ export function MainHeader() {
                 ) : (
                     // Connected - show Account button that links to account page
                     <Link href="/account" className="group">
-                        <div className="flex items-center gap-3 px-3 md:px-4 py-2 bg-white rounded-[2px] hover:bg-gray-100 transition-colors">
-                            <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="w-4 h-4 md:w-5 md:h-5 text-gray-600">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                    <circle cx="12" cy="7" r="4" />
-                                </svg>
+                        <div className="flex items-center gap-3 px-3 md:px-4 py-2 bg-neutral-control-color-0 rounded-[2px] hover:bg-neutral-control-color-10 transition-colors">
+                            <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-neutral-control-color-30 flex items-center justify-center overflow-hidden">
+                                <ProfileIcon />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-sm text-gray-900 font-medium">Account</span>
-                                <span className="text-xs text-gray-600 group-hover:text-gray-900 transition-colors">
+                                <span className="text-sm text-text-color-90 font-metro-medium">Account</span>
+                                <span className="text-xs font-metro-regular text-text-color-60 group-hover:text-text-color-90 transition-colors">
                                     Balance: ${formattedBalance}
                                 </span>
                             </div>
