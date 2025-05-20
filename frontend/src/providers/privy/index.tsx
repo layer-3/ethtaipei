@@ -1,7 +1,15 @@
+'use client';
+
 import { chains } from '@/config/chains';
 import React, { FC } from 'react';
-import { PrivyProvider } from '@privy-io/react-auth';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
+
+// Import PrivyProvider dynamically with ssr disabled to avoid HTMLElement not defined error
+const PrivyProvider = dynamic(
+    () => import('@privy-io/react-auth').then((mod) => mod.PrivyProvider),
+    { ssr: false }
+);
 
 interface IPrivyProps {
     children: React.ReactNode;
@@ -41,12 +49,11 @@ const Privy: FC<IPrivyProps> = ({ children }) => {
                     showWalletUIs: true,
                 },
                 legal: {
-                    termsAndConditionsUrl: 'https://clearnet.com/terms_of_service',
-                    privacyPolicyUrl: 'https://clearnet.com/privacy_policy',
+                    termsAndConditionsUrl: 'https://yellow.com/terms_of_service',
+                    privacyPolicyUrl: 'https://yellow.com/privacy_policy',
                 },
                 supportedChains: chains,
-            }}
-        >
+            }}>
             {children}
         </PrivyProvider>
     );
