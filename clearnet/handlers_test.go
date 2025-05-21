@@ -190,7 +190,7 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 		Status:       ChannelStatusOpen,
 		Challenge:    60,
 		Weights:      []int64{100, 0},
-		Token:        tokenAddress,
+		Asset:        tokenAddress,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 		Quorum:       100,
@@ -249,13 +249,13 @@ func TestHandleCloseVirtualApp(t *testing.T) {
 	assert.Equal(t, ChannelStatusClosed, updatedChannel.Status)
 
 	// Check that funds were transferred back to channels according to allocations
-	directAccountA := ledger.SelectBeneficiaryAccount(channelA.ChannelID, participantA)
-	balanceA, err := directAccountA.Balance()
+	unifiedAccountA := SelectUnifiedAccount(db, tokenAddress, participantA)
+	balanceA, err := unifiedAccountA.Balance()
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceA)
 
-	directAccountB := ledger.SelectBeneficiaryAccount(channelB.ChannelID, participantB)
-	balanceB, err := directAccountB.Balance()
+	unifiedAccountB := SelectUnifiedAccount(db, tokenAddress, participantB)
+	balanceB, err := unifiedAccountB.Balance()
 	require.NoError(t, err)
 	assert.Equal(t, int64(250), balanceB)
 
@@ -314,12 +314,9 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	}
 	require.NoError(t, db.Create(channelB).Error)
 
-	// Create ledger and fund channels
-	ledger := NewLedger(db)
-	acctA := ledger.SelectBeneficiaryAccount(channelA.ChannelID, addrA)
-	require.NoError(t, acctA.Record(100))
-	acctB := ledger.SelectBeneficiaryAccount(channelB.ChannelID, addrB)
-	require.NoError(t, acctB.Record(200))
+	// Fund unified accounts
+	require.NoError(t, SelectUnifiedAccount(db, tokenAddress, addrA).Record(100))
+	require.NoError(t, SelectUnifiedAccount(db, tokenAddress, addrB).Record(200))
 
 	// Create common timestamp for all signatures - will also be used as nonce
 	timestamp := uint64(time.Now().Unix())
@@ -378,7 +375,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	// Add both signatures to the request
 	rpcReq.Sig = []string{sigA, sigB}
 
-	// Process the request
+	ledger := NewLedger(db)
 	resp, err := HandleCreateApplication(rpcReq, ledger)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -400,7 +397,7 @@ func TestHandleCreateVirtualApp(t *testing.T) {
 	require.NoError(t, db.
 		Where("app_id = ?", appResp.AppID).
 		First(&vApp).Error)
-	assert.Equal(t, tokenAddress, vApp.Token)
+	assert.Equal(t, tokenAddress, vApp.Asset)
 	assert.ElementsMatch(t, []string{addrA, addrB}, vApp.Participants)
 	assert.Equal(t, ChannelStatusOpen, vApp.Status)
 

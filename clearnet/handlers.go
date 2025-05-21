@@ -30,7 +30,7 @@ type AppDefinition struct {
 // CreateApplicationParams represents parameters needed for virtual app creation
 type CreateApplicationParams struct {
 	Definition  AppDefinition `json:"definition"`
-	Token       string        `json:"token"`
+	Token       string        `json:"token"` // "usdc"
 	Allocations []int64       `json:"allocations"`
 }
 
@@ -252,14 +252,7 @@ func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, err
 
 	// Use a transaction to ensure atomicity for the entire operation
 	err = ledger.db.Transaction(func(tx *gorm.DB) error {
-		ledgerTx := &Ledger{db: tx}
-
 		for i, participant := range createApp.Definition.Participants {
-			participantChannel, err := getChannelForParticipant(tx, participant)
-			if err != nil {
-				return err
-			}
-
 			allocation := big.NewInt(createApp.Allocations[i])
 
 			if allocation.Cmp(big.NewInt(rpc.Intent[i])) != 0 {
@@ -276,17 +269,23 @@ func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, err
 				}
 			}
 
-			account := ledgerTx.SelectBeneficiaryAccount(participantChannel.ChannelID, participant)
+			account := SelectUnifiedAccount(tx, createApp.Token, participant)
 			balance, err := account.Balance()
 			if err != nil {
 				return fmt.Errorf("failed to check participant balance: %w", err)
 			}
+
 			if balance < allocation.Int64() {
 				return errors.New("insufficient funds")
 			}
 
-			toAccount := ledgerTx.SelectBeneficiaryAccount(vAppID.Hex(), participant)
-			if err := account.Transfer(toAccount, allocation.Int64()); err != nil {
+			err = account.Record(-allocation.Int64())
+			if err != nil {
+				return fmt.Errorf("failed to adjust participant balance: %w", err)
+			}
+			ledgerTx := &Ledger{db: tx}
+			vAppAccount := ledgerTx.SelectBeneficiaryAccount(vAppID.Hex(), participant)
+			if err := vAppAccount.Record(allocation.Int64()); err != nil {
 				return fmt.Errorf("failed to transfer funds from participant: %w", err)
 			}
 		}
@@ -304,7 +303,7 @@ func HandleCreateApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, err
 			Status:       ChannelStatusOpen,
 			Challenge:    createApp.Definition.Challenge,
 			Weights:      weights,
-			Token:        createApp.Token,
+			Asset:        createApp.Token,
 			Quorum:       createApp.Definition.Quorum,
 			Nonce:        createApp.Definition.Nonce,
 			Version:      rpc.Req.Timestamp,
@@ -420,15 +419,12 @@ func HandleCloseApplication(rpc *RPCRequest, ledger *Ledger) (*RPCResponse, erro
 				return fmt.Errorf("failed to adjust virtual balance for %s: %w", participant, err)
 			}
 
-			channel, err := getChannelForParticipant(tx, participant)
+			account := SelectUnifiedAccount(tx, vApp.Asset, participant)
+			err = account.Record(allocation)
 			if err != nil {
-				return fmt.Errorf("failed to find channel for %s: %w", participant, err)
+				return fmt.Errorf("failed to adjust participant balance: %w", err)
 			}
 
-			toAccount := ledgerTx.SelectBeneficiaryAccount(channel.ChannelID, participant)
-			if err := toAccount.Record(allocation); err != nil {
-				return fmt.Errorf("failed to adjust balance for %s: %w", participant, err)
-			}
 			sumAllocations += allocation
 		}
 
@@ -545,12 +541,27 @@ func HandleResizeChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCR
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
 
-	brokerPart := channel.Amount - balance
+	brokerPart := channel.Amount - (balance + params.ParticipantChange.Int64())
 
 	// Calculate the new channel amount
 	newAmount := new(big.Int).Add(big.NewInt(balance), params.ParticipantChange)
 	if newAmount.Sign() < 0 {
 		return nil, errors.New("invalid resize amount")
+	}
+
+	asset, ok := getAssetFromTokenNetwork(channel.Token, channel.NetworkID)
+	if !ok {
+		return nil, fmt.Errorf("(unsupported) failed to find asset for token: %s on network: %s", channel.Token, channel.NetworkID)
+	}
+
+	unifiedAccount := SelectUnifiedAccount(ledger.db, asset, channel.ParticipantA)
+	unifiedBalance, err := unifiedAccount.Balance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check participant balance: %w", err)
+	}
+
+	if unifiedBalance < newAmount.Int64() {
+		return nil, errors.New("insufficient unified balance")
 	}
 
 	allocations := []nitrolite.Allocation{
@@ -566,7 +577,7 @@ func HandleResizeChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCR
 		},
 	}
 
-	resizeAmounts := []*big.Int{params.ParticipantChange, big.NewInt(-brokerPart)} // Always release broker funds if there is a surplus.
+	resizeAmounts := []*big.Int{big.NewInt(0), big.NewInt(-brokerPart)} // Always release broker funds if there is a surplus.
 
 	intentionType, err := abi.NewType("int256[]", "", nil)
 	if err != nil {
@@ -652,17 +663,33 @@ func HandleCloseChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCRe
 		return nil, errors.New("invalid signature")
 	}
 
-	account := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
-	balance, err := account.Balance()
+	// TODO: use transaction
+	channelAccount := ledger.SelectBeneficiaryAccount(channel.ChannelID, channel.ParticipantA)
+	channelBalance, err := channelAccount.Balance()
 	if err != nil {
 		return nil, fmt.Errorf("failed to check participant A balance: %w", err)
 	}
 
-	if channel.Amount-balance < 0 {
+	asset, ok := getAssetFromTokenNetwork(channel.Token, channel.NetworkID)
+	if !ok {
+		return nil, fmt.Errorf("(unsupported) failed to find asset for token: %s on network: %s", channel.Token, channel.NetworkID)
+	}
+
+	account := SelectUnifiedAccount(ledger.db, asset, channel.ParticipantA)
+	unifiedBalance, err := account.Balance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check participant balance: %w", err)
+	}
+
+	if unifiedBalance < channelBalance {
+		return nil, errors.New("insufficient balance. close vapps or resize channel and try again")
+	}
+
+	if channel.Amount-channelBalance < 0 {
 		return nil, errors.New("resize this channel first")
 	}
 
-	if balance < 0 {
+	if channelBalance < 0 {
 		return nil, errors.New("insufficient funds for participant: " + channel.Token)
 	}
 
@@ -670,12 +697,12 @@ func HandleCloseChannel(rpc *RPCRequest, ledger *Ledger, signer *Signer) (*RPCRe
 		{
 			Destination: common.HexToAddress(params.FundsDestination),
 			Token:       common.HexToAddress(channel.Token),
-			Amount:      big.NewInt(balance),
+			Amount:      big.NewInt(channelBalance),
 		},
 		{
 			Destination: common.HexToAddress(channel.ParticipantB),
 			Token:       common.HexToAddress(channel.Token),
-			Amount:      big.NewInt(channel.Amount - balance), // Broker receives the remaining amount
+			Amount:      big.NewInt(channel.Amount - channelBalance), // Broker receives the remaining amount
 		},
 	}
 

@@ -125,8 +125,11 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 		}
 
 		participantA := ev.Channel.Participants[0].Hex()
-		nonce := ev.Channel.Nonce
 		participantB := ev.Channel.Participants[1].Hex()
+		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
+		tokenAmount := ev.Initial.Allocations[0].Amount.Int64()
+		channelID := common.BytesToHash(ev.ChannelId[:]).Hex()
+		nonce := ev.Channel.Nonce
 
 		// Check if channel was created with the broker.
 		if participantB != BrokerAddress {
@@ -134,8 +137,8 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		// Check if there is already existing open channel with the broker
-		existingOpenChannel, err := CheckExistingChannels(c.ledger.db, participantA, participantB, c.networkID)
+		// Allow only one channel with broker per token per network.
+		existingOpenChannel, err := CheckExistingChannels(c.ledger.db, participantA, participantB, c.networkID, tokenAddress)
 		if err != nil {
 			log.Printf("[Created] Error checking channels in database: %v", err)
 			return
@@ -146,10 +149,6 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 			return
 		}
 
-		tokenAddress := ev.Initial.Allocations[0].Token.Hex()
-		tokenAmount := ev.Initial.Allocations[0].Amount.Int64()
-
-		channelID := common.BytesToHash(ev.ChannelId[:]).Hex()
 		err = CreateChannel(
 			c.ledger.db,
 			channelID,
@@ -178,16 +177,6 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 
 		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s", channelID, c.networkID)
 
-		log.Printf("[ChannelCreated] Successfully initiated join for channel %s on network %s",
-			channelID, c.networkID)
-
-		account := c.ledger.SelectBeneficiaryAccount(channelID, participantA)
-
-		if err := account.Record(tokenAmount); err != nil {
-			log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
-			return
-		}
-
 	case custodyAbi.Events["Joined"].ID:
 		ev, err := c.custody.ParseJoined(l)
 		if err != nil {
@@ -214,6 +203,24 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 				return fmt.Errorf("failed to close channel: %w", err)
 			}
 			log.Printf("Joined channel with ID: %s", channelID)
+
+			channelAccount := c.ledger.SelectBeneficiaryAccount(channelID, channel.ParticipantA)
+			if err := channelAccount.Record(channel.Amount); err != nil {
+				log.Printf("[ChannelCreated] Error recording initial balance for participant A: %v", err)
+				return err
+			}
+
+			asset, ok := getAssetFromTokenNetwork(channel.Token, c.networkID)
+			if !ok {
+				log.Println("Error: asset not found for token network:", channel.Token, c.networkID)
+				return nil
+			}
+
+			account := SelectUnifiedAccount(tx, asset, channel.ParticipantA)
+			if err := account.Record(channel.Amount); err != nil {
+				log.Printf("Error recording initial balance for participant A: %v", err)
+				return err
+			}
 
 			return nil
 		})
@@ -251,16 +258,28 @@ func (c *Custody) handleBlockChainEvent(l types.Log) {
 				return fmt.Errorf("failed to close channel: %w", err)
 			}
 
-			account := c.ledger.SelectBeneficiaryAccount(channelID, channel.ParticipantA)
-			account.db = tx
-			balance, err := account.Balance()
+			channelAccount := c.ledger.SelectBeneficiaryAccount(channelID, channel.ParticipantA)
+			channelAccount.db = tx
+			balance, err := channelAccount.Balance()
 			if err != nil {
 				log.Printf("[Closed] Error getting balances for participant: %v", err)
 				return err
 			}
 
+			if err := channelAccount.Record(-balance); err != nil {
+				log.Printf("Error recording initial balance for participant A: %v", err)
+				return err
+			}
+
+			asset, ok := getAssetFromTokenNetwork(channel.Token, c.networkID)
+			if !ok {
+				log.Printf("(unsupported) failed to find asset for token: %s on network: %s", channel.Token, channel.NetworkID)
+				return nil
+			}
+
+			account := SelectUnifiedAccount(tx, asset, channel.ParticipantA)
 			if err := account.Record(-balance); err != nil {
-				log.Printf("[Closed] Error recording initial balance for participant A: %v", err)
+				log.Printf("Error recording initial balance for participant A: %v", err)
 				return err
 			}
 
